@@ -241,7 +241,7 @@ class Client(BaseClient):
 
         if path:
 
-            cmd = "CWD " + path
+            cmd = "CWD " + str(path)
 
         else:
 
@@ -252,21 +252,35 @@ class Client(BaseClient):
     @asyncio.coroutine
     def make_directory(self, path):
 
-        code, info = yield from self.command("MKD " + path, "257")
-        directory = self.parse_directory_response(info[-1])
-        return directory
+        path = pathlib.Path(path)
+        need_create = []
+
+        while path.name and not (yield from self.exists(path)):
+
+            need_create.append(path)
+            path = path.parent
+
+        need_create.reverse()
+        for path in need_create:
+
+            code, info = yield from self.command("MKD " + str(path), "257")
+            directory = self.parse_directory_response(info[-1])
+
+        if need_create:
+
+            return directory
 
     @asyncio.coroutine
     def remove_directory(self, path):
 
-        yield from self.command("RMD " + path, "250")
+        yield from self.command("RMD " + str(path), "250")
 
     @asyncio.coroutine
-    def list_directory(self, path=""):
+    def list(self, path=""):
 
         lines = []
         yield from self.retrieve(
-            str.strip("MLSD " + path),
+            str.strip("MLSD " + str(path)),
             "1xx",
             use_lines=True,
             callback=lines.append,
@@ -275,57 +289,62 @@ class Client(BaseClient):
         return info
 
     @asyncio.coroutine
-    def path_info(self, path):
+    def info(self, path):
 
-        code, info = yield from self.command("MLST " + path, "2xx")
+        code, info = yield from self.command("MLST " + str(path), "2xx")
         info = self.parse_mlsx_line(str.lstrip(info[1]))
         return info
 
     @asyncio.coroutine
-    def path_exist(self, path):
+    def exists(self, path):
 
-        code, info = yield from self.command("MLST " + path, ("2xx", "550"))
+        code, info = yield from self.command(
+            "MLST " + str(path),
+            ("2xx", "550")
+        )
         exist = code.matches("2xx")
         return exist
 
     @asyncio.coroutine
-    def move_file(self, src, dst):
+    def move(self, src, dst):
 
-        code, info = yield from self.command("RNFR " + src, "350")
-        code, info = yield from self.command("RNTO " + dst, "2xx")
+        code, info = yield from self.command("RNFR " + str(src), "350")
+        code, info = yield from self.command("RNTO " + str(dst), "2xx")
         return code, info
 
     @asyncio.coroutine
     def remove_file(self, path):
 
-        code, info = yield from self.command("DELE " + path, "2xx")
+        code, info = yield from self.command("DELE " + str(path), "2xx")
         return code, info
 
     @asyncio.coroutine
-    def remove_recursive(self, path):
+    def remove(self, path):
 
-        info = yield from self.path_info(path)
-        if info.info["type"] == "file":
+        if (yield from self.exists(path)):
 
-            yield from self.remove_file(path)
+            info = yield from self.info(path)
+            if info.info["type"] == "file":
 
-        elif info.info["type"] == "dir":
+                yield from self.remove_file(path)
 
-            sub_dir = yield from self.list_directory(path)
-            for sub_dir_info in sub_dir:
+            elif info.info["type"] == "dir":
 
-                if sub_dir_info.info["type"] in ("dir", "file"):
+                subdir = yield from self.list(path)
+                for subdir_file_info in subdir:
 
-                    npath = pathlib.Path(path) / sub_dir_info.name
-                    yield from self.remove_recursive(str(npath))
+                    if subdir_file_info.info["type"] in ("dir", "file"):
 
-            yield from self.remove_directory(path)
+                        npath = pathlib.Path(path) / subdir_file_info.name
+                        yield from self.remove(npath)
+
+                yield from self.remove_directory(path)
 
     @asyncio.coroutine
     def upload_file(self, path, file, *, callback=None, block_size=8192):
 
         yield from self.store(
-            "STOR " + path,
+            "STOR " + str(path),
             "1xx",
             file=file,
             callback=callback,
@@ -333,10 +352,61 @@ class Client(BaseClient):
         )
 
     @asyncio.coroutine
+    def upload(self, source, path="", *, write_into=False, callback=None,
+               block_size=8192):
+
+        source = pathlib.Path(source)
+        path = pathlib.Path(path)
+        if not write_into:
+
+            path = path / source.name
+
+        if source.is_file():
+
+            yield from self.make_directory(path.parent)
+            with source.open(mode="rb") as fin:
+
+                yield from self.upload_file(
+                    path,
+                    fin,
+                    callback=callback,
+                    block_size=block_size
+                )
+
+        elif source.is_dir():
+
+            yield from self.make_directory(path)
+            for p in source.rglob("*"):
+
+                if write_into:
+
+                    relative = path.name / p.relative_to(source)
+
+                else:
+
+                    relative = p.relative_to(source.parent)
+
+                if p.is_dir():
+
+                    yield from self.make_directory(relative)
+
+                else:
+
+                    yield from self.make_directory(relative.parent)
+                    with p.open(mode="rb") as fin:
+
+                        yield from self.upload_file(
+                            relative,
+                            fin,
+                            callback=callback,
+                            block_size=block_size
+                        )
+
+    @asyncio.coroutine
     def download_file(self, path, *, callback, block_size=8192):
 
         yield from self.retrieve(
-            "RETR " + path,
+            "RETR " + str(path),
             "1xx",
             callback=callback,
             block_size=block_size,
