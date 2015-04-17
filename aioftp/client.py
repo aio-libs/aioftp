@@ -45,6 +45,19 @@ def open_connection(host, port, create_connection=None):
     return reader, writer
 
 
+def ChainCallback(*callbacks):
+
+    def callback(*args, **kwargs):
+
+        for f in callbacks:
+
+            if f:
+
+                f(*args, **kwargs)
+
+    return callback
+
+
 class BaseClient:
 
     def __init__(self, create_connection=None):
@@ -172,7 +185,7 @@ class BaseClient:
 
                     directory += ch
 
-        return directory
+        return pathlib.Path(directory)
 
     def parse_mlsx_line(self, b):
 
@@ -192,7 +205,7 @@ class BaseClient:
             key, _, value = str.partition(fact, "=")
             entry[key.lower()] = value
 
-        return name, entry
+        return pathlib.Path(name), entry
 
 
 class Client(BaseClient):
@@ -225,14 +238,14 @@ class Client(BaseClient):
             code, info = yield from self.command(cmd, ("230", "33x"))
 
     @asyncio.coroutine
-    def getcwd(self):
+    def get_current_directory(self):
 
         code, info = yield from self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
         return directory
 
     @asyncio.coroutine
-    def chdir(self, path=".."):
+    def change_directory(self, path=".."):
 
         if path in ("..", pathlib.Path("..")):
 
@@ -245,7 +258,7 @@ class Client(BaseClient):
         yield from self.command(cmd, "250")
 
     @asyncio.coroutine
-    def mkdir(self, path, parents=True):
+    def make_directory(self, path, parents=True):
 
         path = pathlib.Path(path)
         need_create = []
@@ -263,34 +276,64 @@ class Client(BaseClient):
             code, info = yield from self.command("MKD " + str(path), "257")
             directory = self.parse_directory_response(info[-1])
 
-        if need_create:
-
-            return directory
-
     @asyncio.coroutine
-    def rmdir(self, path):
+    def remove_directory(self, path):
 
         yield from self.command("RMD " + str(path), "250")
 
     @asyncio.coroutine
-    def listdir(self, path=""):
+    def list(self, path="", *, recursive=False):
 
-        lines = []
+        def callback(line):
+
+            nonlocal files
+            nonlocal path
+            name, info = self.parse_mlsx_line(line)
+            if info["type"] in ("file", "dir"):
+
+                files.append((path / name, info))
+
+        files = []
         yield from self.retrieve(
             str.strip("MLSD " + str(path)),
             "1xx",
             use_lines=True,
-            callback=lines.append,
+            callback=callback,
         )
-        files = tuple(map(self.parse_mlsx_line, lines))
+        if recursive:
+
+            deep_files = []
+            for name, info in files:
+
+                if info["type"] == "dir":
+
+                    deep_files += yield from self.list(
+                        name,
+                        recursive=recursive,
+                    )
+
+            files += deep_files
+
         return files
 
     @asyncio.coroutine
     def stat(self, path):
 
-        yield from self.command("MLST " + str(path), "2xx")
+        code, info = yield from self.command("MLST " + str(path), "2xx")
         name, info = self.parse_mlsx_line(str.lstrip(info[1]))
         return info
+
+    @asyncio.coroutine
+    def is_file(self, path):
+
+        info = yield from self.stat(path)
+        return info["type"] == "file"
+
+    @asyncio.coroutine
+    def is_dir(self, path):
+
+        info = yield from self.stat(path)
+        return info["type"] == "dir"
 
     @asyncio.coroutine
     def exists(self, path):
@@ -309,7 +352,7 @@ class Client(BaseClient):
         yield from self.command("RNTO " + str(destination), "2xx")
 
     @asyncio.coroutine
-    def rmfile(self, path):
+    def remove_file(self, path):
 
         yield from self.command("DELE " + str(path), "2xx")
 
@@ -321,19 +364,17 @@ class Client(BaseClient):
             info = yield from self.stat(path)
             if info["type"] == "file":
 
-                yield from self.rmfile(path)
+                yield from self.remove_file(path)
 
             elif info["type"] == "dir":
 
-                subdir = yield from self.listdir(path)
-                for subdir_file_info in subdir:
+                for name, info in (yield from self.list(path)):
 
-                    if subdir_file_info.info["type"] in ("dir", "file"):
+                    if info["type"] in ("dir", "file"):
 
-                        npath = pathlib.Path(path) / subdir_file_info.name
-                        yield from self.remove(npath)
+                        yield from self.remove(name)
 
-                yield from self.rmdir(path)
+                yield from self.remove_directory(path)
 
     @asyncio.coroutine
     def upload_file(self, path, file, *, callback=None, block_size=8192):
@@ -358,19 +399,19 @@ class Client(BaseClient):
 
         if source.is_file():
 
-            yield from self.mkdir(destination.parent)
+            yield from self.make_directory(destination.parent)
             with source.open(mode="rb") as fin:
 
                 yield from self.upload_file(
                     destination,
                     fin,
                     callback=callback,
-                    block_size=block_size
+                    block_size=block_size,
                 )
 
         elif source.is_dir():
 
-            yield from self.mkdir(destination)
+            yield from self.make_directory(destination)
             for p in source.rglob("*"):
 
                 if write_into:
@@ -383,18 +424,18 @@ class Client(BaseClient):
 
                 if p.is_dir():
 
-                    yield from self.mkdir(relative)
+                    yield from self.make_directory(relative)
 
                 else:
 
-                    yield from self.mkdir(relative.parent)
+                    yield from self.make_directory(relative.parent)
                     with p.open(mode="rb") as fin:
 
                         yield from self.upload_file(
                             relative,
                             fin,
                             callback=callback,
-                            block_size=block_size
+                            block_size=block_size,
                         )
 
     @asyncio.coroutine
@@ -413,9 +454,52 @@ class Client(BaseClient):
 
         source = pathlib.Path(source)
         destination = pathlib.Path(destination)
-        if write_into:
+        if not write_into:
 
             destination = destination / source.name
+
+        if (yield from self.is_file(source)):
+
+            if not destination.parent.exists():
+
+                destination.parent.mkdir()
+
+            with destination.open(mode="wb") as fout:
+
+                yield from self.download_file(
+                    source,
+                    callback=ChainCallback(fout.write, callback),
+                    block_size=block_size,
+                )
+
+        elif (yield from self.is_dir(source)):
+
+            if not destination.exists():
+
+                destination.mkdir(parents=True)
+
+            for name, info in (yield from self.list(source, recursive=True)):
+
+                full = destination / name.relative_to(source)
+                if info["type"] == "file":
+
+                    if not full.parent.exists():
+
+                        full.parent.mkdir(parents=True)
+
+                    with full.open(mode="wb") as fout:
+
+                        yield from self.download_file(
+                            name,
+                            callback=ChainCallback(fout.write, callback),
+                            block_size=block_size,
+                        )
+
+                elif info["type"] == "dir":
+
+                    if not full.exists():
+
+                        full.mkdir(parents=True)
 
     @asyncio.coroutine
     def quit(self):
@@ -432,7 +516,7 @@ class Client(BaseClient):
         reader, writer = yield from open_connection(
             ip,
             port,
-            self.create_connection
+            self.create_connection,
         )
         return reader, writer
 
