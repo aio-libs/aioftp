@@ -209,9 +209,21 @@ class BaseClient:
 
 
 class Client(BaseClient):
+    """
+    FTP client.
+
+    :param create_connection: (:class:`function`) factory for creating
+        connection. Using default `loop.create_connection` if omitted.
+    """
 
     @asyncio.coroutine
     def connect(self, host, port=21):
+        """
+        Creates connection to server.
+
+        :param host: (:class:`str`) host name for connection
+        :param port: (:class:`int`) port number for connection
+        """
 
         yield from super().connect(host, port)
         code, info = yield from self.command(None, "220", "120")
