@@ -1,0 +1,7 @@
+.. _api:
+
+Foobar
+======
+
+.. autoclass:: aioftp.Client
+   :members:
