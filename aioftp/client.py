@@ -213,7 +213,9 @@ class Client(BaseClient):
     FTP client.
 
     :param create_connection: (:class:`function`) factory for creating
-        connection. Using default `loop.create_connection` if omitted.
+        connections.
+        Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
+        if omitted.
     """
 
     @asyncio.coroutine
@@ -380,11 +382,11 @@ class Client(BaseClient):
 
             elif info["type"] == "dir":
 
-                for name, info in (yield from self.list(path)):
+                for sub_path, info in (yield from self.list(path)):
 
                     if info["type"] in ("dir", "file"):
 
-                        yield from self.remove(name)
+                        yield from self.remove(sub_path)
 
                 yield from self.remove_directory(path)
 
@@ -490,9 +492,9 @@ class Client(BaseClient):
 
                 destination.mkdir(parents=True)
 
-            for name, info in (yield from self.list(source, recursive=True)):
+            for path, info in (yield from self.list(source, recursive=True)):
 
-                full = destination / name.relative_to(source)
+                full = destination / path.relative_to(source)
                 if info["type"] == "file":
 
                     if not full.parent.exists():
@@ -502,7 +504,7 @@ class Client(BaseClient):
                     with full.open(mode="wb") as fout:
 
                         yield from self.download_file(
-                            name,
+                            path,
                             callback=ChainCallback(fout.write, callback),
                             block_size=block_size,
                         )
