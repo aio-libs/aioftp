@@ -11,18 +11,18 @@ logger = logging.getLogger("aioftp")
 
 class StatusCodeError(Exception):
 
-    def __init__(self, expect_codes, received_code, info):
+    def __init__(self, expected_codes, received_codes, info):
 
         super().__init__(
             str.format(
                 "Waiting for {} but got {} {}",
-                expect_codes,
-                received_code,
+                expected_codes,
+                received_codes,
                 repr(info),
             )
         )
-        self.expect_codes = expect_codes
-        self.received_code = received_code
+        self.expected_codes = expected_codes
+        self.received_codes = received_codes
         self.info = info
 
 
