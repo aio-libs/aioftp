@@ -13,8 +13,8 @@ FTP client/server for asyncio.
 Features
 --------
 
-- High level abstractions on user level api.
-- High level customization on developer level api.
+- High level of abstractions on user level api.
+- High level of customization on developer level api.
 - Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
 
 Library Installation
@@ -43,7 +43,7 @@ Client example
         yield from ftp.login(login, password)
         for path, info in (yield from ftp.list(recursive=True)):
 
-            if str.endswith(path.name, ".mp3"):
+            if info["type"] == "file" and str.endswith(path.name, ".mp3"):
 
                 yield from ftp.download(path, path.name)
 
@@ -82,14 +82,13 @@ Futher reading
     client_tutorial
     server_tutorial
 
-Contents
---------
+API
+---
 
 .. toctree::
    :maxdepth: 2
 
-   user_api
-   full_api
+   api
 
 Indices and tables
 ~~~~~~~~~~~~~~~~~~

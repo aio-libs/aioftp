@@ -24,7 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="aioftp 0.0.1 documentation" href="#" />
-    <link rel="next" title="User api" href="user_api.html" />
+    <link rel="next" title="Client tutorial" href="client_tutorial.html" />
    
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
@@ -38,7 +38,7 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="user_api.html" title="User api"
+          <a href="client_tutorial.html" title="Client tutorial"
              accesskey="N">next</a> |</li>
         <li class="nav-item nav-item-0"><a href="#">aioftp 0.0.1 documentation</a> &raquo;</li> 
       </ul>
@@ -55,8 +55,8 @@
 <div class="section" id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li>High level abstractions on user level api.</li>
-<li>High level customization on developer level api.</li>
+<li>High level of abstractions on user level api.</li>
+<li>High level of customization on developer level api.</li>
 <li>Proxy via <a class="reference external" href="https://github.com/jvansteirteghem/twunnel3">twunnel3</a>.</li>
 </ul>
 </div>
@@ -81,7 +81,7 @@
     <span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">login</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="p">(</span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">)):</span>
 
-        <span class="k">if</span> <span class="nb">str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;.mp3&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">info</span><span class="p">[</span><span class="s">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;file&quot;</span> <span class="ow">and</span> <span class="nb">str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;.mp3&quot;</span><span class="p">):</span>
 
             <span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
@@ -115,16 +115,17 @@
 <div class="section" id="futher-reading">
 <h2>Futher reading<a class="headerlink" href="#futher-reading" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
-<ul class="simple">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="client_tutorial.html">Client tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="server_tutorial.html">Server tutorial</a></li>
 </ul>
 </div>
 </div>
-<div class="section" id="contents">
-<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="api">
+<h2>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="user_api.html">User api</a></li>
-<li class="toctree-l1"><a class="reference internal" href="full_api.html">Full api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 </div>
 <div class="section" id="indices-and-tables">
@@ -155,7 +156,7 @@
 <li><a class="reference internal" href="#getting-started">Getting started</a></li>
 <li><a class="reference internal" href="#dependencies">Dependencies</a></li>
 <li><a class="reference internal" href="#futher-reading">Futher reading</a></li>
-<li><a class="reference internal" href="#contents">Contents</a><ul>
+<li><a class="reference internal" href="#api">API</a><ul>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 </li>
@@ -164,8 +165,8 @@
 </ul>
 
   <h4>Next topic</h4>
-  <p class="topless"><a href="user_api.html"
-                        title="next chapter">User api</a></p>
+  <p class="topless"><a href="client_tutorial.html"
+                        title="next chapter">Client tutorial</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">

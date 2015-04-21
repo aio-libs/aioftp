@@ -5,25 +5,10 @@ import contextlib
 import collections
 import pathlib
 
+from . import errors
+
 
 logger = logging.getLogger("aioftp")
-
-
-class StatusCodeError(Exception):
-
-    def __init__(self, expected_codes, received_codes, info):
-
-        super().__init__(
-            str.format(
-                "Waiting for {} but got {} {}",
-                expected_codes,
-                received_codes,
-                repr(info),
-            )
-        )
-        self.expected_codes = expected_codes
-        self.received_codes = received_codes
-        self.info = info
 
 
 class Code(str):
@@ -99,7 +84,7 @@ class BaseClient:
                 info.append(rest)
                 if curr_code != code:
 
-                    raise StatusCodeError(code, curr_code, info)
+                    raise errors.StatusCodeError(code, curr_code, info)
 
             else:
 
@@ -111,7 +96,7 @@ class BaseClient:
 
         if not any(map(received_code.matches, expect_codes)):
 
-            raise StatusCodeError(expect_codes, received_code, info)
+            raise errors.StatusCodeError(expect_codes, received_code, info)
 
     def wrap_with_container(self, o):
 
@@ -212,8 +197,8 @@ class Client(BaseClient):
     """
     FTP client.
 
-    :param create_connection: (:class:`function`) factory for creating
-        connections.
+    :param callable create_connection: factory for creating
+        connection.
         Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
         if omitted.
     """
@@ -221,10 +206,8 @@ class Client(BaseClient):
     @asyncio.coroutine
     def connect(self, host, port=21):
         """
-        Creates connection to server.
-
-        :param host: (:class:`str`) host name for connection
-        :param port: (:class:`int`) port number for connection
+        :param str host: host name for connection
+        :param int port: port number for connection
         """
 
         yield from super().connect(host, port)
@@ -233,7 +216,11 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def login(self, user="anonymous", password="anon@", account=""):
-
+        """
+        :param str user: username
+        :param str password: password
+        :param str account: account (almost always blank)
+        """
         code, info = yield from self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
 
@@ -247,13 +234,15 @@ class Client(BaseClient):
 
             else:
 
-                raise StatusCodeError("33x", code, info)
+                raise errors.StatusCodeError("33x", code, info)
 
             code, info = yield from self.command(cmd, ("230", "33x"))
 
     @asyncio.coroutine
     def get_current_directory(self):
-
+        """
+        Getting
+        """
         code, info = yield from self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
         return directory
@@ -382,11 +371,11 @@ class Client(BaseClient):
 
             elif info["type"] == "dir":
 
-                for sub_path, info in (yield from self.list(path)):
+                for name, info in (yield from self.list(path)):
 
                     if info["type"] in ("dir", "file"):
 
-                        yield from self.remove(sub_path)
+                        yield from self.remove(name)
 
                 yield from self.remove_directory(path)
 
@@ -492,9 +481,9 @@ class Client(BaseClient):
 
                 destination.mkdir(parents=True)
 
-            for path, info in (yield from self.list(source, recursive=True)):
+            for name, info in (yield from self.list(source, recursive=True)):
 
-                full = destination / path.relative_to(source)
+                full = destination / name.relative_to(source)
                 if info["type"] == "file":
 
                     if not full.parent.exists():
@@ -504,7 +493,7 @@ class Client(BaseClient):
                     with full.open(mode="wb") as fout:
 
                         yield from self.download_file(
-                            path,
+                            name,
                             callback=ChainCallback(fout.write, callback),
                             block_size=block_size,
                         )
