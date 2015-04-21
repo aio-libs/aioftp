@@ -9,4 +9,8 @@ API
     :show-inheritance:
     :inherited-members:
 
+.. autoclass:: aioftp.Code
+    :members:
+    :show-inheritance:
+
 .. autoclass:: aioftp.StatusCodeError

@@ -6,16 +6,10 @@ import collections
 import pathlib
 
 from . import errors
+from . import common
 
 
 logger = logging.getLogger("aioftp")
-
-
-class Code(str):
-
-    def matches(self, mask):
-
-        return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
 
 
 @asyncio.coroutine
@@ -68,7 +62,7 @@ class BaseClient:
         line = yield from self.reader.readline()
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         logger.info(s)
-        return Code(s[:3]), s[3:]
+        return common.Code(s[:3]), s[3:]
 
     @asyncio.coroutine
     def parse_response(self):

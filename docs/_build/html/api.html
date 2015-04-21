@@ -251,6 +251,34 @@ if omitted.</td>
 </dd></dl>
 
 <dl class="class">
+<dt id="aioftp.Code">
+<em class="property">class </em><code class="descclassname">aioftp.</code><code class="descname">Code</code><a class="headerlink" href="#aioftp.Code" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">str</span></code></a></p>
+<p>Representation of server status code.</p>
+<dl class="method">
+<dt id="aioftp.Code.matches">
+<code class="descname">matches</code><span class="sig-paren">(</span><em>mask</em><span class="sig-paren">)</span><a class="headerlink" href="#aioftp.Code.matches" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>mask</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.4)"><em>str</em></a>) &#8211; Template for comparision. If mask symbol is not digit
+then it passes.</td>
+</tr>
+</tbody>
+</table>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">Code</span><span class="p">(</span><span class="s">&quot;123&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="s">&quot;1&quot;</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Code</span><span class="p">(</span><span class="s">&quot;123&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="s">&quot;1*3&quot;</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="aioftp.StatusCodeError">
 <em class="property">class </em><code class="descclassname">aioftp.</code><code class="descname">StatusCodeError</code><span class="sig-paren">(</span><em>expected_codes</em>, <em>received_code</em>, <em>info</em><span class="sig-paren">)</span><a class="headerlink" href="#aioftp.StatusCodeError" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raised for unexpected or &#8220;bad&#8221; status codes.</p>
