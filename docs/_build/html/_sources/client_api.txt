@@ -1,7 +1,7 @@
-.. api:
+.. client_api:
 
-API
-===
+Client API
+==========
 
 .. autoclass:: aioftp.Client
     :members:

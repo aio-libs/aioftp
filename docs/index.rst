@@ -61,7 +61,7 @@ Server example
 
 ::
 
-    Comming soon
+    Coming soon
 
 Dependencies
 ------------
@@ -77,11 +77,12 @@ Futher reading
 --------------
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     client_tutorial
     server_tutorial
-    api
+    client_api
+    server_api
 
 Indices and tables
 ------------------
