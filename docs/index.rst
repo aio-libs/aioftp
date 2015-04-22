@@ -84,7 +84,7 @@ Futher reading
     api
 
 Indices and tables
-~~~~~~~~~~~~~~~~~~
+------------------
 
 * :ref:`genindex`
 * :ref:`search`

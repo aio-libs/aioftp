@@ -55,27 +55,51 @@
             
   <div class="section" id="client-tutorial">
 <h1>Client tutorial<a class="headerlink" href="#client-tutorial" title="Permalink to this headline">¶</a></h1>
-<p>For 95% cases it is enough to use this interface methods:</p>
-<dl class="class">
-<dt id="aioftp.Client">
-<em class="property">class </em><code class="descclassname">aioftp.</code><code class="descname">Client</code><a class="headerlink" href="#aioftp.Client" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wait for the single <code class="xref py py-class docutils literal"><span class="pre">Future</span></code> or <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#coroutine" title="(in Python v3.4)"><span class="xref std std-ref">coroutine object</span></a>
-to complete with timeout. If <em>timeout</em> is <code class="docutils literal"><span class="pre">None</span></code>, block until the future
-completes.</p>
-<p>Coroutine will be wrapped in <code class="xref py py-class docutils literal"><span class="pre">Task</span></code>.</p>
-<p>Returns result of the Future or coroutine.  When a timeout occurs, it
-cancels the task and raises <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TimeoutError" title="(in Python v3.4)"><code class="xref py py-exc docutils literal"><span class="pre">asyncio.TimeoutError</span></code></a>. To avoid the task
-cancellation, wrap it in <code class="xref py py-func docutils literal"><span class="pre">shield()</span></code>.</p>
-<p>If the wait is cancelled, the future <em>fut</em> is also cancelled.</p>
-<p>This function is a <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#coroutine" title="(in Python v3.4)"><span class="xref std std-ref">coroutine</span></a>, usage:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">result</span> <span class="o">=</span> <span class="k">yield from</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">fut</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">)</span>
+<p>In 95% cases it is enough to use a little more than 10 client coroutines. So,
+lets start!</p>
+<div class="section" id="connecting-to-server">
+<h2>Connecting to server<a class="headerlink" href="#connecting-to-server" title="Permalink to this headline">¶</a></h2>
+<p>Firstly you should create <a class="reference internal" href="api.html#aioftp.Client" title="aioftp.Client"><code class="xref py py-class docutils literal"><span class="pre">aioftp.Client</span></code></a> instance and connect to host:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ftp</span> <span class="o">=</span> <span class="n">aioftp</span><span class="o">.</span><span class="n">Client</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s">&quot;ftp.server.com&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="s">&quot;user&quot;</span><span class="p">,</span> <span class="s">&quot;pass&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="versionchanged">
-<p><span class="versionmodified">Changed in version 3.4.3: </span>If the wait is cancelled, the future <em>fut</em> is now also cancelled.</p>
 </div>
-</dd></dl>
-
+<div class="section" id="listing-files">
+<h2>Listing files<a class="headerlink" href="#listing-files" title="Permalink to this headline">¶</a></h2>
+<p>For listing files you should use <a class="reference internal" href="api.html#aioftp.Client.list" title="aioftp.Client.list"><code class="xref py py-meth docutils literal"><span class="pre">aioftp.Client.list()</span></code></a> method, which
+can list paths recursively and produce a list, or deal with callback:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">)</span>
+<span class="go">[(PosixPath(&#39;/.logs&#39;), {&#39;unix.mode&#39;: &#39;0755&#39;, &#39;unique&#39;: &#39;801g4804045&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;dir&#39;, &#39;sizd&#39;: &#39;4096&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150314131116&#39;}), (PosixPath(&#39;/DO_NOT_UPLOAD_HERE&#39;), {&#39;unix.mode&#39;: &#39;0644&#39;, &#39;unique&#39;: &#39;801g4800d43&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;size&#39;: &#39;0&#39;, &#39;type&#39;: &#39;file&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20140529110939&#39;}), (PosixPath(&#39;/public_html&#39;), {&#39;unix.mode&#39;: &#39;0755&#39;, &#39;unique&#39;: &#39;801g4804044&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;dir&#39;, &#39;sizd&#39;: &#39;20480&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150417122614&#39;})]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="k">print</span><span class="p">)</span>
+<span class="go">/.logs {&#39;sizd&#39;: &#39;4096&#39;, &#39;modify&#39;: &#39;20150314131116&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;dir&#39;, &#39;unique&#39;: &#39;801g4804045&#39;, &#39;unix.mode&#39;: &#39;0755&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+<span class="go">/DO_NOT_UPLOAD_HERE {&#39;modify&#39;: &#39;20140529110939&#39;, &#39;size&#39;: &#39;0&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;file&#39;, &#39;unique&#39;: &#39;801g4800d43&#39;, &#39;unix.mode&#39;: &#39;0644&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+<span class="go">/public_html {&#39;sizd&#39;: &#39;20480&#39;, &#39;modify&#39;: &#39;20150417122614&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;dir&#39;, &#39;unique&#39;: &#39;801g4804044&#39;, &#39;unix.mode&#39;: &#39;0755&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">ftp</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="k">print</span><span class="p">)</span>
+<span class="go">/.logs {&#39;type&#39;: &#39;dir&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150314131116&#39;, &#39;unix.mode&#39;: &#39;0755&#39;, &#39;unique&#39;: &#39;801g4804045&#39;, &#39;sizd&#39;: &#39;4096&#39;}</span>
+<span class="go">/DO_NOT_UPLOAD_HERE {&#39;type&#39;: &#39;file&#39;, &#39;size&#39;: &#39;0&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20140529110939&#39;, &#39;unix.mode&#39;: &#39;0644&#39;, &#39;unique&#39;: &#39;801g4800d43&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+<span class="go">/public_html {&#39;type&#39;: &#39;dir&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150422182535&#39;, &#39;unix.mode&#39;: &#39;0755&#39;, &#39;unique&#39;: &#39;801g4804044&#39;, &#39;sizd&#39;: &#39;20480&#39;}</span>
+<span class="go">/public_html/test.py {&#39;type&#39;: &#39;file&#39;, &#39;size&#39;: &#39;2922&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150422183609&#39;, &#39;unix.mode&#39;: &#39;0644&#39;, &#39;unique&#39;: &#39;801g480a508&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+</pre></div>
+</div>
+<p>Callback variant is more «async» and lazy, anyway if you don&#8217;t care, then
+non-callback method looks much simpler.</p>
+<p>You can pass path to file as well:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">c</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="s">&quot;/public_html/test.py&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="k">print</span><span class="p">)</span>
+<span class="go">/public_html/test.py {&#39;unix.gid&#39;: &#39;954669020&#39;, &#39;modify&#39;: &#39;20150422184005&#39;, &#39;size&#39;: &#39;3000&#39;, &#39;unique&#39;: &#39;801g480a508&#39;, &#39;type&#39;: &#39;file&#39;, &#39;unix.mode&#39;: &#39;0644&#39;, &#39;unix.uid&#39;: &#39;954669020&#39;}</span>
+</pre></div>
+</div>
+<p>But it is overkill, cause this (MLSD ftp command) create extra connection to
+server. You should use <a class="reference internal" href="api.html#aioftp.Client.stat" title="aioftp.Client.stat"><code class="xref py py-meth docutils literal"><span class="pre">aioftp.Client.stat()</span></code></a> instead (cause it
+use MLST):</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">c</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="s">&quot;/public_html/test.py&quot;</span><span class="p">)</span>
+<span class="go">{&#39;unix.uid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;file&#39;, &#39;modify&#39;: &#39;20150422184255&#39;, &#39;size&#39;: &#39;3102&#39;, &#39;unique&#39;: &#39;801g480a508&#39;, &#39;unix.mode&#39;: &#39;0644&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">yield from</span> <span class="n">c</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="s">&quot;/public_html&quot;</span><span class="p">)</span>
+<span class="go">{&#39;unix.uid&#39;: &#39;954669020&#39;, &#39;type&#39;: &#39;dir&#39;, &#39;modify&#39;: &#39;20150422182535&#39;, &#39;unique&#39;: &#39;801g4804044&#39;, &#39;unix.mode&#39;: &#39;0755&#39;, &#39;unix.gid&#39;: &#39;954669020&#39;, &#39;sizd&#39;: &#39;20480&#39;}</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -87,6 +111,15 @@ cancellation, wrap it in <code class="xref py py-func docutils literal"><span cl
             <p class="logo"><a href="index.html">
               <img class="logo" src="_static/logo.png" alt="Logo"/>
             </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Client tutorial</a><ul>
+<li><a class="reference internal" href="#connecting-to-server">Connecting to server</a></li>
+<li><a class="reference internal" href="#listing-files">Listing files</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="index.html"
                         title="previous chapter">aioftp</a></p>

@@ -287,7 +287,7 @@ bytes really belongs.</li>
 
 <dl class="method">
 <dt id="aioftp.Client.list">
-<code class="descname">list</code><span class="sig-paren">(</span><em>path=''</em>, <em>*</em>, <em>recursive=False</em><span class="sig-paren">)</span><a class="headerlink" href="#aioftp.Client.list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">list</code><span class="sig-paren">(</span><em>path=''</em>, <em>*</em>, <em>recursive=False</em>, <em>callback=None</em><span class="sig-paren">)</span><a class="headerlink" href="#aioftp.Client.list" title="Permalink to this definition">¶</a></dt>
 <dd><p><a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#asyncio.coroutine" title="(in Python v3.4)"><code class="xref py py-func docutils literal"><span class="pre">asyncio.coroutine()</span></code></a></p>
 <p>List all files and directories in &#8220;path&#8221;.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -297,10 +297,11 @@ bytes really belongs.</li>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">str</span></code></a> or <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">pathlib.Path</span></code></a>) &#8211; directory or file path</li>
 <li><strong>recursive</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">bool</span></code></a>) &#8211; list recursively</li>
+<li><strong>callback</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#callable" title="(in Python v3.4)"><code class="xref py py-func docutils literal"><span class="pre">callable()</span></code></a>) &#8211; callback function with two arguments: path and stats</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">list</span></code></a></p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.4)"><code class="xref py py-class docutils literal"><span class="pre">list</span></code></a> or <code class="xref py py-class docutils literal"><span class="pre">None</span></code></p>
 </td>
 </tr>
 </tbody>
