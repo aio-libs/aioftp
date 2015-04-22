@@ -81,18 +81,10 @@ Futher reading
 
     client_tutorial
     server_tutorial
-
-API
----
-
-.. toctree::
-   :maxdepth: 2
-
-   api
+    api
 
 Indices and tables
 ~~~~~~~~~~~~~~~~~~
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

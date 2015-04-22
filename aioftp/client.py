@@ -53,12 +53,21 @@ class BaseClient:
         )
 
     def close(self):
-
+        """
+        Close connection.
+        """
         self.writer.close()
 
     @asyncio.coroutine
     def parse_line(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Parsing server response line.
+
+        :return: (code, line)
+        :rtype: (:py:class:`aioftp.Code`, :py:class:`str`)
+        """
         line = yield from self.reader.readline()
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         logger.info(s)
@@ -66,7 +75,17 @@ class BaseClient:
 
     @asyncio.coroutine
     def parse_response(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Parsing full server response (all lines).
+
+        :return: (code, lines)
+        :rtype: (:py:class:`aioftp.Code`, :py:class:`list` of :py:class:`str`)
+
+        :raises aioftp.StatusCodeError: if received code does not matches all
+            already received codes
+        """
         code, rest = yield from self.parse_line()
         info = [rest]
         curr_code = code
@@ -86,46 +105,77 @@ class BaseClient:
 
         return code, info
 
-    def check_codes(self, expect_codes, received_code, info):
+    def check_codes(self, expected_codes, received_code, info):
+        """
+        Checks if any of expected matches received.
 
-        if not any(map(received_code.matches, expect_codes)):
+        :param expected_codes: tuple of expected codes
+        :type expected_codes: :py:class:`tuple`
 
-            raise errors.StatusCodeError(expect_codes, received_code, info)
+        :param received_code: received code for matching
+        :type received_code: :py:class:`aioftp.Code`
 
-    def wrap_with_container(self, o):
+        :param info: list of response lines from server
+        :type info: :py:class:`list`
 
-        if isinstance(o, str):
+        :raises aioftp.StatusCodeError: if received code does not matches any
+            expected code
+        """
+        if not any(map(received_code.matches, expected_codes)):
 
-            o = (o,)
-
-        return o
+            raise errors.StatusCodeError(expected_codes, received_code, info)
 
     @asyncio.coroutine
-    def command(self, command=None, expect_codes=(), wait_codes=()):
+    def command(self, command=None, expected_codes=(), wait_codes=()):
+        """
+        :py:func:`asyncio.coroutine`
 
-        expect_codes = self.wrap_with_container(expect_codes)
-        wait_codes = self.wrap_with_container(wait_codes)
+        Basic command logic.
+
+        1. Send command if not omitted.
+        2. Yield response until no wait code matches.
+        3. Check code for expected.
+
+        :param command: command line
+        :type command: :py:class:`str`
+
+        :param expected_codes: tuple of expected codes
+        :type expected_codes: :py:class:`tuple`
+
+        :param wait_codes: tuple of wait codes
+        :type wait_codes: :py:class:`tuple`
+        """
+        expected_codes = common.wrap_with_container(expected_codes)
+        wait_codes = common.wrap_with_container(wait_codes)
 
         if command:
 
             logger.info(command)
             self.writer.write(str.encode(command + "\n", encoding="utf-8"))
 
-        if expect_codes or wait_codes:
+        if expected_codes or wait_codes:
 
             code, info = yield from self.parse_response()
             while any(map(code.matches, wait_codes)):
 
                 code, info = yield from self.parse_response()
 
-            if expect_codes:
+            if expected_codes:
 
-                self.check_codes(expect_codes, code, info)
+                self.check_codes(expected_codes, code, info)
 
             return code, info
 
     def parse_address_response(self, s):
+        """
+        Parsing ip:port server response.
 
+        :param s: response line
+        :type s: :py:class:`str`
+
+        :return: (ip, port)
+        :rtype: (:py:class:`str`, :py:class:`int`)
+        """
         sub, *_ = re.findall(r"[^(]*\(([^)]*)", s)
         nums = tuple(map(int, str.split(sub, ",")))
         ip = str.join(".", map(str, nums[:4]))
@@ -133,7 +183,14 @@ class BaseClient:
         return ip, port
 
     def parse_directory_response(self, s):
+        """
+        Parsing directory server response.
 
+        :param s: response line
+        :type s: :py:class:`str`
+
+        :rtype: :py:class:`pathlib.Path`
+        """
         seq_quotes = 0
         start = False
         directory = ""
@@ -167,7 +224,15 @@ class BaseClient:
         return pathlib.Path(directory)
 
     def parse_mlsx_line(self, b):
+        """
+        Parsing MLS(T|D) response.
 
+        :param b: response line
+        :type b: :py:class:`bytes` or :py:class:`str`
+
+        :return: (path, info)
+        :rtype: (:py:class:`pathlib.Path`, :py:class:`dict`)
+        """
         if isinstance(b, bytes):
 
             s = str.rstrip(bytes.decode(b, encoding="utf-8"))
@@ -195,11 +260,16 @@ class Client(BaseClient):
         connection.
         Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
         if omitted.
+    :type create_connection: :py:func:`callable`
     """
 
     @asyncio.coroutine
     def connect(self, host, port=21):
         """
+        :py:func:`asyncio.coroutine`
+
+        Connect to server.
+
         :param str host: host name for connection
         :param int port: port number for connection
         """
@@ -211,9 +281,20 @@ class Client(BaseClient):
     @asyncio.coroutine
     def login(self, user="anonymous", password="anon@", account=""):
         """
-        :param str user: username
-        :param str password: password
-        :param str account: account (almost always blank)
+        :py:func:`asyncio.coroutine`
+
+        Server authentication.
+
+        :param user: username
+        :type user: :py:class:`str`
+
+        :param password: password
+        :type password: :py:class:`str`
+
+        :param account: account (almost always blank)
+        :type account: :py:class:`str`
+
+        :raises aioftp.StatusCodeError: if unknown code received
         """
         code, info = yield from self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
@@ -235,7 +316,11 @@ class Client(BaseClient):
     @asyncio.coroutine
     def get_current_directory(self):
         """
-        Getting
+        :py:func:`asyncio.coroutine`
+
+        Getting current working directory.
+
+        :rtype: :py:class:`pathlib.Path`
         """
         code, info = yield from self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
@@ -243,7 +328,14 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def change_directory(self, path=".."):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Change current directory. Goes «up» if no parameters passed.
+
+        :param pathlib.Path path: new directory, goes «up» if omitted
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        """
         if path in ("..", pathlib.Path("..")):
 
             cmd = "CDUP"
@@ -255,8 +347,18 @@ class Client(BaseClient):
         yield from self.command(cmd, "250")
 
     @asyncio.coroutine
-    def make_directory(self, path, parents=True):
+    def make_directory(self, path, *, parents=True):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Make directory.
+
+        :param path: path to directory to create
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param parents: create parents if does not exists
+        :type parents: :py:class:`bool`
+        """
         path = pathlib.Path(path)
         need_create = []
         while path.name and not (yield from self.exists(path)):
@@ -275,12 +377,31 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def remove_directory(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Low level remove method for removing empty directory.
+
+        :param path: empty directory to remove
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        """
         yield from self.command("RMD " + str(path), "250")
 
     @asyncio.coroutine
     def list(self, path="", *, recursive=False):
+        """
+        :py:func:`asyncio.coroutine`
 
+        List all files and directories in "path".
+
+        :param path: directory or file path
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param recursive: list recursively
+        :type recursive: :py:class:`bool`
+
+        :rtype: :py:class:`list`
+        """
         def callback(line):
 
             nonlocal files
@@ -315,26 +436,57 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def stat(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Getting path stats.
+
+        :param path: path for getting info
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :return: path info
+        :rtype: :py:class:`dict`
+        """
         code, info = yield from self.command("MLST " + str(path), "2xx")
         name, info = self.parse_mlsx_line(str.lstrip(info[1]))
         return info
 
     @asyncio.coroutine
     def is_file(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Checks if path is file.
+
+        :rtype: :py:class:`bool`
+        """
         info = yield from self.stat(path)
         return info["type"] == "file"
 
     @asyncio.coroutine
     def is_dir(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Checks if path is dir.
+
+        :rtype: :py:class:`bool`
+        """
         info = yield from self.stat(path)
         return info["type"] == "dir"
 
     @asyncio.coroutine
     def exists(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Check path for existence.
+
+        :param path: path for checking on server side
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`bool`
+        """
         code, info = yield from self.command(
             "MLST " + str(path),
             ("2xx", "550")
@@ -344,18 +496,43 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def rename(self, source, destination):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Rename (move) file or directory.
+
+        :param source: path to rename
+        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param destination: path new name
+        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+        """
         yield from self.command("RNFR " + str(source), "350")
         yield from self.command("RNTO " + str(destination), "2xx")
 
     @asyncio.coroutine
     def remove_file(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Low level remove method for removing file.
+
+        :param path: file to remove
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        """
         yield from self.command("DELE " + str(path), "2xx")
 
     @asyncio.coroutine
     def remove(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        High level remove method for removing path recursively (file or
+        directory).
+
+        :param path: path to remove
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        """
         if (yield from self.exists(path)):
 
             info = yield from self.stat(path)
@@ -374,10 +551,27 @@ class Client(BaseClient):
                 yield from self.remove_directory(path)
 
     @asyncio.coroutine
-    def upload_file(self, path, file, *, callback=None, block_size=8192):
+    def upload_file(self, destination, file, *, callback=None, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Low level upload method for uploading file from file-like object.
+
+        :param destination: destination path of file or directory on server
+            side
+        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param file: file-like object for reading data (providing read method)
+
+        :param callback: callback function with one argument — sended
+            :py:class:`bytes` to server.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         yield from self.store(
-            "STOR " + str(path),
+            "STOR " + str(destination),
             "1xx",
             file=file,
             callback=callback,
@@ -387,7 +581,32 @@ class Client(BaseClient):
     @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
                callback=None, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        High level upload method for uploading files and directories
+        recursively from file system.
+
+        :param source: source path of file or directory on client side
+        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param destination: destination path of file or directory on server
+            side
+        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param write_into: write source into destination (if you want upload
+            file and change it name, as well with directories)
+        :type write_into: :py:class:`bool`
+
+        :param callback: callback function with one argument — sended
+            :py:class:`bytes` to server. This one should be used only for
+            progress view, cause there is no information about which file this
+            bytes really belongs.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         source = pathlib.Path(source)
         destination = pathlib.Path(destination)
         if not write_into:
@@ -436,10 +655,24 @@ class Client(BaseClient):
                         )
 
     @asyncio.coroutine
-    def download_file(self, path, *, callback, block_size=8192):
+    def download_file(self, source, *, callback, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Low level download method for downloading file without saving.
+
+        :param source: source path of file or directory on server side
+        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param callback: callback function with one argument — received
+            :py:class:`bytes` from server.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         yield from self.retrieve(
-            "RETR " + str(path),
+            "RETR " + str(source),
             "1xx",
             callback=callback,
             block_size=block_size,
@@ -448,7 +681,32 @@ class Client(BaseClient):
     @asyncio.coroutine
     def download(self, source, destination="", *, write_into=False,
                  callback=None, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        High level download method for downloading files and directories
+        recursively and save them to the file system.
+
+        :param source: source path of file or directory on server side
+        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param destination: destination path of file or directory on client
+            side
+        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param write_into: write source into destination (if you want download
+            file and change it name, as well with directories)
+        :type write_into: :py:class:`bool`
+
+        :param callback: callback function with one argument — received
+            :py:class:`bytes` from server. This one should be used only for
+            progress view, cause there is no information about which file this
+            bytes really belongs.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         source = pathlib.Path(source)
         destination = pathlib.Path(destination)
         if not write_into:
@@ -500,13 +758,27 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def quit(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Send "QUIT" and close connection.
+        """
         yield from self.command("QUIT", "2xx")
         self.close()
 
     @asyncio.coroutine
     def get_passive_connection(self, conn_type="I"):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Getting pair of reader, writer for passive connection with server.
+
+        :param conn_type: connection type ("I", "A", "E", "L")
+        :type conn_type: :py:class:`str`
+
+        :rtype: (:py:class:`asyncio.StreamReader`,
+            :py:class:`asyncio.StreamWriter`)
+        """
         yield from self.command("TYPE " + conn_type, "200")
         code, info = yield from self.command("PASV", "227")
         ip, port = self.parse_address_response(info[-1])
@@ -518,9 +790,28 @@ class Client(BaseClient):
         return reader, writer
 
     @asyncio.coroutine
-    def retrieve(self, *command_args, conn_type="I", block_size=8192,
-                 use_lines=False, callback=None):
+    def retrieve(self, *command_args, conn_type="I", use_lines=False,
+                 callback=None, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Retrieve data from passive connection with some command
+
+        :param command_args: arguments for :py:meth:`aioftp.Client.command`
+
+        :param conn_type: connection type ("I", "A", "E", "L")
+        :type conn_type: :py:class:`str`
+
+        :param use_lines: use lines or block size for read
+        :type use_lines: :py:class:`bool`
+
+        :param callback: callback function with one argument — received
+            :py:class:`bytes` from server.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
         with contextlib.closing(writer) as writer:
@@ -546,9 +837,30 @@ class Client(BaseClient):
         yield from self.command(None, "2xx")
 
     @asyncio.coroutine
-    def store(self, *command_args, file, conn_type="I", block_size=8192,
-              use_lines=False, callback=None):
+    def store(self, *command_args, file, conn_type="I", use_lines=False,
+              callback=None, block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Store data to passive connection with some command
+
+        :param command_args: arguments for :py:meth:`aioftp.Client.command`
+
+        :param file: file-like object for reading data (providing read method)
+
+        :param conn_type: connection type ("I", "A", "E", "L")
+        :type conn_type: :py:class:`str`
+
+        :param use_lines: use lines or block size for write
+        :type use_lines: :py:class:`bool`
+
+        :param callback: callback function with one argument — sended
+            :py:class:`bytes` to server.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
         with contextlib.closing(writer) as writer:

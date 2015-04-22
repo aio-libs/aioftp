@@ -1,11 +1,21 @@
+def wrap_with_container(o):
+
+    if isinstance(o, str):
+
+        o = (o,)
+
+    return o
+
+
 class Code(str):
     """
     Representation of server status code.
     """
     def matches(self, mask):
         """
-        :param str mask: Template for comparision. If mask symbol is not digit
+        :param mask: Template for comparision. If mask symbol is not digit
             then it passes.
+        :type mask: :py:class:`str`
 
         Usage::
 

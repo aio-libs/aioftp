@@ -55,6 +55,27 @@
             
   <div class="section" id="client-tutorial">
 <h1>Client tutorial<a class="headerlink" href="#client-tutorial" title="Permalink to this headline">¶</a></h1>
+<p>For 95% cases it is enough to use this interface methods:</p>
+<dl class="class">
+<dt id="aioftp.Client">
+<em class="property">class </em><code class="descclassname">aioftp.</code><code class="descname">Client</code><a class="headerlink" href="#aioftp.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait for the single <code class="xref py py-class docutils literal"><span class="pre">Future</span></code> or <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#coroutine" title="(in Python v3.4)"><span class="xref std std-ref">coroutine object</span></a>
+to complete with timeout. If <em>timeout</em> is <code class="docutils literal"><span class="pre">None</span></code>, block until the future
+completes.</p>
+<p>Coroutine will be wrapped in <code class="xref py py-class docutils literal"><span class="pre">Task</span></code>.</p>
+<p>Returns result of the Future or coroutine.  When a timeout occurs, it
+cancels the task and raises <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TimeoutError" title="(in Python v3.4)"><code class="xref py py-exc docutils literal"><span class="pre">asyncio.TimeoutError</span></code></a>. To avoid the task
+cancellation, wrap it in <code class="xref py py-func docutils literal"><span class="pre">shield()</span></code>.</p>
+<p>If the wait is cancelled, the future <em>fut</em> is also cancelled.</p>
+<p>This function is a <a class="reference external" href="https://docs.python.org/3/library/asyncio-task.html#coroutine" title="(in Python v3.4)"><span class="xref std std-ref">coroutine</span></a>, usage:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">result</span> <span class="o">=</span> <span class="k">yield from</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">fut</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified">Changed in version 3.4.3: </span>If the wait is cancelled, the future <em>fut</em> is now also cancelled.</p>
+</div>
+</dd></dl>
+
 </div>
 
 
