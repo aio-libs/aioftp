@@ -388,7 +388,7 @@ class Client(BaseClient):
         yield from self.command("RMD " + str(path), "250")
 
     @asyncio.coroutine
-    def list(self, path="", *, recursive=False):
+    def list(self, path="", *, recursive=False, callback=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -400,35 +400,51 @@ class Client(BaseClient):
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
 
-        :rtype: :py:class:`list`
+        :param callback: callback function with two arguments: path and stats
+        :type callback: :py:func:`callable`
+
+        :rtype: :py:class:`list` or :py:class:`None`
         """
-        def callback(line):
+        def _callback(line):
 
             nonlocal files
             nonlocal path
+            nonlocal callback
+            nonlocal directories
             name, info = self.parse_mlsx_line(line)
             if info["type"] in ("file", "dir"):
 
-                files.append((path / name, info))
+                stat = path / name, info
+                if info["type"] == "dir":
+
+                    directories.append(stat)
+
+                if callback is None:
+
+                    files.append(stat)
+
+                else:
+
+                    callback(*stat)
 
         files = []
+        directories = []
         yield from self.retrieve(
             str.strip("MLSD " + str(path)),
             "1xx",
             use_lines=True,
-            callback=callback,
+            callback=_callback,
         )
         if recursive:
 
             deep_files = []
-            for name, info in files:
+            for name, info in directories:
 
-                if info["type"] == "dir":
-
-                    deep_files += yield from self.list(
-                        name,
-                        recursive=recursive,
-                    )
+                deep_files += yield from self.list(
+                    name,
+                    recursive=recursive,
+                    callback=callback,
+                )
 
             files += deep_files
 
@@ -551,7 +567,8 @@ class Client(BaseClient):
                 yield from self.remove_directory(path)
 
     @asyncio.coroutine
-    def upload_file(self, destination, file, *, callback=None, block_size=8192):
+    def upload_file(self, destination, file, *, callback=None,
+                    block_size=8192):
         """
         :py:func:`asyncio.coroutine`
 
