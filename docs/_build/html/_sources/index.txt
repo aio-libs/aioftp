@@ -13,8 +13,8 @@ FTP client/server for asyncio.
 Features
 --------
 
-- High level of abstractions on user level api.
-- High level of customization on developer level api.
+- Simple.
+- Extensible.
 - Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
 
 Library Installation
@@ -61,7 +61,7 @@ Server example
 
 ::
 
-    Comming soon
+    Coming soon
 
 Dependencies
 ------------

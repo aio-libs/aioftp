@@ -29,7 +29,7 @@ Getting started
 
 Client example
 
-::
+.. code-block:: python
 
     import asyncio
     import aioftp
@@ -59,7 +59,7 @@ Client example
 
 Server example
 
-::
+.. code-block:: python
 
     Coming soon
 
@@ -72,20 +72,3 @@ Dependencies
 or
 
 - Python 3.4+
-
-Futher reading
---------------
-
-.. toctree::
-    :maxdepth: 2
-
-    client_tutorial
-    server_tutorial
-    client_api
-    server_api
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`search`
