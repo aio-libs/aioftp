@@ -55,7 +55,7 @@ hr {
 
 div.body {
     background-color: #ffffff;
-    color: #3E4349;
+    color: #482C0A;
     padding: 0 30px 0 30px;
 }
 
@@ -119,7 +119,7 @@ div.sphinxsidebarwrapper p.blurb {
 div.sphinxsidebar h3,
 div.sphinxsidebar h4 {
     font-family: 'Garamond', 'Georgia', serif;
-    color: #444;
+    color: #4B4032;
     font-size: 24px;
     font-weight: normal;
     margin: 0 0 5px 0;
@@ -142,7 +142,7 @@ div.sphinxsidebar h3 a:hover {
 }
 
 div.sphinxsidebar p {
-    color: #555;
+    color: #49443E;
     margin: 10px 0;
 }
 
@@ -261,8 +261,8 @@ dt:target, .highlight {
 }
 
 div.note {
-    background-color: #EEE;
-    border: 1px solid #CCC;
+    background-color: #E5ECD1;
+    border: 1px solid #BFCF8C;
 }
 
 div.seealso {
@@ -373,7 +373,7 @@ ul, ol {
 }
 
 pre {
-    background: #EEE;
+    background: #FFF6E5;
     padding: 7px 30px;
     margin: 15px 0px;
     line-height: 1.3em;
