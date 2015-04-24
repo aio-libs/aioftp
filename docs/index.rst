@@ -6,7 +6,7 @@
 aioftp
 ======
 
-FTP client/server for asyncio.
+ftp client/server for asyncio.
 
 .. _GitHub: https://github.com/pohmelie/aioftp
 
@@ -16,6 +16,22 @@ Features
 - Simple.
 - Extensible.
 - Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
+
+Dependencies
+------------
+
+- Python 3.3
+- asyncio
+- pathlib
+
+or
+
+- Python 3.4+
+
+License
+-------
+
+aioftp is offered under the Apache 2 license.
 
 Library Installation
 --------------------
@@ -29,7 +45,7 @@ Getting started
 
 Client example
 
-::
+.. code-block:: python
 
     import asyncio
     import aioftp
@@ -59,19 +75,9 @@ Client example
 
 Server example
 
-::
+.. code-block:: python
 
     Coming soon
-
-Dependencies
-------------
-
-- asyncio
-- pathlib
-
-or
-
-- Python 3.4+
 
 Futher reading
 --------------

@@ -17,6 +17,22 @@ Features
 - Extensible.
 - Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
 
+Dependencies
+------------
+
+- Python 3.3
+- asyncio
+- pathlib
+
+or
+
+- Python 3.4+
+
+License
+-------
+
+aioftp is offered under the Apache 2 license.
+
 Library Installation
 --------------------
 
@@ -62,13 +78,3 @@ Server example
 .. code-block:: python
 
     Coming soon
-
-Dependencies
-------------
-
-- asyncio
-- pathlib
-
-or
-
-- Python 3.4+
