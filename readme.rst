@@ -6,7 +6,7 @@
 aioftp
 ======
 
-FTP client/server for asyncio.
+ftp client/server for asyncio. (http://aioftp.readthedocs.org)
 
 .. _GitHub: https://github.com/pohmelie/aioftp
 
