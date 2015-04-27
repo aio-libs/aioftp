@@ -23,6 +23,7 @@ Dependencies
 - Python 3.3
 - asyncio
 - pathlib
+- enum34
 
 or
 
