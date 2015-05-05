@@ -39,3 +39,10 @@ class StatusCodeError(Exception):
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
         self.info = info
+
+
+class ConnectionClosedError(Exception):
+    """
+    Raised when expecting information, but connection closed.
+    """
+    pass
