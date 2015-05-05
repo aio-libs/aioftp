@@ -8,6 +8,11 @@ from . import errors
 from . import common
 
 
+def add_prefix(message):
+
+    return str.format("aioftp client: {}", message)
+
+
 @asyncio.coroutine
 def open_connection(host, port, create_connection=None):
 
@@ -63,10 +68,18 @@ class BaseClient:
 
         :return: (code, line)
         :rtype: (:py:class:`aioftp.Code`, :py:class:`str`)
+
+        :raises aioftp.ConnectionClosedError: if received data is empty (this
+            means, that connection closed
         """
         line = yield from self.reader.readline()
+        if not line:
+
+            self.writer.close()
+            raise errors.ConnectionClosedError()
+
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        common.logger.info(s)
+        common.logger.info(add_prefix(s))
         return common.Code(s[:3]), s[3:]
 
     @asyncio.coroutine
@@ -146,7 +159,7 @@ class BaseClient:
 
         if command:
 
-            common.logger.info(command)
+            common.logger.info(add_prefix(command))
             self.writer.write(str.encode(command + "\n", encoding="utf-8"))
 
         if expected_codes or wait_codes:
