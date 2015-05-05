@@ -1,3 +1,9 @@
+import logging
+
+
+logger = logging.getLogger("aioftp")
+
+
 def wrap_with_container(o):
 
     if isinstance(o, str):

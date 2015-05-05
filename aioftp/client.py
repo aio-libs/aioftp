@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import re
 import contextlib
 import collections
@@ -7,9 +6,6 @@ import pathlib
 
 from . import errors
 from . import common
-
-
-logger = logging.getLogger("aioftp")
 
 
 @asyncio.coroutine
@@ -70,7 +66,7 @@ class BaseClient:
         """
         line = yield from self.reader.readline()
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        logger.info(s)
+        common.logger.info(s)
         return common.Code(s[:3]), s[3:]
 
     @asyncio.coroutine
@@ -150,7 +146,7 @@ class BaseClient:
 
         if command:
 
-            logger.info(command)
+            common.logger.info(command)
             self.writer.write(str.encode(command + "\n", encoding="utf-8"))
 
         if expected_codes or wait_codes:
