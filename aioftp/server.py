@@ -1,23 +1,19 @@
 import asyncio
 import pathlib
-import enum
 
 
 from . import common
+from . import errors
 
 
-@enum.unique
-class UserPolitic(enum.Enum):
+def add_prefix(message):
 
-    FORBIDDEN = 0
-    ALLOWED = 1
+    return str.format("aioftp server: {}", message)
 
 
 class Permission:
 
-    def __init__(self, path, *,
-                 readable=UserPolitic.ALLOWED,
-                 writable=UserPolitic.ALLOWED):
+    def __init__(self, path, *, readable=True, writable=True):
 
         self.path = pathlib.Path(path)
         self.readable = readable
@@ -64,8 +60,105 @@ class User:
         return perm
 
 
-class Server:
+class BaseServer:
 
-    def __init__(self):
+    @asyncio.coroutine
+    def start(self, host=None, port=None, **kw):
 
-        pass
+        self.connected = set()
+        coro = asyncio.start_server(self.save_dispatcher, host, port, **kw)
+        self.server = yield from coro
+        host, port = self.server.sockets[0].getsockname()
+        message = str.format("serving on {}:{}", host, port)
+        common.logger.info(add_prefix(message))
+
+    def close(self):
+
+        self.server.close()
+
+    @asyncio.coroutine
+    def wait_closed(self):
+
+        yield from self.server.wait_closed()
+
+    @asyncio.coroutine
+    def save_dispatcher(self, reader, writer):
+
+        try:
+
+            self.connected.add((reader, writer))
+            yield from self.dispatcher(reader, writer)
+
+        finally:
+
+            self.connected.discard((reader, writer))
+            writer.close()
+
+    def write_line(self, reader, writer, code, line, last=False,
+                   encoding="utf-8"):
+
+        separator = " " if last else "-"
+        message = str.strip(code + separator + line)
+        common.logger.info(add_prefix(message))
+        writer.write(str.encode(message + "\r\n", encoding=encoding))
+
+    @asyncio.coroutine
+    def write_response(self, reader, writer, code, lines=""):
+
+        lines = common.wrap_with_container(lines)
+        for line in lines:
+
+            self.write_line(reader, writer, code, line, line is lines[-1])
+
+        yield from writer.drain()
+
+    @asyncio.coroutine
+    def parse_command(self, reader, writer):
+
+        line = yield from reader.readline()
+        if not line:
+
+            raise errors.ConnectionClosedError()
+
+        s = str.rstrip(bytes.decode(line, encoding="utf-8"))
+        common.logger.info(add_prefix(s))
+        cmd, _, rest = str.partition(s, " ")
+        return cmd, rest
+
+    @asyncio.coroutine
+    def dispatcher(self, reader, writer):
+
+        host, port = writer.transport.get_extra_info("peername", ("", ""))
+        message = str.format("new connection from {}:{}", host, port)
+        common.logger.info(add_prefix(message))
+
+        ok = yield from self.greeting(reader, writer)
+        while ok:
+
+            cmd, rest = yield from self.parse_command(reader, writer)
+            if hasattr(self, cmd):
+
+                getattr(self, cmd)(reader, writer, rest)
+
+            else:
+
+                yield from self.write_response(
+                    reader,
+                    writer,
+                    "502",
+                    "Not implemented",
+                )
+
+    @asyncio.coroutine
+    def greeting(self, reader, writer):
+
+        yield from self.write_response(reader, writer, "220")
+        return True
+
+
+class Server(BaseServer):
+
+    def __init__(self, users=None, timeout=None):
+
+        self.users = users or [User()]
+        self.timeout = timeout
