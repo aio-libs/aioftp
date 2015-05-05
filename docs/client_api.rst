@@ -14,3 +14,4 @@ Client API
     :show-inheritance:
 
 .. autoclass:: aioftp.StatusCodeError
+.. autoclass:: aioftp.ConnectionClosedError
