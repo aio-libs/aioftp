@@ -1,7 +1,8 @@
 """ftp client/server for asyncio"""
 
 from .client import Client
-from .errors import StatusCodeError
+from .server import Server
+from .errors import *
 from .common import Code
 
 version = (0, 0, 1)
