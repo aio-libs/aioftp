@@ -13,7 +13,7 @@ def add_prefix(message):
 
 class Permission:
 
-    def __init__(self, path, *, readable=True, writable=True):
+    def __init__(self, path=".", *, readable=True, writable=True):
 
         self.path = pathlib.Path(path)
         self.readable = readable
@@ -50,7 +50,7 @@ class User:
         self.password = password
         self.base_path = base_path
         self.home_path = home_path
-        self.permissions = permissions or [Permission(".")]
+        self.permissions = permissions or [Permission()]
 
     def get_permissions(self, path):
 
@@ -115,7 +115,7 @@ class BaseServer:
     @asyncio.coroutine
     def parse_command(self, reader, writer):
 
-        line = yield from reader.readline()
+        line = yield from asyncio.wait_for(reader.readline(), self.timeout)
         if not line:
 
             raise errors.ConnectionClosedError()
@@ -138,7 +138,7 @@ class BaseServer:
             cmd, rest = yield from self.parse_command(reader, writer)
             if hasattr(self, cmd):
 
-                getattr(self, cmd)(reader, writer, rest)
+                ok = yield from getattr(self, cmd)(reader, writer, rest)
 
             else:
 
