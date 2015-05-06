@@ -40,9 +40,10 @@ def ChainCallback(*callbacks):
 
 class BaseClient:
 
-    def __init__(self, create_connection=None):
+    def __init__(self, create_connection=None, timeout=None):
 
         self.create_connection = create_connection
+        self.timeout = timeout
 
     @asyncio.coroutine
     def connect(self, host, port=21):
@@ -70,9 +71,14 @@ class BaseClient:
         :rtype: (:py:class:`aioftp.Code`, :py:class:`str`)
 
         :raises aioftp.ConnectionClosedError: if received data is empty (this
-            means, that connection closed
+            means, that connection is closed)
+        :raises asyncio.TimeoutError: if there where no data for `timeout`
+            period
         """
-        line = yield from self.reader.readline()
+        line = yield from asyncio.wait_for(
+            self.reader.readline(),
+            self.timeout,
+        )
         if not line:
 
             self.writer.close()
@@ -265,13 +271,15 @@ class Client(BaseClient):
     """
     FTP client.
 
-    :param callable create_connection: factory for creating
+    :param create_connection: factory for creating
         connection.
         Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
         if omitted.
     :type create_connection: :py:func:`callable`
-    """
 
+    :param timeout: timeout for read operations
+    :type timeout: :py:class:`float` or :py:class:`int`
+    """
     @asyncio.coroutine
     def connect(self, host, port=21):
         """
@@ -279,10 +287,12 @@ class Client(BaseClient):
 
         Connect to server.
 
-        :param str host: host name for connection
-        :param int port: port number for connection
-        """
+        :param host: host name for connection
+        :type host: :py:class:`str`
 
+        :param port: port number for connection
+        :type port: :py:class:`int`
+        """
         yield from super().connect(host, port)
         code, info = yield from self.command(None, "220", "120")
         return info
@@ -837,6 +847,9 @@ class Client(BaseClient):
 
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
+
+        :raises asyncio.TimeoutError: if there where no data for `timeout`
+            period
         """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
@@ -846,11 +859,17 @@ class Client(BaseClient):
 
                 if use_lines:
 
-                    block = yield from reader.readline()
+                    block = yield from asyncio.wait_for(
+                        reader.readline(),
+                        self.timeout,
+                    )
 
                 else:
 
-                    block = yield from reader.read(block_size)
+                    block = yield from asyncio.wait_for(
+                        reader.read(block_size),
+                        self.timeout,
+                    )
 
                 if not block:
 
