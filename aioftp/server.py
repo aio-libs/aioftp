@@ -137,7 +137,9 @@ class BaseServer:
 
         try:
 
-            ok = yield from self.greeting(reader, writer, connection, "")
+            ok, code, info = self.greeting(connection, "")
+            yield from self.write_response(reader, writer, code, info)
+
             while ok:
 
                 cmd, rest = yield from self.parse_command(reader, writer)
@@ -148,8 +150,8 @@ class BaseServer:
 
                 if hasattr(self, cmd):
 
-                    coro = getattr(self, cmd)
-                    ok = yield from coro(reader, writer, connection, rest)
+                    ok, code, info = getattr(self, cmd)(connection, rest)
+                    yield from self.write_response(reader, writer, code, info)
 
                 else:
 
@@ -165,11 +167,6 @@ class BaseServer:
             writer.close()
             self.connections.pop(key)
 
-    @asyncio.coroutine
-    def greeting(self, reader, writer, connection, rest):
-
-        yield from self.write_response(reader, writer, "220")
-        return True
 
 
 class Server(BaseServer):
@@ -179,8 +176,11 @@ class Server(BaseServer):
         self.users = users or [User()]
         self.timeout = timeout
 
-    @asyncio.coroutine
-    def user(self, reader, writer, connection, rest):
+    def greeting(self, connection, rest):
+
+        return True, "220", "welcome"
+
+    def user(self, connection, rest):
 
         current_user = None
         for user in self.users:
@@ -196,53 +196,58 @@ class Server(BaseServer):
 
         if current_user is None:
 
-            code, line = "530", "no such username"
+            code, info = "530", "no such username"
             ok = False
 
         elif current_user.login is None:
 
             connection["logged"] = True
+            connection["current_directory"] = current_user.home_path
             connection["user"] = current_user
-            code, line = "230", "anonymous login"
+            code, info = "230", "anonymous login"
             ok = True
 
         else:
 
             connection["user"] = current_user
-            code, line = "331", "require password"
+            code, info = "331", "require password"
             ok = True
 
-        yield from self.write_response(reader, writer, code, line)
-        return ok
+        return ok, code, info
 
-    @asyncio.coroutine
-    def pass_(self, reader, writer, connection, rest):
+    def pass_(self, connection, rest):
 
         if "user" in connection:
 
             if connection["user"].password == rest:
 
                 connection["logged"] = True
-                code, line = "230", "normal login"
+                connection["current_directory"] = current_user.home_path
+                connection["user"] = current_user
+                code, info = "230", "normal login"
 
             else:
 
-                code, line = "530", "wrong password"
+                code, info = "530", "wrong password"
 
         else:
 
-            code, line = "503", "bad sequence of commands"
+            code, info = "503", "bad sequence of commands"
 
-        yield from self.write_response(reader, writer, code, line)
-        return True
+        return True, code, info
 
-    @asyncio.coroutine
-    def quit(self, reader, writer, connection, rest):
+    def quit(self, connection, rest):
 
-        yield from self.write_response(
-            reader,
-            writer,
-            "221",
-            "bye bye",
-        )
-        return False
+        return False, "221", "bye"
+
+    def pwd(self, connection, rest):
+
+        if connection.get("logged", False):
+
+            code, info = "257", connection["current_directory"]
+
+        else:
+
+            code, info = "503", "bad sequence of commands (not logged)"
+
+        return True, code, info
