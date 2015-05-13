@@ -33,7 +33,7 @@ class Permission:
     def __repr__(self):
 
         return str.format(
-            "Permission({}, readable={}, writable={}",
+            "Permission({!r}, readable={!r}, writable={!r}",
             self.path,
             self.readable,
             self.writable,
@@ -59,14 +59,26 @@ class User:
         perm = min(parents, key=lambda p: len(path.relative_to(p.path).parts))
         return perm
 
+    def __repr__(self):
+
+        return str.format(
+            "User({!r}, {!r}, base_path={!r}, home_path={!r}, "
+            "permissions={!r})",
+            self.login,
+            self.password,
+            self.base_path,
+            self.home_path,
+            self.permissions,
+        )
+
 
 class BaseServer:
 
     @asyncio.coroutine
     def start(self, host=None, port=None, **kw):
 
-        self.connected = set()
-        coro = asyncio.start_server(self.save_dispatcher, host, port, **kw)
+        self.connections = {}
+        coro = asyncio.start_server(self.dispatcher, host, port, **kw)
         self.server = yield from coro
         host, port = self.server.sockets[0].getsockname()
         message = str.format("serving on {}:{}", host, port)
@@ -80,19 +92,6 @@ class BaseServer:
     def wait_closed(self):
 
         yield from self.server.wait_closed()
-
-    @asyncio.coroutine
-    def save_dispatcher(self, reader, writer):
-
-        try:
-
-            self.connected.add((reader, writer))
-            yield from self.dispatcher(reader, writer)
-
-        finally:
-
-            self.connected.discard((reader, writer))
-            writer.close()
 
     def write_line(self, reader, writer, code, line, last=False,
                    encoding="utf-8"):
@@ -123,7 +122,7 @@ class BaseServer:
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         common.logger.info(add_prefix(s))
         cmd, _, rest = str.partition(s, " ")
-        return cmd, rest
+        return str.lower(cmd), rest
 
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
@@ -132,25 +131,42 @@ class BaseServer:
         message = str.format("new connection from {}:{}", host, port)
         common.logger.info(add_prefix(message))
 
-        ok = yield from self.greeting(reader, writer)
-        while ok:
+        key = reader, writer
+        connection = {"host": host, "port": port}
+        self.connections[key] = connection
 
-            cmd, rest = yield from self.parse_command(reader, writer)
-            if hasattr(self, cmd):
+        try:
 
-                ok = yield from getattr(self, cmd)(reader, writer, rest)
+            ok = yield from self.greeting(reader, writer, connection, "")
+            while ok:
 
-            else:
+                cmd, rest = yield from self.parse_command(reader, writer)
+                if cmd == "pass":
 
-                yield from self.write_response(
-                    reader,
-                    writer,
-                    "502",
-                    "Not implemented",
-                )
+                    # is there a better solution?
+                    cmd = "pass_"
+
+                if hasattr(self, cmd):
+
+                    coro = getattr(self, cmd)
+                    ok = yield from coro(reader, writer, connection, rest)
+
+                else:
+
+                    yield from self.write_response(
+                        reader,
+                        writer,
+                        "502",
+                        "Not implemented",
+                    )
+
+        finally:
+
+            writer.close()
+            self.connections.pop(key)
 
     @asyncio.coroutine
-    def greeting(self, reader, writer):
+    def greeting(self, reader, writer, connection, rest):
 
         yield from self.write_response(reader, writer, "220")
         return True
@@ -162,3 +178,71 @@ class Server(BaseServer):
 
         self.users = users or [User()]
         self.timeout = timeout
+
+    @asyncio.coroutine
+    def user(self, reader, writer, connection, rest):
+
+        current_user = None
+        for user in self.users:
+
+            if user.login is None and current_user is None:
+
+                current_user = user
+
+            elif user.login == rest:
+
+                current_user = user
+                break
+
+        if current_user is None:
+
+            code, line = "530", "no such username"
+            ok = False
+
+        elif current_user.login is None:
+
+            connection["logged"] = True
+            connection["user"] = current_user
+            code, line = "230", "anonymous login"
+            ok = True
+
+        else:
+
+            connection["user"] = current_user
+            code, line = "331", "require password"
+            ok = True
+
+        yield from self.write_response(reader, writer, code, line)
+        return ok
+
+    @asyncio.coroutine
+    def pass_(self, reader, writer, connection, rest):
+
+        if "user" in connection:
+
+            if connection["user"].password == rest:
+
+                connection["logged"] = True
+                code, line = "230", "normal login"
+
+            else:
+
+                code, line = "530", "wrong password"
+
+        else:
+
+            code, line = "503", "bad sequence of commands"
+
+        yield from self.write_response(reader, writer, code, line)
+        return True
+
+    @asyncio.coroutine
+    def quit(self, reader, writer, connection, rest):
+
+        yield from self.write_response(
+            reader,
+            writer,
+            "221",
+            "bye bye",
+        )
+        return False
