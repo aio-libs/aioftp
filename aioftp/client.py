@@ -14,12 +14,10 @@ def add_prefix(message):
 
 
 @asyncio.coroutine
-def open_connection(host, port, create_connection=None):
+def open_connection(host, port, loop, create_connection):
 
-    loop = asyncio.get_event_loop()
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    create_connection = create_connection or loop.create_connection
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
     return reader, writer
@@ -40,9 +38,11 @@ def ChainCallback(*callbacks):
 
 class BaseClient:
 
-    def __init__(self, create_connection=None, timeout=None):
+    def __init__(self, loop=None, create_connection=None, *, timeout=None):
 
-        self.create_connection = create_connection
+        self.loop = loop or asyncio.get_event_loop()
+        self.create_connection = create_connection or \
+            self.loop.create_connection
         self.timeout = timeout
 
     @asyncio.coroutine
@@ -51,7 +51,8 @@ class BaseClient:
         self.reader, self.writer = yield from open_connection(
             host,
             port,
-            self.create_connection
+            self.loop,
+            self.create_connection,
         )
 
     def close(self):
@@ -271,6 +272,9 @@ class Client(BaseClient):
     """
     FTP client.
 
+    :param loop: loop to use for creating connection and binding with streams
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+
     :param create_connection: factory for creating
         connection.
         Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
@@ -363,7 +367,7 @@ class Client(BaseClient):
 
             cmd = "CWD " + str(path)
 
-        yield from self.command(cmd, "250")
+        yield from self.command(cmd, "2xx")
 
     @asyncio.coroutine
     def make_directory(self, path, *, parents=True):
@@ -821,6 +825,7 @@ class Client(BaseClient):
         reader, writer = yield from open_connection(
             ip,
             port,
+            self.loop,
             self.create_connection,
         )
         return reader, writer
