@@ -1,5 +1,6 @@
 import asyncio
 import pathlib
+import functools
 
 
 from . import common
@@ -33,7 +34,7 @@ class Permission:
     def __repr__(self):
 
         return str.format(
-            "Permission({!r}, readable={!r}, writable={!r}",
+            "Permission({!r}, readable={!r}, writable={!r})",
             self.path,
             self.readable,
             self.writable,
@@ -43,7 +44,7 @@ class Permission:
 class User:
 
     def __init__(self, login=None, password=None, *,
-                 base_path=pathlib.Path("."), home_path=pathlib.Path("."),
+                 base_path=pathlib.Path("."), home_path=pathlib.Path("/"),
                  permissions=None):
 
         self.login = login
@@ -78,8 +79,13 @@ class BaseServer:
     def start(self, host=None, port=None, **kw):
 
         self.connections = {}
-        coro = asyncio.start_server(self.dispatcher, host, port, **kw)
-        self.server = yield from coro
+        self.server = yield from asyncio.start_server(
+            self.dispatcher,
+            host,
+            port,
+            loop=self.loop,
+            **kw
+        )
         host, port = self.server.sockets[0].getsockname()
         message = str.format("serving on {}:{}", host, port)
         common.logger.info(add_prefix(message))
@@ -168,12 +174,28 @@ class BaseServer:
             self.connections.pop(key)
 
 
+def login_required(f):
+
+    @functools.wraps(f)
+    def wrapper(self, connection, rest):
+
+        if connection.get("logged", False):
+
+            return f(self, connection, rest)
+
+        else:
+
+            return True, "503", "bad sequence of commands (not logged)"
+
+    return wrapper
+
 
 class Server(BaseServer):
 
-    def __init__(self, users=None, timeout=None):
+    def __init__(self, users=None, loop=None, *, timeout=None):
 
         self.users = users or [User()]
+        self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
 
     def greeting(self, connection, rest):
@@ -232,7 +254,7 @@ class Server(BaseServer):
 
         else:
 
-            code, info = "503", "bad sequence of commands"
+            code, info = "503", "bad sequence of commands (no user)"
 
         return True, code, info
 
@@ -240,14 +262,42 @@ class Server(BaseServer):
 
         return False, "221", "bye"
 
+    @login_required
     def pwd(self, connection, rest):
 
-        if connection.get("logged", False):
+        current_dir = str.format("\"{}\"", connection["current_directory"])
+        return True, "257", current_dir
 
-            code, info = "257", connection["current_directory"]
+    @login_required
+    def cwd(self, connection, rest):
+
+        path = pathlib.Path(rest)
+        if not path.is_absolute():
+
+            path = connection["current_directory"] / path
+
+        user = connection["user"]
+        real_path = user.base_path / path.relative_to("/")
+        if not real_path.exists():
+
+            code, info = "550", "path does not exists"
 
         else:
 
-            code, info = "503", "bad sequence of commands (not logged)"
+            permissions = user.get_permissions(real_path)
+            if permissions.readable:
+
+                connection["current_directory"] = path
+                code, info = "250", ""
+
+            else:
+
+                code, info = "550", "permission denied"
 
         return True, code, info
+
+    @login_required
+    def cdup(self, connection, rest):
+
+        path = connection["current_directory"].parent
+        return self.cwd(connection, str(path))
