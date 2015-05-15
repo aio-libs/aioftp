@@ -5,6 +5,7 @@ import functools
 
 from . import common
 from . import errors
+from . import pathio
 
 
 def add_prefix(message):
@@ -14,7 +15,7 @@ def add_prefix(message):
 
 class Permission:
 
-    def __init__(self, path=".", *, readable=True, writable=True):
+    def __init__(self, path="/", *, readable=True, writable=True):
 
         self.path = pathlib.Path(path)
         self.readable = readable
@@ -49,15 +50,19 @@ class User:
 
         self.login = login
         self.password = password
-        self.base_path = base_path
-        self.home_path = home_path
+        self.base_path = pathlib.Path(base_path)
+        self.home_path = pathlib.Path(home_path)
         self.permissions = permissions or [Permission()]
 
     def get_permissions(self, path):
 
         path = pathlib.Path(path)
         parents = filter(lambda p: p.is_parent(path), self.permissions)
-        perm = min(parents, key=lambda p: len(path.relative_to(p.path).parts))
+        perm = min(
+            parents,
+            key=lambda p: len(path.relative_to(p.path).parts),
+            default=Permission(),
+        )
         return perm
 
     def __repr__(self):
@@ -143,7 +148,7 @@ class BaseServer:
 
         try:
 
-            ok, code, info = self.greeting(connection, "")
+            ok, code, info = yield from self.greeting(connection, "")
             yield from self.write_response(reader, writer, code, info)
 
             while ok:
@@ -156,7 +161,8 @@ class BaseServer:
 
                 if hasattr(self, cmd):
 
-                    ok, code, info = getattr(self, cmd)(connection, rest)
+                    coro = getattr(self, cmd)
+                    ok, code, info = yield from coro(connection, rest)
                     yield from self.write_response(reader, writer, code, info)
 
                 else:
@@ -165,13 +171,18 @@ class BaseServer:
                         reader,
                         writer,
                         "502",
-                        "Not implemented",
+                        str.format("'{}' not implemented", cmd),
                     )
 
         finally:
 
             writer.close()
             self.connections.pop(key)
+
+    @asyncio.coroutine
+    def greeting(self, connection, rest):
+
+        raise NotImplementedError
 
 
 def login_required(f):
@@ -192,16 +203,31 @@ def login_required(f):
 
 class Server(BaseServer):
 
-    def __init__(self, users=None, loop=None, *, timeout=None):
+    def __init__(self, users=None, loop=None, *, timeout=None,
+                 path_io_factory=pathio.AsyncPathIO):
 
         self.users = users or [User()]
         self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
+        self.path_io = path_io_factory(loop)
 
+    def get_paths(self, connection, path):
+
+        virtual_path = pathlib.Path(path)
+        if not virtual_path.is_absolute():
+
+            virtual_path = connection["current_directory"] / virtual_path
+
+        user = connection["user"]
+        real_path = user.base_path / virtual_path.relative_to("/")
+        return real_path, virtual_path
+
+    @asyncio.coroutine
     def greeting(self, connection, rest):
 
         return True, "220", "welcome"
 
+    @asyncio.coroutine
     def user(self, connection, rest):
 
         current_user = None
@@ -237,6 +263,7 @@ class Server(BaseServer):
 
         return ok, code, info
 
+    @asyncio.coroutine
     def pass_(self, connection, rest):
 
         if "user" in connection:
@@ -258,36 +285,38 @@ class Server(BaseServer):
 
         return True, code, info
 
+    @asyncio.coroutine
     def quit(self, connection, rest):
 
         return False, "221", "bye"
 
+    @asyncio.coroutine
     @login_required
     def pwd(self, connection, rest):
 
         current_dir = str.format("\"{}\"", connection["current_directory"])
         return True, "257", current_dir
 
+    @asyncio.coroutine
     @login_required
     def cwd(self, connection, rest):
 
-        path = pathlib.Path(rest)
-        if not path.is_absolute():
-
-            path = connection["current_directory"] / path
-
+        real_path, virtual_path = self.get_paths(connection, rest)
         user = connection["user"]
-        real_path = user.base_path / path.relative_to("/")
-        if not real_path.exists():
+        if not (yield from self.path_io.exists(real_path)):
 
             code, info = "550", "path does not exists"
 
+        elif not (yield from self.path_io.is_dir(real_path)):
+
+            code, info = "550", "path is not a directory"
+
         else:
 
-            permissions = user.get_permissions(real_path)
+            permissions = user.get_permissions(virtual_path)
             if permissions.readable:
 
-                connection["current_directory"] = path
+                connection["current_directory"] = virtual_path
                 code, info = "250", ""
 
             else:
@@ -296,8 +325,119 @@ class Server(BaseServer):
 
         return True, code, info
 
+    @asyncio.coroutine
     @login_required
     def cdup(self, connection, rest):
 
         path = connection["current_directory"].parent
-        return self.cwd(connection, str(path))
+        return (yield from self.cwd(connection, path))
+
+    @asyncio.coroutine
+    @login_required
+    def mkd(self, connection, rest):
+
+        real_path, virtual_path = self.get_paths(connection, rest)
+        user = connection["user"]
+        if (yield from self.path_io.exists(real_path)):
+
+            code, info = "550", "path already exists"
+
+        else:
+
+            permissions = user.get_permissions(virtual_path)
+            if permissions.writable:
+
+                yield from self.path_io.mkdir(real_path, parents=True)
+                code, info = "257", ""
+
+            else:
+
+                code, info = "550", "permission denied"
+
+        return True, code, info
+
+    @asyncio.coroutine
+    @login_required
+    def rmd(self, connection, rest):
+
+        real_path, virtual_path = self.get_paths(connection, rest)
+        user = connection["user"]
+        if not (yield from self.path_io.exists(real_path)):
+
+            code, info = "550", "path does not exists"
+
+        elif not (yield from self.path_io.is_dir(real_path)):
+
+            code, info = "550", "path is not a directory"
+
+        else:
+
+            permissions = user.get_permissions(virtual_path)
+            if permissions.writable:
+
+                try:
+
+                    yield from self.path_io.rmdir(real_path)
+                    code, info = "257", ""
+
+                except OSError as e:
+
+                    code, info = "550", str.format("os error: {}", e.strerror)
+
+            else:
+
+                code, info = "550", "permission denied"
+
+    @asyncio.coroutine
+    @login_required
+    def mlsd(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def mlst(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def rnfr(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def rnto(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def dele(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def stor(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def retr(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def type(self, connection, rest):
+
+        pass
+
+    @asyncio.coroutine
+    @login_required
+    def pasv(self, connection, rest):
+
+        pass
