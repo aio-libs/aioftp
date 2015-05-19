@@ -430,10 +430,6 @@ class Client(BaseClient):
         """
         def _callback(line):
 
-            nonlocal files
-            nonlocal path
-            nonlocal callback
-            nonlocal directories
             name, info = self.parse_mlsx_line(line)
             if info["type"] in ("file", "dir"):
 
