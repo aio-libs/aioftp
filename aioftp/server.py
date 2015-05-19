@@ -1,6 +1,7 @@
 import asyncio
 import pathlib
 import functools
+import contextlib
 
 
 from . import common
@@ -84,6 +85,8 @@ class BaseServer:
     def start(self, host=None, port=None, **kw):
 
         self.connections = {}
+        self.host = host
+        self.port = port
         self.server = yield from asyncio.start_server(
             self.dispatcher,
             host,
@@ -143,7 +146,17 @@ class BaseServer:
         common.logger.info(add_prefix(message))
 
         key = reader, writer
-        connection = {"host": host, "port": port}
+        connection = {
+            "client_host": host,
+            "client_port": port,
+            "server_host": self.host,
+            "server_port": self.port,
+            "command_connection": (reader, writer),
+            "timeout": self.timeout,
+            "block_size": self.block_size,
+            "path_io": self.path_io,
+            "loop": self.loop,
+        }
         self.connections[key] = connection
 
         try:
@@ -203,12 +216,19 @@ def login_required(f):
 
 class Server(BaseServer):
 
-    def __init__(self, users=None, loop=None, *, timeout=None,
+    path_facts = (
+        ("st_size", "Size"),
+        ("st_mtime", "Modify"),
+        ("st_ctime", "Create"),
+    )
+
+    def __init__(self, users=None, loop=None, *, timeout=None, block_size=8192,
                  path_io_factory=pathio.AsyncPathIO):
 
         self.users = users or [User()]
         self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
+        self.block_size = block_size
         self.path_io = path_io_factory(loop)
 
     def get_paths(self, connection, path):
@@ -303,11 +323,13 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         user = connection["user"]
-        if not (yield from self.path_io.exists(real_path)):
+        path_io = connection["path_io"]
+
+        if not (yield from path_io.exists(real_path)):
 
             code, info = "550", "path does not exists"
 
-        elif not (yield from self.path_io.is_dir(real_path)):
+        elif not (yield from path_io.is_dir(real_path)):
 
             code, info = "550", "path is not a directory"
 
@@ -338,7 +360,9 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         user = connection["user"]
-        if (yield from self.path_io.exists(real_path)):
+        path_io = connection["path_io"]
+
+        if (yield from path_io.exists(real_path)):
 
             code, info = "550", "path already exists"
 
@@ -347,7 +371,7 @@ class Server(BaseServer):
             permissions = user.get_permissions(virtual_path)
             if permissions.writable:
 
-                yield from self.path_io.mkdir(real_path, parents=True)
+                yield from path_io.mkdir(real_path, parents=True)
                 code, info = "257", ""
 
             else:
@@ -362,11 +386,13 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         user = connection["user"]
-        if not (yield from self.path_io.exists(real_path)):
+        path_io = connection["path_io"]
+
+        if not (yield from path_io.exists(real_path)):
 
             code, info = "550", "path does not exists"
 
-        elif not (yield from self.path_io.is_dir(real_path)):
+        elif not (yield from path_io.is_dir(real_path)):
 
             code, info = "550", "path is not a directory"
 
@@ -377,7 +403,7 @@ class Server(BaseServer):
 
                 try:
 
-                    yield from self.path_io.rmdir(real_path)
+                    yield from path_io.rmdir(real_path)
                     code, info = "257", ""
 
                 except OSError as e:
@@ -389,10 +415,85 @@ class Server(BaseServer):
                 code, info = "550", "permission denied"
 
     @asyncio.coroutine
+    def build_mlsx_string(self, connection, path):
+
+        stats = {}
+        path_io = connection["path_io"]
+        if (yield from path_io.is_file(path)):
+
+            stats["Type"] = "file"
+
+        elif (yield from path_io.is_dir(path)):
+
+            stats["Type"] = "dir"
+
+        else:
+
+            raise Exception(str.format("Unknown type for '{}'", path))
+
+        raw_stats = yield from path_io.stat(path)
+        for attr, fact in Server.path_facts:
+
+            stats[fact] = getattr(raw_stats, attr)
+
+        s = ""
+        for fact, value in stats.items():
+
+            s += str.format("{}={};", fact, value)
+
+        s += " " + path.name
+        return s
+
+    @asyncio.coroutine
     @login_required
     def mlsd(self, connection, rest):
 
-        pass
+        real_path, virtual_path = self.get_paths(connection, rest)
+        path_io = connection["path_io"]
+
+        if "passive_server" not in connection:
+
+            code, info = "503", "no listen socket created (use PASV at first)"
+
+        elif "passive_connection" not in connection:
+
+            code, info = "503", "no passive connection created"
+
+        else:
+
+            @asyncio.coroutine
+            def mlsd_writer():
+
+                data_reader, data_writer = connection.pop("passive_connection")
+                with contextlib.closing(data_writer) as data_writer:
+
+                    data = b""
+                    block_size = connection["block_size"]
+                    for p in (yield from path_io.list(real_path)):
+
+                        s = yield from self.build_mlsx_string(connection, p)
+                        data += str.encode(s + "\n", "utf-8")
+
+                        while len(data) >= block_size:
+
+                            data_writer.write(data[:block_size])
+                            data = data[block_size:]
+                            yield from data_writer.drain()
+
+                    if data:
+
+                        data_writer.write(data)
+                        yield from data_writer.drain()
+
+                reader, writer = connection["command_connection"]
+                code, info = "200", "mlsd data transer done"
+                yield from self.write_response(reader, writer, code, info)
+
+            # ensure_future
+            asyncio.async(mlsd_writer(), loop=connection["loop"])
+            code, info = "150", "mlsd transer started"
+
+        return True, code, info
 
     @asyncio.coroutine
     @login_required
@@ -434,10 +535,75 @@ class Server(BaseServer):
     @login_required
     def type(self, connection, rest):
 
-        pass
+        if rest == "I":
+
+            connection["transfer_type"] = rest
+            code, info = "200", ""
+
+        else:
+
+            code, info = "502", str.format("type '{}' not implemented", rest)
+
+        return True, code, info
 
     @asyncio.coroutine
     @login_required
     def pasv(self, connection, rest):
 
+        @asyncio.coroutine
+        def handler(reader, writer):
+
+            if "passive_connection" in connection:
+
+                writer.close()
+
+            else:
+
+                connection["passive_connection"] = reader, writer
+
+        if "passive_server" not in connection:
+
+            server = yield from asyncio.start_server(
+                handler,
+                connection["server_host"],
+                0,
+                loop=self.loop,
+            )
+            connection["passive_server"] = server
+            code, info = "227", ["listen socket created"]
+
+        else:
+
+            code, info = "227", ["listen socket already exists"]
+
+        host, port = connection["passive_server"].sockets[0].getsockname()
+        nums = tuple(map(int, str.split(host, "."))) + (port >> 8, port & 0xff)
+        info.append(str.format("({})", str.join(",", map(str, nums))))
+        return True, code, info
+
+    @asyncio.coroutine
+    @login_required
+    def abor(self, connection, rest):
+
         pass
+
+    @asyncio.coroutine
+    @login_required
+    def feat(self, connection, rest):
+
+        reader, writer = connection["command_connection"]
+        self.write_line(reader, writer, "211", "features")
+        s = " MLST Type*;"
+        for _, fact in Server.path_facts:
+
+            s += fact + "*;"
+
+        common.logger.info(add_prefix(s))
+        writer.write(str.encode(s + "\r\n", encoding="utf-8"))
+
+        s = " PASV"
+        common.logger.info(add_prefix(s))
+        writer.write(str.encode(s + "\r\n", encoding="utf-8"))
+
+        code, info = "211", "end"
+        return True, code, info
