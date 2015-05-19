@@ -46,3 +46,11 @@ class ConnectionClosedError(Exception):
     Raised when expecting information, but connection closed.
     """
     pass
+
+
+class UnknownPathType(Exception):
+    """
+    Raised when "path abstract layer" tells, that `path` is not a file and
+        is not a directory.
+    """
+    pass
