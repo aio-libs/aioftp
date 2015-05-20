@@ -67,6 +67,11 @@ class AbstractPathIO:
 
         raise NotImplementedError
 
+    @asyncio.coroutine
+    def rename(self, source, destination):
+
+        raise NotImplementedError
+
 
 class PathIO(AbstractPathIO):
 
@@ -129,6 +134,11 @@ class PathIO(AbstractPathIO):
     def close(self, file):
 
         return file.close()
+
+    @asyncio.coroutine
+    def rename(self, source, destination):
+
+        return source.rename(destination)
 
 
 class AsyncPathIO(AbstractPathIO):
@@ -195,3 +205,9 @@ class AsyncPathIO(AbstractPathIO):
     def close(self, file):
 
         return (yield from self.loop.run_in_executor(None, file.close))
+
+    @asyncio.coroutine
+    def rename(self, source, destination):
+
+        f = functools.partial(source.rename, destination)
+        return (yield from self.loop.run_in_executor(None, f))
