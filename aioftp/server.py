@@ -2,6 +2,7 @@ import asyncio
 import pathlib
 import functools
 import contextlib
+import inspect
 
 
 from . import common
@@ -107,22 +108,36 @@ class BaseServer:
 
         yield from self.server.wait_closed()
 
-    def write_line(self, reader, writer, code, line, last=False,
-                   encoding="utf-8"):
+    @asyncio.coroutine
+    def write_line(self, reader, writer, line, encoding="utf-8"):
 
-        separator = " " if last else "-"
-        message = str.strip(code + separator + line)
-        common.logger.info(add_prefix(message))
-        writer.write(str.encode(message + "\r\n", encoding=encoding))
+        common.logger.info(add_prefix(line))
+        writer.write(str.encode(line + "\r\n", encoding=encoding))
+        yield from writer.drain()
 
     @asyncio.coroutine
-    def write_response(self, reader, writer, code, lines=""):
+    def write_response(self, reader, writer, code, lines="", list=False):
 
         lines = common.wrap_with_container(lines)
-        for line in lines:
+        write = functools.partial(self.write_line, reader, writer)
+        if list:
 
-            self.write_line(reader, writer, code, line, line is lines[-1])
-            yield from writer.drain()
+            head, *body, tail = lines
+            yield from write(code + "-" + head)
+            for line in body:
+
+                yield from write(" " + line)
+
+            yield from write(code + " " + tail)
+
+        else:
+
+            *body, tail = lines
+            for line in body:
+
+                yield from write(code + "-" + line)
+
+            yield from write(code + " " + tail)
 
     @asyncio.coroutine
     def parse_command(self, reader, writer):
@@ -152,16 +167,16 @@ class BaseServer:
             "server_port": self.port,
             "command_connection": (reader, writer),
             "timeout": self.timeout,
-            "block_size": self.block_size,
             "path_io": self.path_io,
             "loop": self.loop,
         }
         self.connections[key] = connection
+        write = functools.partial(self.write_response, reader, writer)
 
         try:
 
-            ok, code, info = yield from self.greeting(connection, "")
-            yield from self.write_response(reader, writer, code, info)
+            ok, *args = yield from self.greeting(connection, "")
+            yield from write(*args)
 
             while ok:
 
@@ -173,18 +188,13 @@ class BaseServer:
 
                 if hasattr(self, cmd):
 
-                    coro = getattr(self, cmd)
-                    ok, code, info = yield from coro(connection, rest)
-                    yield from self.write_response(reader, writer, code, info)
+                    ok, *args = yield from getattr(self, cmd)(connection, rest)
+                    yield from write(*args)
 
                 else:
 
-                    yield from self.write_response(
-                        reader,
-                        writer,
-                        "502",
-                        str.format("'{}' not implemented", cmd),
-                    )
+                    template = "'{}' not implemented"
+                    yield from write("502", str.format(template, cmd))
 
         finally:
 
@@ -197,44 +207,55 @@ class BaseServer:
         raise NotImplementedError
 
 
-def login_required(f):
+def fields_required(*fields):
+
+    def decorator(f):
+
+        @functools.wraps(f)
+        def wrapper(self, connection, rest, **kw):
+
+            for name, message in fields:
+
+                if name not in connection:
+
+                    template = "bad sequence of commands ({})"
+                    return True, "503", str.format(template, message)
+
+            return f(self, connection, rest, **kw)
+
+        return wrapper
+
+    return decorator
+
+
+def unpack_keywords(f):
 
     @functools.wraps(f)
     def wrapper(self, connection, rest):
 
-        if connection.get("logged", False):
+        sig = inspect.signature(f)
+        unpacked = {}
+        for name, parameter in sig.parameters.items():
 
-            ret = f(self, connection, rest)
+            if parameter.kind == inspect.Parameter.KEYWORD_ONLY:
 
-        else:
+                unpacked[name] = connection[name]
 
-            ret = True, "503", "bad sequence of commands (not logged)"
-
-        return *ret
-
-    return wrapper
-
-
-def passive_required(f):
-
-    @functools.wraps(f)
-    def wrapper(self, connection, rest):
-
-        if "passive_server" not in connection:
-
-            ret = True, "503", "no listen socket created"
-
-        elif "passive_connection" not in connection:
-
-            ret = True, "503", "no passive connection created"
-
-        else:
-
-            ret = f(self, connection, rest)
-
-        return *ret
+        return f(self, connection, rest, **unpacked)
 
     return wrapper
+
+
+user_required = fields_required(
+    ("user", "no user (use USER firstly)"),
+)
+login_required = fields_required(
+    ("logged", "not logged in"),
+)
+passive_required = fields_required(
+    ("passive_server", "no listen socket created (use PASV firstly)"),
+    ("passive_connection", "no passive connection created (connect firstly)"),
+)
 
 
 class Server(BaseServer):
@@ -253,14 +274,14 @@ class Server(BaseServer):
         self.timeout = timeout
         self.path_io = path_io_factory(loop)
 
-    def get_paths(self, connection, path):
+    @unpack_keywords
+    def get_paths(self, connection, path, *, user):
 
         virtual_path = pathlib.Path(path)
         if not virtual_path.is_absolute():
 
             virtual_path = connection["current_directory"] / virtual_path
 
-        user = connection["user"]
         real_path = user.base_path / virtual_path.relative_to("/")
         return real_path, virtual_path
 
@@ -306,24 +327,20 @@ class Server(BaseServer):
         return ok, code, info
 
     @asyncio.coroutine
-    def pass_(self, connection, rest):
+    @user_required
+    @unpack_keywords
+    def pass_(self, connection, rest, *, user):
 
-        if "user" in connection:
+        if user.password == rest:
 
-            if connection["user"].password == rest:
-
-                connection["logged"] = True
-                connection["current_directory"] = current_user.home_path
-                connection["user"] = current_user
-                code, info = "230", "normal login"
-
-            else:
-
-                code, info = "530", "wrong password"
+            connection["logged"] = True
+            connection["current_directory"] = user.home_path
+            connection["user"] = user
+            code, info = "230", "normal login"
 
         else:
 
-            code, info = "503", "bad sequence of commands (no user)"
+            code, info = "530", "wrong password"
 
         return True, code, info
 
@@ -334,19 +351,17 @@ class Server(BaseServer):
 
     @asyncio.coroutine
     @login_required
-    def pwd(self, connection, rest):
+    @unpack_keywords
+    def pwd(self, connection, rest, *, current_directory):
 
-        current_dir = str.format("\"{}\"", connection["current_directory"])
-        return True, "257", current_dir
+        return True, "257", str.format("\"{}\"", current_directory)
 
     @asyncio.coroutine
     @login_required
-    def cwd(self, connection, rest):
+    @unpack_keywords
+    def cwd(self, connection, rest, *, user, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        user = connection["user"]
-        path_io = connection["path_io"]
-
         if not (yield from path_io.exists(real_path)):
 
             code, info = "550", "path does not exists"
@@ -371,19 +386,17 @@ class Server(BaseServer):
 
     @asyncio.coroutine
     @login_required
-    def cdup(self, connection, rest):
+    @unpack_keywords
+    def cdup(self, connection, rest, *, current_directory):
 
-        path = connection["current_directory"].parent
-        return (yield from self.cwd(connection, path))
+        return (yield from self.cwd(connection, current_directory.parent))
 
     @asyncio.coroutine
     @login_required
-    def mkd(self, connection, rest):
+    @unpack_keywords
+    def mkd(self, connection, rest, *, user, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        user = connection["user"]
-        path_io = connection["path_io"]
-
         if (yield from path_io.exists(real_path)):
 
             code, info = "550", "path already exists"
@@ -404,12 +417,10 @@ class Server(BaseServer):
 
     @asyncio.coroutine
     @login_required
-    def rmd(self, connection, rest):
+    @unpack_keywords
+    def rmd(self, connection, rest, *, user, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        user = connection["user"]
-        path_io = connection["path_io"]
-
         if not (yield from path_io.exists(real_path)):
 
             code, info = "550", "path does not exists"
@@ -437,11 +448,10 @@ class Server(BaseServer):
                 code, info = "550", "permission denied"
 
     @asyncio.coroutine
-    def build_mlsx_string(self, connection, path):
+    @unpack_keywords
+    def build_mlsx_string(self, connection, path, *, path_io):
 
         stats = {}
-        path_io = connection["path_io"]
-
         if (yield from path_io.is_file(path)):
 
             stats["Type"] = "file"
@@ -470,11 +480,8 @@ class Server(BaseServer):
     @asyncio.coroutine
     @login_required
     @passive_required
-    def mlsd(self, connection, rest):
-
-        real_path, virtual_path = self.get_paths(connection, rest)
-        user = connection["user"]
-        path_io = connection["path_io"]
+    @unpack_keywords
+    def mlsd(self, connection, rest, *, user, path_io):
 
         @asyncio.coroutine
         def mlsd_writer():
@@ -492,6 +499,7 @@ class Server(BaseServer):
             code, info = "200", "mlsd data transer done"
             yield from self.write_response(reader, writer, code, info)
 
+        real_path, virtual_path = self.get_paths(connection, rest)
         permissions = user.get_permissions(virtual_path)
         if permissions.readable:
 
@@ -507,10 +515,21 @@ class Server(BaseServer):
 
     @asyncio.coroutine
     @login_required
-    @passive_required
-    def mlst(self, connection, rest):
+    @unpack_keywords
+    def mlst(self, connection, rest, *, user, path_io):
 
-        pass
+        real_path, virtual_path = self.get_paths(connection, rest)
+        permissions = user.get_permissions(virtual_path)
+        if permissions.readable:
+
+            s = yield from self.build_mlsx_string(connection, real_path)
+            code, info, list = "250", ["start", s, "end"], True
+
+        else:
+
+            code, info, list = "550", "permission denied", False
+
+        return True, code, info, list
 
     @asyncio.coroutine
     @login_required
