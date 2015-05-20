@@ -207,29 +207,104 @@ class BaseServer:
         raise NotImplementedError
 
 
-def fields_required(*fields):
+class ConnectionConditions:
 
-    def decorator(f):
+    user_required = ("user", "no user (use USER firstly)")
+    login_required = ("logged", "not logged in")
+    passive_server_started = (
+        "passive_server",
+        "no listen socket created (use PASV firstly)"
+    )
+    passive_connection_made = (
+        "passive_connection",
+        "no passive connection created (connect firstly)"
+    )
+    rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
+    def __init__(self, *fields):
+
+        self.fields = fields
+
+    def __call__(self, f):
+
+        @asyncio.coroutine
         @functools.wraps(f)
-        def wrapper(self, connection, rest, **kw):
+        def wrapper(cls, connection, rest):
 
-            for name, message in fields:
+            for name, message in self.fields:
 
                 if name not in connection:
 
                     template = "bad sequence of commands ({})"
                     return True, "503", str.format(template, message)
 
-            return f(self, connection, rest, **kw)
+            return (yield from f(cls, connection, rest))
 
         return wrapper
 
-    return decorator
+
+class PathConditions:
+
+    path_must_exists = ("exists", False, "path does not exists")
+    path_must_not_exists = ("exists", True, "path already exists")
+    path_must_be_dir = ("is_dir", False, "path is not a directory")
+    path_must_be_file = ("is_file", False, "path is not a file")
+
+    def __init__(self, *conditions):
+
+        self.conditions = conditions
+
+    def __call__(self, f):
+
+        @asyncio.coroutine
+        @functools.wraps(f)
+        def wrapper(cls, connection, rest):
+
+            real_path, virtual_path = cls.get_paths(connection, rest)
+            path_io = connection["path_io"]
+            for name, fail, message in self.conditions:
+
+                if (yield from getattr(path_io, name)(real_path)) == fail:
+
+                    return True, "550", message
+
+            return (yield from f(cls, connection, rest))
+
+        return wrapper
+
+
+class PathPermissions:
+
+    readable = "readable"
+    writable = "writable"
+
+    def __init__(self, *permissions):
+
+        self.permissions = permissions
+
+    def __call__(self, f):
+
+        @asyncio.coroutine
+        @functools.wraps(f)
+        def wrapper(cls, connection, rest):
+
+            real_path, virtual_path = cls.get_paths(connection, rest)
+            user = connection["user"]
+            current_permission = user.get_permissions(virtual_path)
+            for permission in self.permissions:
+
+                if not getattr(current_permission, permission):
+
+                    return True, "550", "permission denied"
+
+                return (yield from f(cls, connection, rest))
+
+        return wrapper
 
 
 def unpack_keywords(f):
 
+    @asyncio.coroutine
     @functools.wraps(f)
     def wrapper(self, connection, rest):
 
@@ -241,21 +316,9 @@ def unpack_keywords(f):
 
                 unpacked[name] = connection[name]
 
-        return f(self, connection, rest, **unpacked)
+        return (yield from f(self, connection, rest, **unpacked))
 
     return wrapper
-
-
-user_required = fields_required(
-    ("user", "no user (use USER firstly)"),
-)
-login_required = fields_required(
-    ("logged", "not logged in"),
-)
-passive_required = fields_required(
-    ("passive_server", "no listen socket created (use PASV firstly)"),
-    ("passive_connection", "no passive connection created (connect firstly)"),
-)
 
 
 class Server(BaseServer):
@@ -274,10 +337,10 @@ class Server(BaseServer):
         self.timeout = timeout
         self.path_io = path_io_factory(loop)
 
-    @unpack_keywords
-    def get_paths(self, connection, path, *, user):
+    def get_paths(self, connection, path):
 
         virtual_path = pathlib.Path(path)
+        user = connection["user"]
         if not virtual_path.is_absolute():
 
             virtual_path = connection["current_directory"] / virtual_path
@@ -326,9 +389,9 @@ class Server(BaseServer):
 
         return ok, code, info
 
-    @asyncio.coroutine
-    @user_required
+    @ConnectionConditions(ConnectionConditions.user_required)
     @unpack_keywords
+    @asyncio.coroutine
     def pass_(self, connection, rest, *, user):
 
         if user.password == rest:
@@ -349,106 +412,59 @@ class Server(BaseServer):
 
         return False, "221", "bye"
 
-    @asyncio.coroutine
-    @login_required
+    @ConnectionConditions(ConnectionConditions.login_required)
     @unpack_keywords
+    @asyncio.coroutine
     def pwd(self, connection, rest, *, current_directory):
 
         return True, "257", str.format("\"{}\"", current_directory)
 
-    @asyncio.coroutine
-    @login_required
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(
+        PathConditions.path_must_exists,
+        PathConditions.path_must_be_dir)
+    @PathPermissions(PathPermissions.readable)
     @unpack_keywords
-    def cwd(self, connection, rest, *, user, path_io):
+    @asyncio.coroutine
+    def cwd(self, connection, rest, *, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        if not (yield from path_io.exists(real_path)):
+        connection["current_directory"] = virtual_path
+        return True, "250", ""
 
-            code, info = "550", "path does not exists"
-
-        elif not (yield from path_io.is_dir(real_path)):
-
-            code, info = "550", "path is not a directory"
-
-        else:
-
-            permissions = user.get_permissions(virtual_path)
-            if permissions.readable:
-
-                connection["current_directory"] = virtual_path
-                code, info = "250", ""
-
-            else:
-
-                code, info = "550", "permission denied"
-
-        return True, code, info
-
-    @asyncio.coroutine
-    @login_required
+    @ConnectionConditions(ConnectionConditions.login_required)
     @unpack_keywords
+    @asyncio.coroutine
     def cdup(self, connection, rest, *, current_directory):
 
         return (yield from self.cwd(connection, current_directory.parent))
 
-    @asyncio.coroutine
-    @login_required
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(PathConditions.path_must_not_exists)
+    @PathPermissions(PathPermissions.writable)
     @unpack_keywords
-    def mkd(self, connection, rest, *, user, path_io):
+    @asyncio.coroutine
+    def mkd(self, connection, rest, *, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        if (yield from path_io.exists(real_path)):
+        yield from path_io.mkdir(real_path, parents=True)
+        return True, "257", ""
 
-            code, info = "550", "path already exists"
-
-        else:
-
-            permissions = user.get_permissions(virtual_path)
-            if permissions.writable:
-
-                yield from path_io.mkdir(real_path, parents=True)
-                code, info = "257", ""
-
-            else:
-
-                code, info = "550", "permission denied"
-
-        return True, code, info
-
-    @asyncio.coroutine
-    @login_required
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(
+        PathConditions.path_must_exists,
+        PathConditions.path_must_be_dir)
+    @PathPermissions(PathPermissions.writable)
     @unpack_keywords
-    def rmd(self, connection, rest, *, user, path_io):
+    @asyncio.coroutine
+    def rmd(self, connection, rest, *, path_io):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        if not (yield from path_io.exists(real_path)):
+        yield from path_io.rmdir(real_path)
+        return True, "257", ""
 
-            code, info = "550", "path does not exists"
-
-        elif not (yield from path_io.is_dir(real_path)):
-
-            code, info = "550", "path is not a directory"
-
-        else:
-
-            permissions = user.get_permissions(virtual_path)
-            if permissions.writable:
-
-                try:
-
-                    yield from path_io.rmdir(real_path)
-                    code, info = "257", ""
-
-                except OSError as e:
-
-                    code, info = "550", str.format("os error: {}", e.strerror)
-
-            else:
-
-                code, info = "550", "permission denied"
-
-    @asyncio.coroutine
     @unpack_keywords
+    @asyncio.coroutine
     def build_mlsx_string(self, connection, path, *, path_io):
 
         stats = {}
@@ -462,7 +478,13 @@ class Server(BaseServer):
 
         else:
 
-            raise errors.UnknownPathType(str(path))
+            raise errors.UnknownPathType(
+                str.format(
+                    "{} ({})",
+                    path,
+                    stats["Type"],
+                )
+            )
 
         raw_stats = yield from path_io.stat(path)
         for attr, fact in Server.path_facts:
@@ -477,11 +499,15 @@ class Server(BaseServer):
         s += " " + path.name
         return s
 
-    @asyncio.coroutine
-    @login_required
-    @passive_required
+    @ConnectionConditions(
+        ConnectionConditions.login_required,
+        ConnectionConditions.passive_server_started,
+        ConnectionConditions.passive_connection_made)
+    @PathConditions(PathConditions.path_must_exists)
+    @PathPermissions(PathPermissions.readable)
     @unpack_keywords
-    def mlsd(self, connection, rest, *, user, path_io):
+    @asyncio.coroutine
+    def mlsd(self, connection, rest, *, path_io):
 
         @asyncio.coroutine
         def mlsd_writer():
@@ -500,69 +526,79 @@ class Server(BaseServer):
             yield from self.write_response(reader, writer, code, info)
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        permissions = user.get_permissions(virtual_path)
-        if permissions.readable:
+        # ensure_future
+        asyncio.async(mlsd_writer(), loop=connection["loop"])
+        return True, "150", "mlsd transer started"
 
-            # ensure_future
-            asyncio.async(mlsd_writer(), loop=connection["loop"])
-            code, info = "150", "mlsd transer started"
-
-        else:
-
-            code, info = "550", "permission denied"
-
-        return True, code, info
-
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(PathConditions.path_must_exists)
+    @PathPermissions(PathPermissions.readable)
     @asyncio.coroutine
-    @login_required
-    @unpack_keywords
-    def mlst(self, connection, rest, *, user, path_io):
+    def mlst(self, connection, rest):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        permissions = user.get_permissions(virtual_path)
-        if permissions.readable:
+        s = yield from self.build_mlsx_string(connection, real_path)
+        return True, "250", ["start", s, "end"], True
 
-            s = yield from self.build_mlsx_string(connection, real_path)
-            code, info, list = "250", ["start", s, "end"], True
-
-        else:
-
-            code, info, list = "550", "permission denied", False
-
-        return True, code, info, list
-
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(PathConditions.path_must_exists)
+    @PathPermissions(PathPermissions.writable)
     @asyncio.coroutine
-    @login_required
     def rnfr(self, connection, rest):
 
-        pass
+        real_path, virtual_path = self.get_paths(connection, rest)
+        connection["rename_from"] = real_path
+        return True, "350", "rename from accepted"
 
+    @ConnectionConditions(
+        ConnectionConditions.login_required,
+        ConnectionConditions.rename_from_required)
+    @PathConditions(PathConditions.path_must_not_exists)
+    @PathPermissions(PathPermissions.writable)
+    @unpack_keywords
     @asyncio.coroutine
-    @login_required
-    def rnto(self, connection, rest):
+    def rnto(self, connection, rest, *, path_io):
 
-        pass
+        real_path, virtual_path = self.get_paths(connection, rest)
+        rename_from = connection.pop("rename_from")
+        yield from path_io.rename(rename_from, real_path)
+        return True, "250", ""
 
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(
+        PathConditions.path_must_not_exists,
+        PathConditions.path_must_be_file)
+    @PathPermissions(PathPermissions.writable)
+    @unpack_keywords
     @asyncio.coroutine
-    @login_required
-    def dele(self, connection, rest):
+    def dele(self, connection, rest, *, path_io):
 
-        pass
+        real_path, virtual_path = self.get_paths(connection, rest)
+        yield from path_io.unlink(real_path)
+        return True, "250", ""
 
+    @ConnectionConditions(
+        ConnectionConditions.login_required,
+        ConnectionConditions.passive_server_started,
+        ConnectionConditions.passive_connection_made)
+    @PathPermissions(PathPermissions.writable)
     @asyncio.coroutine
-    @login_required
     def stor(self, connection, rest):
 
         pass
 
+    @ConnectionConditions(
+        ConnectionConditions.login_required,
+        ConnectionConditions.passive_server_started,
+        ConnectionConditions.passive_connection_made)
+    @PathPermissions(PathPermissions.writable)
     @asyncio.coroutine
-    @login_required
     def retr(self, connection, rest):
 
         pass
 
+    @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
-    @login_required
     def type(self, connection, rest):
 
         if rest == "I":
@@ -576,8 +612,8 @@ class Server(BaseServer):
 
         return True, code, info
 
+    @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
-    @login_required
     def pasv(self, connection, rest):
 
         @asyncio.coroutine
@@ -610,8 +646,8 @@ class Server(BaseServer):
         info.append(str.format("({})", str.join(",", map(str, nums))))
         return True, code, info
 
+    @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
-    @login_required
     def abor(self, connection, rest):
 
         pass
