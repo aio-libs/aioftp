@@ -168,6 +168,7 @@ class BaseServer:
             "server_port": self.port,
             "command_connection": (reader, writer),
             "timeout": self.timeout,
+            "block_size": self.block_size,
             "path_io": self.path_io,
             "loop": self.loop,
         }
@@ -199,7 +200,7 @@ class BaseServer:
 
         finally:
 
-            message = str.format("end connection from {}:{}", host, port)
+            message = str.format("closing connection from {}:{}", host, port)
             common.logger.info(add_prefix(message))
             writer.close()
             self.connections.pop(key)
@@ -332,12 +333,13 @@ class Server(BaseServer):
         ("st_ctime", "Create"),
     )
 
-    def __init__(self, users=None, loop=None, *, timeout=None,
+    def __init__(self, users=None, loop=None, *, timeout=None, block_size=8192,
                  path_io_factory=pathio.AsyncPathIO):
 
         self.users = users or [User()]
         self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
+        self.block_size = block_size
         self.path_io = path_io_factory(loop)
 
     def get_paths(self, connection, path):
@@ -570,7 +572,10 @@ class Server(BaseServer):
         s = str.join(" ", fields)
         return s
 
-    @ConnectionConditions(ConnectionConditions.login_required)
+    @ConnectionConditions(
+        ConnectionConditions.login_required,
+        ConnectionConditions.passive_server_started,
+        ConnectionConditions.passive_connection_made)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
     @unpack_keywords
@@ -649,21 +654,84 @@ class Server(BaseServer):
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
         ConnectionConditions.passive_connection_made)
+    @PathConditions(PathConditions.path_must_not_exists)
     @PathPermissions(PathPermissions.writable)
+    @unpack_keywords
     @asyncio.coroutine
-    def stor(self, connection, rest):
+    def stor(self, connection, rest, *, path_io, block_size):
 
-        pass
+        @asyncio.coroutine
+        def stor_worker():
+
+            data_reader, data_writer = connection.pop("passive_connection")
+            try:
+
+                fout = yield from path_io.open(real_path, mode="wb")
+                while True:
+
+                    data = yield from data_reader.read(block_size)
+                    if not data:
+
+                        break
+
+                    yield from path_io.write(fout, data)
+
+            finally:
+
+                data_writer.close()
+                yield from path_io.close(fout)
+
+            reader, writer = connection["command_connection"]
+            code, info = "226", "data transer done"
+            yield from self.write_response(reader, writer, code, info)
+
+        real_path, virtual_path = self.get_paths(connection, rest)
+        # ensure_future
+        asyncio.async(stor_worker(), loop=connection["loop"])
+        return True, "150", "data transer started"
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
         ConnectionConditions.passive_connection_made)
-    @PathPermissions(PathPermissions.writable)
+    @PathConditions(
+        PathConditions.path_must_exists,
+        PathConditions.path_must_be_file)
+    @PathPermissions(PathPermissions.readable)
+    @unpack_keywords
     @asyncio.coroutine
-    def retr(self, connection, rest):
+    def retr(self, connection, rest, *, path_io, block_size):
 
-        pass
+        @asyncio.coroutine
+        def retr_worker():
+
+            data_reader, data_writer = connection.pop("passive_connection")
+            try:
+
+                fin = yield from path_io.open(real_path, mode="rb")
+                while True:
+
+                    data = yield from path_io.read(fin, block_size)
+                    if not data:
+
+                        break
+
+                    data_writer.write(data)
+                    yield from data_writer.drain()
+
+            finally:
+
+                data_writer.close()
+                yield from path_io.close(fin)
+
+            reader, writer = connection["command_connection"]
+            code, info = "226", "data transer done"
+            yield from self.write_response(reader, writer, code, info)
+
+        real_path, virtual_path = self.get_paths(connection, rest)
+        # ensure_future
+        asyncio.async(retr_worker(), loop=connection["loop"])
+        return True, "150", "data transer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
