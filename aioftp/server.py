@@ -526,7 +526,7 @@ class Server(BaseServer):
     def mlsd(self, connection, rest, *, path_io):
 
         @asyncio.coroutine
-        def mlsd_writer():
+        def mlsd_worker():
 
             data_reader, data_writer = connection.pop("passive_connection")
             with contextlib.closing(data_writer) as data_writer:
@@ -543,7 +543,7 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(mlsd_writer(), loop=connection["loop"])
+        asyncio.async(mlsd_worker(), loop=connection["loop"])
         return True, "150", "mlsd transer started"
 
     @unpack_keywords
@@ -583,7 +583,7 @@ class Server(BaseServer):
     def list(self, connection, rest, *, path_io):
 
         @asyncio.coroutine
-        def list_writer():
+        def list_worker():
 
             data_reader, data_writer = connection.pop("passive_connection")
             with contextlib.closing(data_writer) as data_writer:
@@ -600,7 +600,7 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(list_writer(), loop=connection["loop"])
+        asyncio.async(list_worker(), loop=connection["loop"])
         return True, "150", "list transer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
