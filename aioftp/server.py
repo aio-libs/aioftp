@@ -348,8 +348,19 @@ class Server(BaseServer):
 
             virtual_path = connection["current_directory"] / virtual_path
 
-        real_path = user.base_path / virtual_path.relative_to("/")
-        return real_path, virtual_path
+        resolved_virtual_path = pathlib.Path("/")
+        for part in virtual_path.parts[1:]:
+
+            if part == "..":
+
+                resolved_virtual_path = resolved_virtual_path.parent
+
+            else:
+
+                resolved_virtual_path /= part
+
+        real_path = user.base_path / resolved_virtual_path.relative_to("/")
+        return real_path, resolved_virtual_path
 
     @asyncio.coroutine
     def greeting(self, connection, rest):
