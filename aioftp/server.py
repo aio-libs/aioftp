@@ -3,6 +3,7 @@ import pathlib
 import functools
 import contextlib
 import inspect
+import datetime
 
 
 from . import common
@@ -531,6 +532,60 @@ class Server(BaseServer):
         # ensure_future
         asyncio.async(mlsd_writer(), loop=connection["loop"])
         return True, "150", "mlsd transer started"
+
+    @unpack_keywords
+    @asyncio.coroutine
+    def build_list_string(self, connection, path, *, path_io):
+
+        fields = []
+        is_dir = "d" if (yield from path_io.is_dir(path)) else "-"
+        stats = yield from path_io.stat(path)
+        default = list("xwr") * 3
+        for i in range(9):
+
+            if (stats.st_mode >> i) & 1 == 0:
+
+                default[i] = "-"
+
+        fields.append(is_dir + str.join("", reversed(default)))
+        fields.append(str(stats.st_nlink))
+        fields.append("none")
+        fields.append("none")
+        fields.append(str(stats.st_size))
+
+        t = datetime.datetime.fromtimestamp(stats.st_ctime)
+        fields.append(t.strftime("%b %d %Y"))
+        fields.append(path.name)
+        s = str.join(" ", fields)
+        return s
+
+    @ConnectionConditions(ConnectionConditions.login_required)
+    @PathConditions(PathConditions.path_must_exists)
+    @PathPermissions(PathPermissions.readable)
+    @unpack_keywords
+    @asyncio.coroutine
+    def list(self, connection, rest, *, path_io):
+
+        @asyncio.coroutine
+        def list_writer():
+
+            data_reader, data_writer = connection.pop("passive_connection")
+            with contextlib.closing(data_writer) as data_writer:
+
+                for path in (yield from path_io.list(real_path)):
+
+                    s = yield from self.build_list_string(connection, path)
+                    data_writer.write(str.encode(s + "\n", "utf-8"))
+                    yield from data_writer.drain()
+
+            reader, writer = connection["command_connection"]
+            code, info = "226", "list data transer done"
+            yield from self.write_response(reader, writer, code, info)
+
+        real_path, virtual_path = self.get_paths(connection, rest)
+        # ensure_future
+        asyncio.async(list_writer(), loop=connection["loop"])
+        return True, "150", "list transer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_exists)
