@@ -198,6 +198,8 @@ class BaseServer:
 
         finally:
 
+            message = str.format("end connection from {}:{}", host, port)
+            common.logger.info(add_prefix(message))
             writer.close()
             self.connections.pop(key)
 
