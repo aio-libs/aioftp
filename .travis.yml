@@ -9,3 +9,6 @@ install:
 
 script:
     - nosetests --with-coverage --cover-erase --cover-package=aioftp
+
+after_success:
+    coveralls
