@@ -155,11 +155,13 @@ class BaseClient:
         :param command: command line
         :type command: :py:class:`str`
 
-        :param expected_codes: tuple of expected codes
-        :type expected_codes: :py:class:`tuple`
+        :param expected_codes: tuple of expected codes or expected code
+        :type expected_codes: :py:class:`tuple` of :py:class:`str` or
+            :py:class:`str`
 
-        :param wait_codes: tuple of wait codes
-        :type wait_codes: :py:class:`tuple`
+        :param wait_codes: tuple of wait codes or wait code
+        :type wait_codes: :py:class:`tuple` of :py:class:`str` or
+            :py:class:`str`
         """
         expected_codes = common.wrap_with_container(expected_codes)
         wait_codes = common.wrap_with_container(wait_codes)
@@ -615,6 +617,36 @@ class Client(BaseClient):
         )
 
     @asyncio.coroutine
+    def append_file(self, destination, file, *, callback=None,
+                    block_size=8192):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Low level append method for uploading file from file-like object and
+        apppend it to existing file.
+
+        :param destination: destination path of file or directory on server
+            side
+        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :param file: file-like object for reading data (providing read method)
+
+        :param callback: callback function with one argument — sended
+            :py:class:`bytes` to server.
+        :type callback: :py:func:`callable`
+
+        :param block_size: block size for transaction
+        :type block_size: :py:class:`int`
+        """
+        yield from self.store(
+            "APPE " + str(destination),
+            "1xx",
+            file=file,
+            callback=callback,
+            block_size=block_size,
+        )
+
+    @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
                callback=None, block_size=8192):
         """
@@ -933,3 +965,12 @@ class Client(BaseClient):
                     callback(block)
 
         yield from self.command(None, "2xx")
+
+    @asyncio.coroutine
+    def abort(self):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Request data transfer abort.
+        """
+        yield from self.command("ABOR", "2xx", "1xx")
