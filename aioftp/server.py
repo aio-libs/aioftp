@@ -730,8 +730,8 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
-    def stor(self, connection, rest, *, path_io, block_size, path_timeout,
-             socket_timeout):
+    def stor(self, connection, rest, mode="wb", *, path_io, block_size,
+             path_timeout, socket_timeout):
 
         @asyncio.coroutine
         def stor_worker():
@@ -740,7 +740,7 @@ class Server(BaseServer):
             try:
 
                 fout = yield from asyncio.wait_for(
-                    path_io.open(real_path, mode="wb"),
+                    path_io.open(real_path, mode=mode),
                     path_timeout,
                 )
                 while True:
@@ -751,6 +751,13 @@ class Server(BaseServer):
                     )
                     if not data:
 
+                        info = "data transfer done"
+                        break
+
+                    if connection.get("abort", False):
+
+                        connection["abort"] = False
+                        info = "data transfer aborted"
                         break
 
                     yield from asyncio.wait_for(
@@ -767,7 +774,7 @@ class Server(BaseServer):
                 )
 
             reader, writer = connection["command_connection"]
-            code, info = "226", "data transer done"
+            code = "226"
             yield from self.write_response(
                 reader,
                 writer,
@@ -812,6 +819,13 @@ class Server(BaseServer):
                     )
                     if not data:
 
+                        info = "data transfer done"
+                        break
+
+                    if connection.get("abort", False):
+
+                        connection["abort"] = False
+                        info = "data transfer aborted"
                         break
 
                     data_writer.write(data)
@@ -829,7 +843,7 @@ class Server(BaseServer):
                 )
 
             reader, writer = connection["command_connection"]
-            code, info = "226", "data transer done"
+            code = "226"
             yield from self.write_response(
                 reader,
                 writer,
@@ -896,4 +910,10 @@ class Server(BaseServer):
     @asyncio.coroutine
     def abor(self, connection, rest):
 
-        pass
+        connection["abort"] = True
+        return True, "150", "abort requested"
+
+    @asyncio.coroutine
+    def appe(self, connection, rest):
+
+        return (yield from self.stor(connection, rest, "ab"))
