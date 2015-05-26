@@ -6,11 +6,15 @@
 aioftp
 ======
 
+.. image:: https://raw.github.com/pohmelie/aioftp/master/docs/_static/logo.png
+    :height: 64px
+    :width: 64px
+
 .. image:: https://travis-ci.org/pohmelie/aioftp.svg?branch=master
     :target: https://travis-ci.org/pohmelie/aioftp
 
 .. image:: https://coveralls.io/repos/pohmelie/aioftp/badge.svg?branch=master
-  :target: https://coveralls.io/r/pohmelie/aioftp?branch=master
+    :target: https://coveralls.io/r/pohmelie/aioftp?branch=master
 
 ftp client/server for asyncio. (http://aioftp.readthedocs.org)
 
