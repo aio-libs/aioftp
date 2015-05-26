@@ -2,3 +2,5 @@ aioftp/__pycache__
 docs/_build
 /build/
 /dist/
+/.coverage
+__pycache__
