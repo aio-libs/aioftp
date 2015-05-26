@@ -7,8 +7,7 @@ aioftp
 ======
 
 .. image:: https://raw.github.com/pohmelie/aioftp/master/docs/_static/logo.png
-    :height: 32px
-    :width: 32px
+    :scale: 50 %
 
 .. image:: https://travis-ci.org/pohmelie/aioftp.svg?branch=master
     :target: https://travis-ci.org/pohmelie/aioftp
