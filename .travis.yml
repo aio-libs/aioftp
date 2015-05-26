@@ -5,10 +5,11 @@ python:
 
 install:
     - if [[ $TRAVIS_PYTHON_VERSION == '3.3' ]]; then travis_retry pip install asyncio pathlib; fi
-    - travis_retry pip install coverage
+    - travis_retry pip install coveralls
 
 script:
     - nosetests --with-coverage --cover-erase --cover-package=aioftp
+    - coverage run --source=aioftp tests.py
 
 after_success:
     coveralls
