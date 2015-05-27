@@ -54,3 +54,10 @@ class UnknownPathType(Exception):
         is not a directory.
     """
     pass
+
+
+class PathIsNotAbsolute(Exception):
+    """
+    Raised when "path" is not absolute.
+    """
+    pass
