@@ -9,7 +9,6 @@ install:
 
 script:
     - nosetests --with-coverage --cover-erase --cover-package=aioftp
-    - coverage run --source=aioftp tests.py
 
 after_success:
     coveralls
