@@ -1,7 +1,7 @@
 """ftp client/server for asyncio"""
 
 from .client import Client
-from .server import Server
+from .server import Server, User, Permission
 from .errors import *
 from .common import Code
 
