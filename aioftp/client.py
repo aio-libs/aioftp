@@ -38,7 +38,7 @@ def ChainCallback(*callbacks):
 
 class BaseClient:
 
-    def __init__(self, loop=None, create_connection=None, *, timeout=None):
+    def __init__(self, *, loop=None, create_connection=None, timeout=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
