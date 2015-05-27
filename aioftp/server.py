@@ -55,6 +55,10 @@ class User:
         self.password = password
         self.base_path = pathlib.Path(base_path)
         self.home_path = pathlib.Path(home_path)
+        if not self.home_path.is_absolute():
+
+            raise errors.PathIsNotAbsolute(home_path)
+
         self.permissions = permissions or [Permission()]
 
     def get_permissions(self, path):
@@ -359,7 +363,7 @@ class Server(BaseServer):
         ("st_ctime", "Create"),
     )
 
-    def __init__(self, users=None, loop=None, *, block_size=8192,
+    def __init__(self, users=None, *, loop=None, block_size=8192,
                  socket_timeout=None, path_timeout=None, idle_timeout=None,
                  path_io_factory=pathio.AsyncPathIO):
 
@@ -424,6 +428,12 @@ class Server(BaseServer):
             connection["current_directory"] = current_user.home_path
             connection["user"] = current_user
             code, info = "230", "anonymous login"
+            ok = True
+
+        elif current_user.password is None:
+
+            connection["user"] = current_user
+            code, info = "230", "login without password"
             ok = True
 
         else:
