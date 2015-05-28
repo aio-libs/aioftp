@@ -162,7 +162,7 @@ class AsyncPathIO(AbstractPathIO):
     @asyncio.coroutine
     def mkdir(self, path, *, parents=False):
 
-        f = functools.partial(mkdir, parents=parents)
+        f = functools.partial(path.mkdir, parents=parents)
         return (yield from self.loop.run_in_executor(None, f))
 
     @asyncio.coroutine
