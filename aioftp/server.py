@@ -522,7 +522,7 @@ class Server(BaseServer):
             path_io.rmdir(real_path),
             path_timeout,
         )
-        return True, "257", ""
+        return True, "250", ""
 
     @unpack_keywords
     @asyncio.coroutine
