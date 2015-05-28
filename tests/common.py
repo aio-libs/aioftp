@@ -79,3 +79,26 @@ def expect_codes_in_exception(*codes):
         return wrapper
 
     return decorator
+
+
+@nose.tools.nottest
+def with_tmp_dir(name):
+
+    def decorator(f):
+
+        @functools.wraps(f)
+        def wrapper(*args):
+
+            tmp_dir = pathlib.Path(str.format("tests/{}", name))
+            tmp_dir.mkdir()
+            try:
+
+                yield from f(*args, tmp_dir=tmp_dir)
+
+            finally:
+
+                tmp_dir.rmdir()
+
+        return wrapper
+
+    return decorator

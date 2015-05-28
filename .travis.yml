@@ -8,7 +8,7 @@ install:
     - travis_retry pip install coveralls
 
 script:
-    - nosetests --with-coverage --cover-erase --cover-package=aioftp
+    - bash run-tests.sh
 
 after_success:
     coveralls
