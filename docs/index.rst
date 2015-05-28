@@ -20,12 +20,6 @@ Features
 Dependencies
 ------------
 
-- Python 3.3
-- asyncio
-- pathlib
-
-or
-
 - Python 3.4+
 
 License
