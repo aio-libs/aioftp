@@ -9,4 +9,4 @@ script:
     - bash run-tests.sh
 
 after_success:
-    coveralls
+    coveralls --verbose
