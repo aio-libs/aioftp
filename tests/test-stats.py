@@ -83,3 +83,57 @@ def test_stats(loop, client, server, *, tmp_dir):
     nose.tools.eq_(stats["size"], str(len(s)))
 
     tmp_file.unlink()
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_native_list(loop, client, server, *, tmp_dir):
+
+    tmp_file = tmp_dir / "foo.txt"
+    tmp_file.touch()
+
+    lines = []
+    yield from client.login()
+    yield from client.retrieve(
+        str.strip("LIST"),
+        "1xx",
+        use_lines=True,
+        callback=lines.append,
+    )
+    con = next(iter(server.connections.values()))
+    yield from client.quit()
+    ans = yield from server.build_list_string(con, tmp_file)
+    tmp_file.unlink()
+
+    nose.tools.eq_(len(lines), 1)
+    line, *_ = lines
+    line = str.strip(bytes.decode(line, "utf-8"))
+    nose.tools.eq_(line, ans)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_recursive_list(loop, client, server, *, tmp_dir):
+
+    d = tmp_dir / "foo"
+    (tmp_dir / "bar.txt").touch()
+    d.mkdir()
+    (d / "baz.foo").touch()
+
+    yield from client.login()
+    paths = set()
+    for path, stats in (yield from client.list(recursive=True)):
+
+        paths.add(path)
+
+    (d / "baz.foo").unlink()
+    (tmp_dir / "bar.txt").unlink()
+    d.rmdir()
+    names = "bar.txt", "foo", "foo/baz.foo"
+    nose.tools.ok_(paths == set(map(pathlib.Path, names)))
+
+    yield from client.quit()

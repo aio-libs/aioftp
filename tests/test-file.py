@@ -1,0 +1,369 @@
+import pathlib
+import io
+import contextlib
+
+import nose
+
+from common import *
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_remove_single_file(loop, client, server, *, tmp_dir):
+
+    tmp_file = tmp_dir / "foo.txt"
+    nose.tools.ok_(tmp_file.exists() == False)
+    tmp_file.touch()
+    nose.tools.ok_(tmp_file.exists())
+
+    yield from client.login()
+    yield from client.remove_file("foo.txt")
+    yield from client.quit()
+
+    nose.tools.ok_(tmp_file.exists() == False)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_recursive_remove(loop, client, server, *, tmp_dir):
+
+    d = tmp_dir / "foo"
+    d.mkdir()
+    (d / "bar.txt").touch()
+    (d / "baz.foo").touch()
+    dd = d / "bar_dir"
+    dd.mkdir()
+    (dd / "foo.baz").touch()
+
+    yield from client.login()
+    yield from client.remove("foo")
+    r = yield from client.list()
+    yield from client.quit()
+
+    nose.tools.eq_(len(r), 0)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_file_download(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo"
+    with f.open("w") as fout:
+
+        fout.write("foobar")
+
+    b = bytearray()
+    yield from client.login()
+    yield from client.download_file("foo", callback=b.extend)
+    yield from client.quit()
+
+    f.unlink()
+
+    nose.tools.eq_(b, b"foobar")
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_file_upload(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo"
+
+    b = b"foobar"
+    file_like = io.BytesIO(b)
+    yield from client.login()
+    yield from client.upload_file("foo", file_like)
+    yield from client.quit()
+
+    with f.open("rb") as fin:
+
+        rb = fin.read()
+
+    f.unlink()
+
+    nose.tools.eq_(b, rb)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_file_append(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo"
+    with f.open("w") as fout:
+
+        fout.write("foobar")
+
+    ab = b"foobar"
+    file_like = io.BytesIO(ab)
+    yield from client.login()
+    yield from client.append_file("foo", file_like)
+    yield from client.quit()
+
+    with f.open("rb") as fin:
+
+        rb = fin.read()
+
+    f.unlink()
+
+    nose.tools.eq_(b"foobar" + ab, rb)
+
+
+@contextlib.contextmanager
+def make_some_files(path):
+
+    for i in range(4):
+
+        f = path / str.format("file{}", i)
+        f.touch()
+
+    yield
+    for i in range(4):
+
+        f = path / str.format("file{}", i)
+        f.unlink()
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_upload_folder(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    ecdir = cdir / "extra"
+    ecdir.mkdir()
+
+    with make_some_files(cdir), make_some_files(ecdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(cdir),
+                cdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.upload(cdir)
+        rpaths = set(
+            map(
+                lambda p: p.relative_to(sdir / "client"),
+                (sdir / "client").rglob("*"),
+            )
+        )
+        yield from client.remove("/")
+        yield from client.quit()
+
+    ecdir.rmdir()
+    cdir.rmdir()
+    nose.tools.eq_(spaths, rpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_upload_folder_into(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    ecdir = cdir / "extra"
+    ecdir.mkdir()
+
+    with make_some_files(cdir), make_some_files(ecdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(cdir),
+                cdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.upload(cdir, write_into=True)
+        rpaths = set(
+            map(
+                lambda p: p.relative_to(sdir),
+                (sdir).rglob("*"),
+            )
+        )
+        yield from client.remove("/")
+        yield from client.quit()
+
+    ecdir.rmdir()
+    cdir.rmdir()
+    nose.tools.eq_(spaths, rpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_upload_folder_into_another(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    esdir = sdir / "foo"
+    esdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    ecdir = cdir / "extra"
+    ecdir.mkdir()
+
+    with make_some_files(cdir), make_some_files(ecdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(cdir),
+                cdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.upload(cdir, "foo", write_into=True)
+        rpaths = set(
+            map(
+                lambda p: p.relative_to(esdir),
+                (esdir).rglob("*"),
+            )
+        )
+        yield from client.remove("/")
+        yield from client.quit()
+
+    ecdir.rmdir()
+    cdir.rmdir()
+    nose.tools.eq_(spaths, rpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_download_folder(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    esdir = sdir / "extra"
+    esdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    with make_some_files(sdir), make_some_files(esdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(sdir),
+                sdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.download("/server", cdir)
+        cpaths = set(
+            map(
+                lambda p: p.relative_to(cdir / "server"),
+                (cdir / "server").rglob("*"),
+            )
+        )
+        yield from client.remove("/client")
+        yield from client.quit()
+
+    esdir.rmdir()
+    sdir.rmdir()
+    nose.tools.eq_(spaths, cpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_download_folder_into(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    esdir = sdir / "extra"
+    esdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    with make_some_files(sdir), make_some_files(esdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(sdir),
+                sdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.download("/server", cdir, write_into=True)
+        cpaths = set(
+            map(
+                lambda p: p.relative_to(cdir),
+                (cdir).rglob("*"),
+            )
+        )
+        yield from client.remove("/client")
+        yield from client.quit()
+
+    esdir.rmdir()
+    sdir.rmdir()
+    nose.tools.eq_(spaths, cpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_download_folder_into_another(loop, client, server, *, tmp_dir):
+
+    sdir = tmp_dir / "server"
+    sdir.mkdir()
+
+    esdir = sdir / "extra"
+    esdir.mkdir()
+
+    cdir = tmp_dir / "client"
+    cdir.mkdir()
+
+    with make_some_files(sdir), make_some_files(esdir):
+
+        spaths = set(
+            map(
+                lambda p: p.relative_to(sdir),
+                sdir.rglob("*")
+            )
+        )
+        yield from client.login()
+        yield from client.download("/server", cdir / "foo", write_into=True)
+        cpaths = set(
+            map(
+                lambda p: p.relative_to(cdir / "foo"),
+                (cdir / "foo").rglob("*"),
+            )
+        )
+        yield from client.remove("/client")
+        yield from client.quit()
+
+    esdir.rmdir()
+    sdir.rmdir()
+    nose.tools.eq_(spaths, cpaths)
