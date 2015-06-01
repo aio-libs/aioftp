@@ -263,7 +263,7 @@ class ConnectionConditions:
 
         @asyncio.coroutine
         @functools.wraps(f)
-        def wrapper(cls, connection, rest):
+        def wrapper(cls, connection, rest, *args):
 
             for name, message in self.fields:
 
@@ -272,7 +272,7 @@ class ConnectionConditions:
                     template = "bad sequence of commands ({})"
                     return True, "503", str.format(template, message)
 
-            return (yield from f(cls, connection, rest))
+            return (yield from f(cls, connection, rest, *args))
 
         return wrapper
 
@@ -292,7 +292,7 @@ class PathConditions:
 
         @asyncio.coroutine
         @functools.wraps(f)
-        def wrapper(cls, connection, rest):
+        def wrapper(cls, connection, rest, *args):
 
             real_path, virtual_path = cls.get_paths(connection, rest)
             path_io = connection["path_io"]
@@ -302,7 +302,7 @@ class PathConditions:
 
                     return True, "550", message
 
-            return (yield from f(cls, connection, rest))
+            return (yield from f(cls, connection, rest, *args))
 
         return wrapper
 
@@ -320,7 +320,7 @@ class PathPermissions:
 
         @asyncio.coroutine
         @functools.wraps(f)
-        def wrapper(cls, connection, rest):
+        def wrapper(cls, connection, rest, *args):
 
             real_path, virtual_path = cls.get_paths(connection, rest)
             user = connection["user"]
@@ -331,7 +331,7 @@ class PathPermissions:
 
                     return True, "550", "permission denied"
 
-                return (yield from f(cls, connection, rest))
+                return (yield from f(cls, connection, rest, *args))
 
         return wrapper
 
@@ -340,7 +340,7 @@ def unpack_keywords(f):
 
     @asyncio.coroutine
     @functools.wraps(f)
-    def wrapper(self, connection, rest):
+    def wrapper(self, connection, rest, *args):
 
         sig = inspect.signature(f)
         unpacked = {}
@@ -350,7 +350,7 @@ def unpack_keywords(f):
 
                 unpacked[name] = connection[name]
 
-        return (yield from f(self, connection, rest, **unpacked))
+        return (yield from f(self, connection, rest, *args, **unpacked))
 
     return wrapper
 
@@ -718,7 +718,7 @@ class Server(BaseServer):
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(
-        PathConditions.path_must_not_exists,
+        PathConditions.path_must_exists,
         PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
@@ -736,7 +736,6 @@ class Server(BaseServer):
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
         ConnectionConditions.passive_connection_made)
-    @PathConditions(PathConditions.path_must_not_exists)
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
