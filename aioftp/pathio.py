@@ -109,7 +109,7 @@ class PathIO(AbstractPathIO):
     @asyncio.coroutine
     def list(self, path):
 
-        return path.glob("*")
+        return tuple(path.glob("*"))
 
     @asyncio.coroutine
     def stat(self, path):
@@ -178,7 +178,11 @@ class AsyncPathIO(AbstractPathIO):
     @asyncio.coroutine
     def list(self, path):
 
-        return (yield from self.loop.run_in_executor(None, path.glob, "*"))
+        def worker(pattern):
+
+            return tuple(path.glob(pattern))
+
+        return (yield from self.loop.run_in_executor(None, worker, "*"))
 
     @asyncio.coroutine
     def stat(self, path):
