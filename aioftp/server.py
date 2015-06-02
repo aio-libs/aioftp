@@ -115,21 +115,26 @@ class BaseServer:
 
     @asyncio.coroutine
     def write_line(self, reader, writer, line, encoding="utf-8", *,
-                   socket_timeout=None):
+                   loop, socket_timeout=None):
 
         common.logger.info(add_prefix(line))
         writer.write(str.encode(line + "\r\n", encoding=encoding))
-        yield from asyncio.wait_for(writer.drain(), socket_timeout)
+        yield from asyncio.wait_for(
+            writer.drain(),
+            socket_timeout,
+            loop=loop,
+        )
 
     @asyncio.coroutine
     def write_response(self, reader, writer, code, lines="", list=False, *,
-                       socket_timeout=None):
+                       loop, socket_timeout=None):
 
         lines = common.wrap_with_container(lines)
         write = functools.partial(
             self.write_line,
             reader,
             writer,
+            loop=loop,
             socket_timeout=socket_timeout,
         )
         if list:
@@ -152,11 +157,12 @@ class BaseServer:
             yield from write(code + " " + tail)
 
     @asyncio.coroutine
-    def parse_command(self, reader, writer, *, idle_timeout=None):
+    def parse_command(self, reader, writer, *, loop, idle_timeout=None):
 
         line = yield from asyncio.wait_for(
             reader.readline(),
             idle_timeout,
+            loop=loop,
         )
         if not line:
 
@@ -190,26 +196,23 @@ class BaseServer:
         }
         self.connections[key] = connection
 
-        @asyncio.coroutine
-        def write(*args):
+        try:
 
+            ok, *args = yield from self.greeting(connection, "")
             yield from self.write_response(
                 reader,
                 writer,
                 *args,
+                loop=connection["loop"],
                 socket_timeout=connection["socket_timeout"]
             )
-
-        try:
-
-            ok, *args = yield from self.greeting(connection, "")
-            yield from write(*args)
 
             while ok:
 
                 cmd, rest = yield from self.parse_command(
                     reader,
                     writer,
+                    loop=connection["loop"],
                     idle_timeout=connection["idle_timeout"],
                 )
 
@@ -221,12 +224,25 @@ class BaseServer:
                 if hasattr(self, cmd):
 
                     ok, *args = yield from getattr(self, cmd)(connection, rest)
-                    yield from write(*args)
+                    yield from self.write_response(
+                        reader,
+                        writer,
+                        *args,
+                        loop=connection["loop"],
+                        socket_timeout=connection["socket_timeout"]
+                    )
 
                 else:
 
                     template = "'{}' not implemented"
-                    yield from write("502", str.format(template, cmd))
+                    yield from self.write_response(
+                        reader,
+                        writer,
+                        "502",
+                        str.format(template, cmd),
+                        loop=connection["loop"],
+                        socket_timeout=connection["socket_timeout"]
+                    )
 
         finally:
 
@@ -373,7 +389,7 @@ class Server(BaseServer):
         self.socket_timeout = socket_timeout
         self.path_timeout = path_timeout
         self.idle_timeout = idle_timeout
-        self.path_io = path_io_factory(loop)
+        self.path_io = path_io_factory(self.loop)
 
     def get_paths(self, connection, path):
 
@@ -499,12 +515,13 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
-    def mkd(self, connection, rest, *, path_io, path_timeout):
+    def mkd(self, connection, rest, *, path_io, path_timeout, loop):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         yield from asyncio.wait_for(
             path_io.mkdir(real_path, parents=True),
             path_timeout,
+            loop=loop,
         )
         return True, "257", ""
 
@@ -515,25 +532,29 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
-    def rmd(self, connection, rest, *, path_io, path_timeout):
+    def rmd(self, connection, rest, *, path_io, path_timeout, loop):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         yield from asyncio.wait_for(
             path_io.rmdir(real_path),
             path_timeout,
+            loop=loop,
         )
         return True, "250", ""
 
     @unpack_keywords
     @asyncio.coroutine
-    def build_mlsx_string(self, connection, path, *, path_io, path_timeout):
+    def build_mlsx_string(self, connection, path, *, path_io, path_timeout,
+                          loop):
 
         stats = {}
-        if (yield from asyncio.wait_for(path_io.is_file(path), path_timeout)):
+        if (yield from asyncio.wait_for(path_io.is_file(path), path_timeout,
+                                        loop=loop)):
 
             stats["Type"] = "file"
 
-        elif (yield from asyncio.wait_for(path_io.is_dir(path), path_timeout)):
+        elif (yield from asyncio.wait_for(path_io.is_dir(path), path_timeout,
+                                          loop=loop)):
 
             stats["Type"] = "dir"
 
@@ -547,7 +568,11 @@ class Server(BaseServer):
                 )
             )
 
-        raw = yield from asyncio.wait_for(path_io.stat(path), path_timeout)
+        raw = yield from asyncio.wait_for(
+            path_io.stat(path),
+            path_timeout,
+            loop=loop,
+        )
         for attr, fact in Server.path_facts:
 
             stats[fact] = getattr(raw, attr)
@@ -568,7 +593,8 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.readable)
     @unpack_keywords
     @asyncio.coroutine
-    def mlsd(self, connection, rest, *, path_io, path_timeout, socket_timeout):
+    def mlsd(self, connection, rest, *, path_io, path_timeout, socket_timeout,
+             loop):
 
         @asyncio.coroutine
         def mlsd_worker():
@@ -579,6 +605,7 @@ class Server(BaseServer):
                 paths = yield from asyncio.wait_for(
                     path_io.list(real_path),
                     path_timeout,
+                    loop=loop,
                 )
                 for path in paths:
 
@@ -587,6 +614,7 @@ class Server(BaseServer):
                     yield from asyncio.wait_for(
                         data_writer.drain(),
                         socket_timeout,
+                        loop=loop,
                     )
 
             reader, writer = connection["command_connection"]
@@ -596,26 +624,33 @@ class Server(BaseServer):
                 writer,
                 code,
                 info,
+                loop=loop,
                 socket_timeout=socket_timeout,
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(mlsd_worker(), loop=connection["loop"])
+        asyncio.async(mlsd_worker(), loop=loop)
         return True, "150", "mlsd transer started"
 
     @unpack_keywords
     @asyncio.coroutine
-    def build_list_string(self, connection, path, *, path_io, path_timeout):
+    def build_list_string(self, connection, path, *, path_io, path_timeout,
+                          loop):
 
         fields = []
         is_dir = yield from asyncio.wait_for(
             path_io.is_dir(path),
             path_timeout,
+            loop=loop,
         )
         dir_flag = "d" if is_dir else "-"
 
-        stats = yield from asyncio.wait_for(path_io.stat(path), path_timeout)
+        stats = yield from asyncio.wait_for(
+            path_io.stat(path),
+            path_timeout,
+            loop=loop,
+        )
         default = list("xwr") * 3
         for i in range(9):
 
@@ -643,7 +678,8 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.readable)
     @unpack_keywords
     @asyncio.coroutine
-    def list(self, connection, rest, *, path_io, path_timeout, socket_timeout):
+    def list(self, connection, rest, *, path_io, path_timeout, socket_timeout,
+             loop):
 
         @asyncio.coroutine
         def list_worker():
@@ -654,6 +690,7 @@ class Server(BaseServer):
                 paths = yield from asyncio.wait_for(
                     path_io.list(real_path),
                     path_timeout,
+                    loop=loop,
                 )
                 for path in paths:
 
@@ -662,6 +699,7 @@ class Server(BaseServer):
                     yield from asyncio.wait_for(
                         data_writer.drain(),
                         socket_timeout,
+                        loop=loop,
                     )
 
             reader, writer = connection["command_connection"]
@@ -671,12 +709,13 @@ class Server(BaseServer):
                 writer,
                 code,
                 info,
+                loop=loop,
                 socket_timeout=socket_timeout,
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(list_worker(), loop=connection["loop"])
+        asyncio.async(list_worker(), loop=loop)
         return True, "150", "list transer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
@@ -706,13 +745,14 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
-    def rnto(self, connection, rest, *, path_io, path_timeout):
+    def rnto(self, connection, rest, *, path_io, path_timeout, loop):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         rename_from = connection.pop("rename_from")
         yield from asyncio.wait_for(
             path_io.rename(rename_from, real_path),
             path_timeout,
+            loop=loop,
         )
         return True, "250", ""
 
@@ -723,12 +763,13 @@ class Server(BaseServer):
     @PathPermissions(PathPermissions.writable)
     @unpack_keywords
     @asyncio.coroutine
-    def dele(self, connection, rest, *, path_io, path_timeout):
+    def dele(self, connection, rest, *, path_io, path_timeout, loop):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         yield from asyncio.wait_for(
             path_io.unlink(real_path),
             path_timeout,
+            loop=loop,
         )
         return True, "250", ""
 
@@ -740,7 +781,7 @@ class Server(BaseServer):
     @unpack_keywords
     @asyncio.coroutine
     def stor(self, connection, rest, mode="wb", *, path_io, block_size,
-             path_timeout, socket_timeout):
+             path_timeout, socket_timeout, loop):
 
         @asyncio.coroutine
         def stor_worker():
@@ -751,12 +792,14 @@ class Server(BaseServer):
                 fout = yield from asyncio.wait_for(
                     path_io.open(real_path, mode=mode),
                     path_timeout,
+                    loop=loop,
                 )
                 while True:
 
                     data = yield from asyncio.wait_for(
                         data_reader.read(block_size),
                         socket_timeout,
+                        loop=loop,
                     )
                     if not data:
 
@@ -772,6 +815,7 @@ class Server(BaseServer):
                     yield from asyncio.wait_for(
                         path_io.write(fout, data),
                         path_timeout,
+                        loop=loop,
                     )
 
             finally:
@@ -780,6 +824,7 @@ class Server(BaseServer):
                 yield from asyncio.wait_for(
                     path_io.close(fout),
                     path_timeout,
+                    loop=loop,
                 )
 
             reader, writer = connection["command_connection"]
@@ -789,12 +834,13 @@ class Server(BaseServer):
                 writer,
                 code,
                 info,
+                loop=loop,
                 socket_timeout=socket_timeout,
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(stor_worker(), loop=connection["loop"])
+        asyncio.async(stor_worker(), loop=loop)
         return True, "150", "data transer started"
 
     @ConnectionConditions(
@@ -808,7 +854,7 @@ class Server(BaseServer):
     @unpack_keywords
     @asyncio.coroutine
     def retr(self, connection, rest, *, path_io, block_size, path_timeout,
-             socket_timeout):
+             socket_timeout, loop):
 
         @asyncio.coroutine
         def retr_worker():
@@ -819,12 +865,14 @@ class Server(BaseServer):
                 fin = yield from asyncio.wait_for(
                     path_io.open(real_path, mode="rb"),
                     path_timeout,
+                    loop=loop,
                 )
                 while True:
 
                     data = yield from asyncio.wait_for(
                         path_io.read(fin, block_size),
                         path_timeout,
+                        loop=loop,
                     )
                     if not data:
 
@@ -841,6 +889,7 @@ class Server(BaseServer):
                     yield from asyncio.wait_for(
                         data_writer.drain(),
                         socket_timeout,
+                        loop=loop,
                     )
 
             finally:
@@ -849,6 +898,7 @@ class Server(BaseServer):
                 yield from asyncio.wait_for(
                     path_io.close(fin),
                     path_timeout,
+                    loop=loop,
                 )
 
             reader, writer = connection["command_connection"]
@@ -858,12 +908,13 @@ class Server(BaseServer):
                 writer,
                 code,
                 info,
+                loop=loop,
                 socket_timeout=socket_timeout,
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
-        asyncio.async(retr_worker(), loop=connection["loop"])
+        asyncio.async(retr_worker(), loop=loop)
         return True, "150", "data transer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
@@ -882,8 +933,9 @@ class Server(BaseServer):
         return True, code, info
 
     @ConnectionConditions(ConnectionConditions.login_required)
+    @unpack_keywords
     @asyncio.coroutine
-    def pasv(self, connection, rest):
+    def pasv(self, connection, rest, *, loop):
 
         @asyncio.coroutine
         def handler(reader, writer):
@@ -902,7 +954,7 @@ class Server(BaseServer):
                 handler,
                 connection["server_host"],
                 0,
-                loop=self.loop,
+                loop=loop,
             )
             code, info = "227", ["listen socket created"]
 
