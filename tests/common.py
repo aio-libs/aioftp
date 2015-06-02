@@ -2,6 +2,7 @@ import asyncio
 import functools
 import sys
 import pathlib
+import os
 
 import nose
 
@@ -10,6 +11,10 @@ import aioftp
 
 
 PORT = 8888
+factories = (
+    aioftp.PathIO,
+    aioftp.AsyncPathIO,
+)
 
 
 @nose.tools.nottest
@@ -21,15 +26,24 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
         def wrapper():
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(None)
 
             args, kwargs = server_args
+            i = int(os.environ["AIOFTP_TESTS"])
+            kwargs["path_io_factory"] = factories[i]
             server = aioftp.Server(*args, loop=loop, **kwargs)
 
             args, kwargs = client_args
             client = aioftp.Client(*args, loop=loop, **kwargs)
 
-            loop.run_until_complete(asyncio.coroutine(f)(loop, client, server))
-            loop.close()
+            coro = asyncio.coroutine(f)
+            try:
+
+                loop.run_until_complete(coro(loop, client, server))
+
+            finally:
+
+                loop.close()
 
         return wrapper
 
@@ -89,8 +103,8 @@ def with_tmp_dir(name):
         @functools.wraps(f)
         def wrapper(*args):
 
-            tmp_dir = pathlib.Path(str.format("tests/{}", name))
-            tmp_dir.mkdir()
+            tmp_dir = pathlib.Path("tests") / name
+            tmp_dir.mkdir(parents=True)
             try:
 
                 yield from f(*args, tmp_dir=tmp_dir)
