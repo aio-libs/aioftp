@@ -28,7 +28,7 @@ def test_current_directory_not_default(loop, client, server):
     server_args=([(aioftp.User(base_path="tests/foo", home_path="/"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_current_directory_not_default(loop, client, server, *, tmp_dir):
+def test_mlsd(loop, client, server, *, tmp_dir):
 
     tmp_file = tmp_dir / "test.txt"
     tmp_file.touch()
