@@ -11,10 +11,6 @@ import aioftp
 
 
 PORT = 8888
-factories = (
-    aioftp.PathIO,
-    aioftp.AsyncPathIO,
-)
 
 
 @nose.tools.nottest
@@ -29,8 +25,9 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
             asyncio.set_event_loop(None)
 
             args, kwargs = server_args
-            i = int(os.environ["AIOFTP_TESTS"])
-            kwargs["path_io_factory"] = factories[i]
+            el = os.environ["AIOFTP_TESTS"]
+            factory = getattr(aioftp, el)
+            kwargs["path_io_factory"] = factory
             server = aioftp.Server(*args, loop=loop, **kwargs)
 
             args, kwargs = client_args

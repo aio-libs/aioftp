@@ -1,6 +1,8 @@
 import sh
 import pathlib
 import os
+import aioftp
+import inspect
 
 
 for path in pathlib.Path("tests").glob("*"):
@@ -15,20 +17,25 @@ if cov.exists():
     cov.unlink()
 
 run_tests = sh.Command("nosetests")
-for i in range(2):
+for el in dir(aioftp):
 
-    new_env = os.environ.copy()
-    new_env["AIOFTP_TESTS"] = str(i)
-    p = run_tests(
-        str.format("--exclude={}", __file__),
-        "--stop",
-        "--no-byte-compile",
-        "--with-coverage",
-        "--cover-package=aioftp",
-        "--logging-format='%(asctime)s %(message)s'",
-        "--logging-datefmt='[%H:%M:%S]:'",
-        "--logging-level=INFO",
-        _env=new_env,
-        _err=lambda line: print(str.strip(line)),
-        _out=lambda line: print(str.strip(line)),
-    )
+    item = getattr(aioftp, el)
+    if inspect.isclass(item) and issubclass(item, aioftp.AbstractPathIO) and \
+       item is not aioftp.AbstractPathIO:
+
+        print(str.format("Testing {}", el))
+        new_env = os.environ.copy()
+        new_env["AIOFTP_TESTS"] = el
+        p = run_tests(
+            str.format("--exclude={}", __file__),
+            "--stop",
+            "--no-byte-compile",
+            "--with-coverage",
+            "--cover-package=aioftp",
+            "--logging-format='%(asctime)s %(message)s'",
+            "--logging-datefmt='[%H:%M:%S]:'",
+            "--logging-level=INFO",
+            _env=new_env,
+            _err=lambda line: print(str.strip(line)),
+            _out=lambda line: print(str.strip(line)),
+        )
