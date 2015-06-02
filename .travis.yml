@@ -3,10 +3,10 @@ python:
     - 3.4
 
 install:
-    - travis_retry pip install coveralls
+    - travis_retry pip install coveralls sh
 
 script:
-    - bash run-tests.sh
+    - python run-tests.py
 
 after_success:
-    coveralls --verbose
+    coveralls
