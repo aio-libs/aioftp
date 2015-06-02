@@ -79,6 +79,7 @@ class BaseClient:
         line = yield from asyncio.wait_for(
             self.reader.readline(),
             self.timeout,
+            loop=self.loop,
         )
         if not line:
 
@@ -895,6 +896,7 @@ class Client(BaseClient):
                     block = yield from asyncio.wait_for(
                         reader.readline(),
                         self.timeout,
+                        loop=self.loop,
                     )
 
                 else:
@@ -902,6 +904,7 @@ class Client(BaseClient):
                     block = yield from asyncio.wait_for(
                         reader.read(block_size),
                         self.timeout,
+                        loop=self.loop,
                     )
 
                 if not block:
