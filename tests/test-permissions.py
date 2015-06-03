@@ -23,6 +23,7 @@ def test_permission_denied(loop, client, server):
         permissions=[
             aioftp.Permission("/", writable=False),
             aioftp.Permission("/bar"),
+            aioftp.Permission("/foo"),
         ],
     ),)], {}))
 @with_connection
@@ -33,3 +34,12 @@ def test_permission_overriden(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar")
     yield from client.remove_directory("bar")
     yield from client.quit()
+
+
+def test_permission_representation():
+
+    p = aioftp.Permission(writable=False)
+    nose.tools.eq_(
+        repr(p),
+        "Permission(PosixPath('/'), readable=True, writable=False)"
+    )

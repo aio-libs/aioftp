@@ -367,3 +367,91 @@ def test_download_folder_into_another(loop, client, server, *, tmp_dir):
     esdir.rmdir()
     sdir.rmdir()
     nose.tools.eq_(spaths, cpaths)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_upload_file_into_another(loop, client, server, *, tmp_dir):
+
+    cfile = tmp_dir / "client_file.txt"
+    sfile = tmp_dir / "server_file.txt"
+    with cfile.open("w") as fout:
+
+        fout.write("foobar")
+
+    yield from client.login()
+    yield from client.upload(cfile, sfile.name, write_into=True)
+
+    with sfile.open() as fin:
+
+        data = fin.read()
+
+    cfile.unlink()
+    sfile.unlink()
+    nose.tools.eq_("foobar", data)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_download_file(loop, client, server, *, tmp_dir):
+
+    cfile = tmp_dir / "bar" / "server_file.txt"
+    sfile = tmp_dir / "server_file.txt"
+
+    with sfile.open("w") as fout:
+
+        fout.write("foobar")
+
+    yield from client.login()
+    yield from client.download(sfile.name, tmp_dir / "bar")
+
+    with cfile.open() as fin:
+
+        data = fin.read()
+
+    cfile.unlink()
+    cfile.parent.rmdir()
+    sfile.unlink()
+    nose.tools.eq_("foobar", data)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_download_file_write_into(loop, client, server, *, tmp_dir):
+
+    cfile = tmp_dir / "client_file.txt"
+    sfile = tmp_dir / "server_file.txt"
+
+    with sfile.open("w") as fout:
+
+        fout.write("foobar")
+
+    yield from client.login()
+    yield from client.download(sfile.name, cfile, write_into=True)
+
+    with cfile.open() as fin:
+
+        data = fin.read()
+
+    cfile.unlink()
+    sfile.unlink()
+    nose.tools.eq_("foobar", data)
+
+
+if __name__ == "__main__":
+
+    import logging
+    import os
+
+    os.environ["AIOFTP_TESTS"] = "PathIO"
+    logging.basicConfig(
+        level=logging.INFO
+    )
+    test_download_file_write_into()
+    print("done")

@@ -27,6 +27,42 @@ def test_create_and_remove_directory(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
+def test_create_and_remove_directory_long(loop, client, server, *, tmp_dir):
+
+    yield from client.login()
+    yield from client.make_directory("bar/baz")
+    (path, stat), *_ = files = yield from client.list()
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.Path("bar"))
+    nose.tools.eq_(stat["type"], "dir")
+
+    (path, stat), *_ = files = yield from client.list("bar")
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.Path("bar/baz"))
+    nose.tools.eq_(stat["type"], "dir")
+
+    yield from client.remove_directory("bar/baz")
+    yield from client.remove_directory("bar")
+    files = yield from client.list()
+    nose.tools.eq_(len(files), 0)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_create_directory_long_no_parents(loop, client, server, *, tmp_dir):
+
+    yield from client.login()
+    yield from client.make_directory("bar/baz", parents=False)
+    yield from client.remove_directory("bar/baz")
+    yield from client.remove_directory("bar")
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
 def test_change_directory(loop, client, server, *, tmp_dir):
 
     yield from client.login()
@@ -118,3 +154,19 @@ def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     yield from client.remove_directory("hurr")
     files = yield from client.list()
     nose.tools.eq_(len(files), 0)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_list_callback(loop, client, server, *, tmp_dir):
+
+    def callback(path, stats):
+
+        nose.tools.eq_(path, pathlib.Path("bar"))
+
+    yield from client.login()
+    yield from client.make_directory("bar")
+    yield from client.list(callback=callback)
+    yield from client.remove_directory("bar")
