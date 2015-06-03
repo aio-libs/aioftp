@@ -21,7 +21,7 @@ for el in dir(aioftp):
 
     item = getattr(aioftp, el)
     if inspect.isclass(item) and issubclass(item, aioftp.AbstractPathIO) and \
-       item is not aioftp.AbstractPathIO:
+       item not in (aioftp.AbstractPathIO, aioftp.MemoryPathIO):
 
         print(str.format("Testing {}", el))
         new_env = os.environ.copy()
