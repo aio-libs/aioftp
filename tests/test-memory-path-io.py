@@ -97,7 +97,7 @@ def test_memory_path_remove(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 @with_connection
 @expect_codes_in_exception("550")
-def test_memory_path_unreachable_path(loop, client, server):
+def test_memory_path_unreachable_path_upload(loop, client, server):
 
     yield from client.login()
     data = b"foobar"
