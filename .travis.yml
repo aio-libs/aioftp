@@ -3,7 +3,7 @@ python:
     - 3.4
 
 install:
-    - travis_retry pip install coveralls sh
+    - travis_retry pip install -r test-requirements.txt
 
 script:
     - python run-tests.py
