@@ -836,9 +836,17 @@ class Server(BaseServer):
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        # ensure_future
-        asyncio.async(stor_worker(), loop=loop)
-        return True, "150", "data transer started"
+        if (yield from path_io.is_dir(real_path.parent)):
+
+            # ensure_future
+            asyncio.async(stor_worker(), loop=loop)
+            code, info = "150", "data transer started"
+
+        else:
+
+            code, info = "550", "path unreachable"
+
+        return True, code, info
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
@@ -910,9 +918,17 @@ class Server(BaseServer):
             )
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        # ensure_future
-        asyncio.async(retr_worker(), loop=loop)
-        return True, "150", "data transer started"
+        if (yield from path_io.is_dir(real_path.parent)):
+
+            # ensure_future
+            asyncio.async(retr_worker(), loop=loop)
+            code, info = "150", "data transer started"
+
+        else:
+
+            code, info = "550", "path unreachable"
+
+        return True, code, info
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
