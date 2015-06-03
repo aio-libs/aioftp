@@ -2,6 +2,8 @@ import asyncio
 import functools
 import collections
 import operator
+import io
+import time
 
 
 class AbstractPathIO:
@@ -220,13 +222,43 @@ class AsyncPathIO(AbstractPathIO):
         return (yield from self.loop.run_in_executor(None, f))
 
 
+class Node:
+
+    def __init__(self, type, name, ctime=None, mtime=None, *, content):
+
+        self.type = type
+        self.name = name
+        self.ctime = ctime or int(time.time())
+        self.mtime = mtime or int(time.time())
+        self.content = content
+
+    def __repr__(self):
+
+        return str.format(
+            "Node(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})",
+            self.type,
+            self.name,
+            self.ctime,
+            self.mtime,
+            self.content,
+        )
+
+
 class MemoryPathIO(AbstractPathIO):
 
-    Node = collections.namedtuple("Node", "type name content")
+    Stats = collections.namedtuple(
+        "Stats",
+        (
+            "st_size",
+            "st_ctime",
+            "st_mtime",
+            "st_nlink",
+        )
+    )
 
     def __init__(self, loop=None):
 
-        self.fs = [MemoryPathIO.Node("dir", "/", [])]
+        self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):
 
@@ -237,18 +269,16 @@ class MemoryPathIO(AbstractPathIO):
         nodes = self.fs
         for part in path.parts:
 
-            if isinstance(nodes, list):
+            if not isinstance(nodes, list):
 
-                for node in nodes:
+                return
 
-                    if node.name == part:
+            for node in nodes:
 
-                        nodes = node.content
-                        break
+                if node.name == part:
 
-                else:
-
-                    return
+                    nodes = node.content
+                    break
 
             else:
 
@@ -259,7 +289,6 @@ class MemoryPathIO(AbstractPathIO):
     @asyncio.coroutine
     def exists(self, path):
 
-        print("exists", path, self.get_node(path))
         return self.get_node(path) is not None
 
     @asyncio.coroutine
@@ -288,7 +317,11 @@ class MemoryPathIO(AbstractPathIO):
 
                 raise FileNotFoundError
 
-            node = MemoryPathIO.Node("dir", part, [])
+            elif parent.type != "dir":
+
+                raise FileExistsError
+
+            node = Node("dir", path.name, content=[])
             parent.content.append(node)
 
         else:
@@ -307,7 +340,7 @@ class MemoryPathIO(AbstractPathIO):
 
                     else:
 
-                        node = MemoryPathIO.Node("dir", part, [])
+                        node = Node("dir", part, content=[])
                         nodes.append(node)
                         nodes = node.content
 
@@ -375,32 +408,106 @@ class MemoryPathIO(AbstractPathIO):
 
         else:
 
-            return tuple(map(operator.attrgetter("name"), node.content))
+            names = map(operator.attrgetter("name"), node.content)
+            paths = map(lambda name: path / name, names)
+            return tuple(paths)
 
     @asyncio.coroutine
     def stat(self, path):
 
-        raise NotImplementedError
+        node = self.get_node(path)
+        if node is None:
+
+            raise FileNotFoundError
+
+        else:
+
+            if node.type == "file":
+
+                size = len(node.content.getbuffer())
+
+            else:
+
+                size = 0
+
+            return MemoryPathIO.Stats(
+                size,
+                node.ctime,
+                node.mtime,
+                1,
+            )
 
     @asyncio.coroutine
-    def open(self, path, *args, **kwargs):
+    def open(self, path, mode="rb", *args, **kwargs):
 
-        raise NotImplementedError
+        if mode == "rb":
+
+            node = self.get_node(path)
+            if node is None:
+
+                raise FileNotFoundError
+
+            file_like = node.content
+            file_like.seek(0, io.SEEK_SET)
+
+        elif mode == "wb":
+
+            node = self.get_node(path)
+            if node is None:
+
+                parent = self.get_node(path.parent)
+                if parent is None or parent.type != "dir":
+
+                    raise FileNotFoundError
+
+                new_node = Node("file", path.name, content=io.BytesIO())
+                parent.content.append(new_node)
+                file_like = new_node.content
+
+            else:
+
+                file_like = node.content = io.BytesIO()
+
+        elif mode == "ab":
+
+            node = self.get_node(path)
+            if node is None:
+
+                parent = self.get_node(path.parent)
+                if parent is None or parent.type != "dir":
+
+                    raise FileNotFoundError
+
+                new_node = Node("file", path.name, content=io.BytesIO())
+                parent.content.append(new_node)
+                file_like = new_node.content
+
+            else:
+
+                file_like = node.content
+                file_like.seek(0, io.SEEK_END)
+
+        else:
+
+            raise Exception("Unsupported file mode")
+
+        return file_like
 
     @asyncio.coroutine
     def write(self, file, data):
 
-        raise NotImplementedError
+        file.write(data)
+        file.mtime = int(time.time())
 
     @asyncio.coroutine
-    def read(self, file):
+    def read(self, file, count=None):
 
-        raise NotImplementedError
+        return file.read(count)
 
     @asyncio.coroutine
     def close(self, file):
 
-        raise NotImplementedError
+        pass
 
     @asyncio.coroutine
     def rename(self, source, destination):
@@ -409,63 +516,27 @@ class MemoryPathIO(AbstractPathIO):
 
             return
 
-        snode = self.get_node(source)
         sparent = self.get_node(source.parent)
         dparent = self.get_node(destination.parent)
+        snode = self.get_node(source)
         if snode is None:
 
             raise FileNotFoundError
 
+        snode.name = destination.name
         for i, node in enumerate(dparent.content):
 
             if node.name == destination.name:
 
-                dparent.content[i] = snode._replace(name=destination.name)
+                dparent.content[i] = snode
                 break
 
         else:
 
-            dparent.content.append(snode._replace(name=destination.name))
+            dparent.content.append(snode)
 
         for i, node in enumerate(sparent.content):
 
             if node.name == source.name:
 
                 sparent.content.pop(i)
-
-
-if __name__ == "__main__":
-
-    import pathlib
-
-    @asyncio.coroutine
-    def test():
-
-        mp = MemoryPathIO()
-        print(mp)
-
-        print((yield from mp.exists(pathlib.Path("/foo"))))
-        print((yield from mp.is_dir(pathlib.Path("/foo"))))
-        print((yield from mp.is_file(pathlib.Path("/foo"))))
-
-        yield from mp.mkdir(pathlib.Path("/foo/bar/baz"), parents=True)
-
-        print((yield from mp.exists(pathlib.Path("/foo"))))
-        print((yield from mp.is_dir(pathlib.Path("/foo"))))
-        print((yield from mp.is_file(pathlib.Path("/foo"))))
-
-        print(mp)
-        print((yield from mp.list(pathlib.Path("/foo"))))
-        print((yield from mp.list(pathlib.Path("foo"))))
-        print((yield from mp.list(pathlib.Path("/foo/bar"))))
-
-        yield from mp.rmdir(pathlib.Path("/foo/bar/baz"))
-        print(mp)
-
-        yield from mp.rename(pathlib.Path("/foo/bar"), pathlib.Path("/foo/b"))
-        print(mp)
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(test())
-    loop.close()
-    print("done")
