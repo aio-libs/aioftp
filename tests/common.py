@@ -27,7 +27,10 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
             args, kwargs = server_args
             el = os.environ["AIOFTP_TESTS"]
             factory = getattr(aioftp, el)
-            kwargs["path_io_factory"] = factory
+            if "path_io_factory" not in kwargs:
+
+                kwargs["path_io_factory"] = factory
+
             server = aioftp.Server(*args, loop=loop, **kwargs)
 
             args, kwargs = client_args
