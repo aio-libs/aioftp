@@ -74,12 +74,16 @@ def test_file_download(loop, client, server, *, tmp_dir):
 @with_tmp_dir("foo")
 def test_file_upload(loop, client, server, *, tmp_dir):
 
+    def callback(data):
+
+        nose.tools.eq_(data, b)
+
     f = tmp_dir / "foo"
 
     b = b"foobar"
     file_like = io.BytesIO(b)
     yield from client.login()
-    yield from client.upload_file("foo", file_like)
+    yield from client.upload_file("foo", file_like, callback=callback)
     yield from client.quit()
 
     with f.open("rb") as fin:
