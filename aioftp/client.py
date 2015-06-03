@@ -71,7 +71,7 @@ class BaseClient:
         :return: (code, line)
         :rtype: (:py:class:`aioftp.Code`, :py:class:`str`)
 
-        :raises aioftp.ConnectionClosedError: if received data is empty (this
+        :raises ConnectionResetError: if received data is empty (this
             means, that connection is closed)
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
@@ -84,7 +84,7 @@ class BaseClient:
         if not line:
 
             self.writer.close()
-            raise errors.ConnectionClosedError()
+            raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         common.logger.info(add_prefix(s))
@@ -398,8 +398,7 @@ class Client(BaseClient):
         need_create.reverse()
         for path in need_create:
 
-            code, info = yield from self.command("MKD " + str(path), "257")
-            directory = self.parse_directory_response(info[-1])
+            yield from self.command("MKD " + str(path), "257")
 
     @asyncio.coroutine
     def remove_directory(self, path):
@@ -915,7 +914,7 @@ class Client(BaseClient):
 
                     callback(block)
 
-        yield from self.command(None, "2xx")
+        yield from self.command(None, "2xx", "1xx")
 
     @asyncio.coroutine
     def store(self, *command_args, file, conn_type="I", use_lines=False,
@@ -961,13 +960,19 @@ class Client(BaseClient):
                     break
 
                 writer.write(block)
-                yield from writer.drain()
+                try:
+
+                    yield from writer.drain()
+
+                except ConnectionResetError:
+
+                    break
 
                 if callback:
 
                     callback(block)
 
-        yield from self.command(None, "2xx")
+        yield from self.command(None, "2xx", "1xx")
 
     @asyncio.coroutine
     def abort(self):
@@ -976,4 +981,4 @@ class Client(BaseClient):
 
         Request data transfer abort.
         """
-        yield from self.command("ABOR", "2xx", "1xx")
+        yield from self.command("ABOR")
