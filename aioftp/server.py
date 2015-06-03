@@ -107,6 +107,9 @@ class BaseServer:
     def close(self):
 
         self.server.close()
+        for reader, writer in self.connections:
+
+            writer.close()
 
     @asyncio.coroutine
     def wait_closed(self):
@@ -166,7 +169,7 @@ class BaseServer:
         )
         if not line:
 
-            raise errors.ConnectionClosedError()
+            raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         common.logger.info(add_prefix(s))
@@ -560,13 +563,7 @@ class Server(BaseServer):
 
         else:
 
-            raise errors.UnknownPathType(
-                str.format(
-                    "{} ({})",
-                    path,
-                    stats["Type"],
-                )
-            )
+            raise errors.PathIsNotFileOrDir(path)
 
         raw = yield from asyncio.wait_for(
             path_io.stat(path),
