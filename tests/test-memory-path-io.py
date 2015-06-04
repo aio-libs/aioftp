@@ -111,7 +111,7 @@ def test_memory_path_unreachable_path_upload(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_unreachable_path_raw(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     nose.tools.eq_(mp.get_node(pathlib.Path("/foo/bar/baz")), None)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     nose.tools.eq_(mp.get_node(pathlib.Path("/foo/bar/baz")), None)
@@ -124,7 +124,7 @@ def test_memory_path_unreachable_path_raw(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_mkdir_on_exist(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo"))
     yield from mp.mkdir(pathlib.Path("/foo"))
 
@@ -136,7 +136,7 @@ def test_memory_path_mkdir_on_exist(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_mkdir_unreachable_parents(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo/bar"))
 
 
@@ -147,7 +147,7 @@ def test_memory_path_mkdir_unreachable_parents(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_unreachable_mkdir_cause_file(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     yield from mp.mkdir(pathlib.Path("/foo/bar"))
 
@@ -160,7 +160,7 @@ def test_memory_path_unreachable_mkdir_cause_file(loop, client, server):
 def test_memory_path_unreachable_mkdir_cause_file_with_parents(loop, client,
                                                                server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     yield from mp.mkdir(pathlib.Path("/foo/bar"), parents=True)
 
@@ -172,7 +172,7 @@ def test_memory_path_unreachable_mkdir_cause_file_with_parents(loop, client,
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_remove_directory_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.rmdir(pathlib.Path("/foo"))
 
 
@@ -183,7 +183,7 @@ def test_memory_path_remove_directory_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_remove_directory_is_file(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     yield from mp.rmdir(pathlib.Path("/foo"))
 
@@ -195,7 +195,7 @@ def test_memory_path_remove_directory_is_file(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_remove_directory_not_empty(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo"))
     yield from mp.open(pathlib.Path("/foo/bar"), "wb")
     yield from mp.rmdir(pathlib.Path("/foo"))
@@ -208,7 +208,7 @@ def test_memory_path_remove_directory_not_empty(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_unlink_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.unlink(pathlib.Path("/foo"))
 
 
@@ -219,7 +219,7 @@ def test_memory_path_unlink_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_unlink_not_file(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo"))
     yield from mp.unlink(pathlib.Path("/foo"))
 
@@ -230,7 +230,7 @@ def test_memory_path_unlink_not_file(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_list_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     r = yield from mp.list(pathlib.Path("/foo"))
     nose.tools.eq_(r, tuple())
 
@@ -242,7 +242,7 @@ def test_memory_path_list_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_stat_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     r = yield from mp.stat(pathlib.Path("/foo"))
 
 
@@ -253,7 +253,7 @@ def test_memory_path_stat_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_read_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"))
 
 
@@ -264,7 +264,7 @@ def test_memory_path_open_read_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_write_parent_file(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     yield from mp.open(pathlib.Path("/foo/bar"), "wb")
 
@@ -276,7 +276,7 @@ def test_memory_path_open_write_parent_file(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_write_dir(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo"))
     yield from mp.open(pathlib.Path("/foo"), "wb")
 
@@ -287,7 +287,7 @@ def test_memory_path_open_write_dir(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_write_over(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "wb")
     yield from mp.open(pathlib.Path("/foo"), "wb")
 
@@ -298,7 +298,7 @@ def test_memory_path_open_write_over(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_append_new(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "ab")
 
 
@@ -309,7 +309,7 @@ def test_memory_path_open_append_new(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_append_over_dir(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.mkdir(pathlib.Path("/foo"))
     yield from mp.open(pathlib.Path("/foo"), "ab")
 
@@ -321,7 +321,7 @@ def test_memory_path_open_append_over_dir(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_open_bad_mode(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.open(pathlib.Path("/foo"), "foobar")
 
 
@@ -332,7 +332,7 @@ def test_memory_path_open_bad_mode(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_rename_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     yield from mp.rename(pathlib.Path("/foo"), pathlib.Path("/bar"))
 
 
@@ -342,7 +342,7 @@ def test_memory_path_rename_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_rename_to_not_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     s, d = pathlib.Path("/foo"), pathlib.Path("/bar")
     yield from mp.open(s, "wb")
     yield from mp.rename(s, d)
@@ -356,7 +356,7 @@ def test_memory_path_rename_to_not_exists(loop, client, server):
         {"path_io_factory": aioftp.MemoryPathIO}))
 def test_memory_path_rename_to_exists(loop, client, server):
 
-    mp = aioftp.MemoryPathIO()
+    mp = aioftp.MemoryPathIO(loop)
     s, d = pathlib.Path("/foo"), pathlib.Path("/bar")
     yield from mp.open(s, "wb")
     yield from mp.open(d, "wb")
