@@ -57,6 +57,7 @@ expect
 
 Or you can download path as is and then rename it
 (:py:meth:`aioftp.Client.rename`)
+
 Downloading is pretty same
 ::
 

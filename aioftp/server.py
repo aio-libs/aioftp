@@ -393,7 +393,20 @@ class PathConditions:
 
 
 class PathPermissions:
+    """
+    Decorator for checking path permissions. There is two permissions right
+    now: `aioftp.PathPermissions.readable` and
+    `aioftp.PathPermissions.writable`. Decorator will check the permissions
+    and return proper code and information to client if permission denied
 
+    Usage::
+
+        >>> @PathPermissions(
+        ...     PathPermissions.readable,
+        ...     PathPermissions.writable)
+        ... def foo(self, connection, path):
+        ...     ...
+    """
     readable = "readable"
     writable = "writable"
 
@@ -422,7 +435,18 @@ class PathPermissions:
 
 
 def unpack_keywords(f):
+    """
+    Decorator for unpacking options from connection argument by name
 
+    Usage::
+
+        >>> @unpack_keywords
+        ... def foo(self, connection, rest, *, user, idle_timeout):
+        ...     # user == connection["user"]
+        ...     # idle_timeout = connection["idle_timeout"]
+        ...
+        ... foo(connection, rest)
+    """
     @asyncio.coroutine
     @functools.wraps(f)
     def wrapper(self, connection, rest, *args):
@@ -444,6 +468,29 @@ class Server(BaseServer):
     """
     FTP server.
 
+    :param users: list of users
+    :type users: :py:class:`tuple` or :py:class:`list` of
+        :py:class:`aioftp.User`
+
+    :param loop: loop to use for creating connection and binding with streams
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    :param block_size: bytes count for socket read operations
+    :type block_size: :py:class:`int`
+
+    :param socket_timeout: timeout for socket read and write operations
+    :type socket_timeout: :py:class:`float` or :py:class:`int`
+
+    :param path_timeout: timeout for path-related operations (make directory,
+        unlink file, etc.)
+    :type path_timeout: :py:class:`float` or :py:class:`int`
+
+    :param socket_timeout: timeout for socket read operations, another
+        words: how long user can keep silence without sending commands
+    :type socket_timeout: :py:class:`float` or :py:class:`int`
+
+    :param path_io_factory: factory of «path abstract layer»
+    :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
 
     path_facts = (
@@ -464,13 +511,26 @@ class Server(BaseServer):
         self.idle_timeout = idle_timeout
         self.path_io = path_io_factory(self.loop)
 
-    def get_paths(self, connection, path):
+    @unpack_keywords
+    def get_paths(self, connection, path, *, user, current_directory):
+        """
+        Return *real* and *virtual* paths, resolves ".." with "up" action.
+        *Real* path is path for path_io, when *virtual* deals with
+        "user-view" and user requests
 
+        :param connection: internal options for current connected user
+        :type connection: :py:class:`dict`
+
+        :param path: received path from user
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :return: (real_path, virtual_path)
+        :rtype: (:py:class:`pathlib.Path`, :py:class:`pathlib.Path`)
+        """
         virtual_path = pathlib.Path(path)
-        user = connection["user"]
         if not virtual_path.is_absolute():
 
-            virtual_path = connection["current_directory"] / virtual_path
+            virtual_path = current_directory / virtual_path
 
         resolved_virtual_path = pathlib.Path("/")
         for part in virtual_path.parts[1:]:
