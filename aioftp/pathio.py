@@ -258,6 +258,7 @@ class MemoryPathIO(AbstractPathIO):
 
     def __init__(self, loop=None):
 
+        super().__init__(loop)
         self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):
