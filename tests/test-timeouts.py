@@ -34,7 +34,6 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
 @with_connection
 def test_path_timeout(loop, client, server):
 
-    print(server.path_io)
     yield from client.login()
     yield from client.make_directory("foo")
 
