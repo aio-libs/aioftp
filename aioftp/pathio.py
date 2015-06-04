@@ -450,7 +450,7 @@ class MemoryPathIO(AbstractPathIO):
             file_like = node.content
             file_like.seek(0, io.SEEK_SET)
 
-        elif mode == "wb":
+        elif mode in ("wb", "ab"):
 
             node = self.get_node(path)
             if node is None:
@@ -464,32 +464,24 @@ class MemoryPathIO(AbstractPathIO):
                 parent.content.append(new_node)
                 file_like = new_node.content
 
-            else:
+            elif node.type != "file":
 
-                file_like = node.content = io.BytesIO()
-
-        elif mode == "ab":
-
-            node = self.get_node(path)
-            if node is None:
-
-                parent = self.get_node(path.parent)
-                if parent is None or parent.type != "dir":
-
-                    raise FileNotFoundError
-
-                new_node = Node("file", path.name, content=io.BytesIO())
-                parent.content.append(new_node)
-                file_like = new_node.content
+                raise IsADirectoryError
 
             else:
 
-                file_like = node.content
-                file_like.seek(0, io.SEEK_END)
+                if mode == "wb":
+
+                    file_like = node.content = io.BytesIO()
+
+                else:
+
+                    file_like = node.content
+                    file_like.seek(0, io.SEEK_END)
 
         else:
 
-            raise Exception("Unsupported file mode")
+            raise ValueError(str.format("invalid mode: {}", mode))
 
         return file_like
 
@@ -512,31 +504,29 @@ class MemoryPathIO(AbstractPathIO):
     @asyncio.coroutine
     def rename(self, source, destination):
 
-        if source == destination:
+        if source != destination:
 
-            return
+            sparent = self.get_node(source.parent)
+            dparent = self.get_node(destination.parent)
+            snode = self.get_node(source)
+            if None in (snode, dparent):
 
-        sparent = self.get_node(source.parent)
-        dparent = self.get_node(destination.parent)
-        snode = self.get_node(source)
-        if snode is None:
+                raise FileNotFoundError
 
-            raise FileNotFoundError
+            for i, node in enumerate(sparent.content):
 
-        snode.name = destination.name
-        for i, node in enumerate(dparent.content):
+                if node.name == source.name:
 
-            if node.name == destination.name:
+                    sparent.content.pop(i)
 
-                dparent.content[i] = snode
-                break
+            snode.name = destination.name
+            for i, node in enumerate(dparent.content):
 
-        else:
+                if node.name == destination.name:
 
-            dparent.content.append(snode)
+                    dparent.content[i] = snode
+                    break
 
-        for i, node in enumerate(sparent.content):
+            else:
 
-            if node.name == source.name:
-
-                sparent.content.pop(i)
+                dparent.content.append(snode)
