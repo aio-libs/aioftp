@@ -3,4 +3,7 @@
 Server API
 ==========
 
-Coming soon
+.. autoclass :: aioftp.Server
+    :members:
+    :show-inheritance:
+    :inherited-members:

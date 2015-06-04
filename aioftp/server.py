@@ -89,7 +89,20 @@ class BaseServer:
 
     @asyncio.coroutine
     def start(self, host=None, port=0, **kw):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Start server.
+
+        :param host: ip address to bind for listening.
+        :type host: :py:class:`str`
+
+        :param port: port number to bind for listening.
+        :type port: :py:class:`int`
+
+        :param kw: keyword arguments, they passed to
+            :py:func:`asyncio.start_server`
+        """
         self.connections = {}
         self.host = host
         self.port = port
@@ -105,7 +118,10 @@ class BaseServer:
         common.logger.info(add_prefix(message))
 
     def close(self):
-
+        """
+        Shutdown the server and close all connections. Use this method with
+            :py:meth:`aioftp.Server.wait_closed`
+        """
         self.server.close()
         for reader, writer in self.connections:
 
@@ -113,7 +129,11 @@ class BaseServer:
 
     @asyncio.coroutine
     def wait_closed(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Wait server to stop.
+        """
         yield from self.server.wait_closed()
 
     @asyncio.coroutine
@@ -131,7 +151,33 @@ class BaseServer:
     @asyncio.coroutine
     def write_response(self, reader, writer, code, lines="", list=False, *,
                        loop, socket_timeout=None):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Complex method for sending response.
+
+        :param reader: connection steram reader
+        :type reader: :py:class:`asyncio.StreamReader`
+
+        :param writer: connection stream writer
+        :type writer: :py:class:`asyncio.StreamWriter`
+
+        :param code: server response code
+        :type code: :py:class:`str`
+
+        :param lines: line or lines, which are response information
+        :type lines: :py:class:`str` or :py:class:`collections.Iterable`
+
+        :param list: if true, then lines will be sended without code prefix.
+            This is useful for **LIST** FTP command and some others.
+        :type list: :py:class:`bool`
+
+        :param loop: event loop
+        :type loop: :py:class:`asyncio.BaseEventLoop`
+
+        :param socket_timeout: timeout for socket write operations
+        :type socket_timeout: :py:class:`float` or :py:class:`int`
+        """
         lines = common.wrap_with_container(lines)
         write = functools.partial(
             self.write_line,
@@ -161,7 +207,27 @@ class BaseServer:
 
     @asyncio.coroutine
     def parse_command(self, reader, writer, *, loop, idle_timeout=None):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Complex method for getting command.
+
+        :param reader: connection steram reader
+        :type reader: :py:class:`asyncio.StreamReader`
+
+        :param writer: connection stream writer
+        :type writer: :py:class:`asyncio.StreamWriter`
+
+        :param loop: event loop
+        :type loop: :py:class:`asyncio.BaseEventLoop`
+
+        :param socket_timeout: timeout for socket read operations, another
+            words: how long user can keep silence without sending commands
+        :type socket_timeout: :py:class:`float` or :py:class:`int`
+
+        :return: (code, rest)
+        :rtype: (:py:class:`str`, :py:class:`str`)
+        """
         line = yield from asyncio.wait_for(
             reader.readline(),
             idle_timeout,
@@ -375,6 +441,10 @@ def unpack_keywords(f):
 
 
 class Server(BaseServer):
+    """
+    FTP server.
+
+    """
 
     path_facts = (
         ("st_size", "Size"),
