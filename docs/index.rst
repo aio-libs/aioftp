@@ -17,6 +17,22 @@ Features
 - Extensible.
 - Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
 
+Goals
+-----
+
+- Minimum usable core.
+- Do not use deprecated or overridden commands and features (if possible).
+
+Client use this commands: USER, PASS, ACCT, PWD, CWD, CDUP, MKD, RMD, MLSD,
+MLST, RNFR, RNTO, DELE, STOR, APPE, RETR, TYPE, PASV, ABOR, QUIT
+
+Server support this commands: USER, PASS, QUIT, PWD, CWD, CDUP, MKD, RMD, MLSD,
+LIST (but it's not recommended to use it, cause it has no standard format),
+MLST, RNFR, RNTO, DELE, STOR, RETR, TYPE (only "I"), PASV, ABOR, APPE
+
+This subsets are enough for 99% of tasks, but if you need something, then you
+can easily extend current set of commands.
+
 Dependencies
 ------------
 
@@ -89,7 +105,7 @@ Server example
         loop.close()
 
 Further reading
---------------
+---------------
 
 .. toctree::
     :maxdepth: 2
