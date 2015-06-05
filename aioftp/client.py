@@ -8,6 +8,9 @@ from . import errors
 from . import common
 
 
+__all__ = ("Client",)
+
+
 def add_prefix(message):
 
     return str.format("aioftp client: {}", message)

@@ -59,7 +59,7 @@ Client example
         yield from ftp.login(login, password)
         for path, info in (yield from ftp.list(recursive=True)):
 
-            if info["type"] == "file" and str.endswith(path.name, ".mp3"):
+            if info["type"] == "file" and path.suffix == ".mp3":
 
                 yield from ftp.download(path, path.name)
 
@@ -77,4 +77,19 @@ Server example
 
 .. code-block:: python
 
-    Coming soon
+    import aioftp
+    import asyncio
+
+
+    loop = asyncio.get_event_loop()
+    ftp = aioftp.Server()
+    asyncio.async(ftp.start(None, 8021))
+    try:
+
+        loop.run_forever()
+
+    except KeyboardInterrupt:
+
+        ftp.close()
+        loop.run_until_complete(ftp.wait_closed())
+        loop.close()

@@ -11,13 +11,35 @@ from . import errors
 from . import pathio
 
 
+__all__ = (
+    "Permission",
+    "User",
+    "ConnectionConditions",
+    "PathConditions",
+    "PathPermissions",
+    "unpack_keywords",
+    "Server",
+)
+
+
 def add_prefix(message):
 
     return str.format("aioftp server: {}", message)
 
 
 class Permission:
+    """
+    Path permission
 
+    :param path: path
+    :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+    :param readable: is readable
+    :type readable: :py:class:`bool`
+
+    :param writable: is writable
+    :type writable: :py:class:`bool`
+    """
     def __init__(self, path="/", *, readable=True, writable=True):
 
         self.path = pathlib.Path(path)
@@ -46,7 +68,26 @@ class Permission:
 
 
 class User:
+    """
+    User description.
 
+    :param login: user login
+    :type login: :py:class:`str`
+
+    :param password: user password
+    :type password: :py:class:`str`
+
+    :param base_path: real user path for file io operations
+    :type base_path: :py:class:`str` or :py:class:`pathlib.Path`
+
+    :param home_path: virtual user path for client representation (must be
+        absolute)
+    :type home_path: :py:class:`str` or :py:class:`pathlib.Path`
+
+    :param permissions: list of path permissions
+    :type permissions: :py:class:`tuple` or :py:class:`list` of
+        :py:class:`aioftp.Permission`
+    """
     def __init__(self, login=None, password=None, *,
                  base_path=pathlib.Path("."), home_path=pathlib.Path("/"),
                  permissions=None):
@@ -62,7 +103,14 @@ class User:
         self.permissions = permissions or [Permission()]
 
     def get_permissions(self, path):
+        """
+        Return nearest parent permission for `path`.
 
+        :param path: path which permission you want to know
+        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`aioftp.Permission`
+        """
         path = pathlib.Path(path)
         parents = filter(lambda p: p.is_parent(path), self.permissions)
         perm = min(
@@ -221,9 +269,9 @@ class BaseServer:
         :param loop: event loop
         :type loop: :py:class:`asyncio.BaseEventLoop`
 
-        :param socket_timeout: timeout for socket read operations, another
+        :param idle_timeout: timeout for socket read operations, another
             words: how long user can keep silence without sending commands
-        :type socket_timeout: :py:class:`float` or :py:class:`int`
+        :type idle_timeout: :py:class:`float` or :py:class:`int`
 
         :return: (code, rest)
         :rtype: (:py:class:`str`, :py:class:`str`)
@@ -327,7 +375,30 @@ class BaseServer:
 
 
 class ConnectionConditions:
+    """
+    Decorator for checking `connection` keys for existence. Available options:
 
+    * `ConnectionConditions.user_required` — required "user" key, user already
+      identified
+    * `ConnectionConditions.login_required` — required "logged" key, user
+      already logged in.
+    * `ConnectionConditions.passive_server_started` — required "passive_server"
+      key, user already send PASV and server awaits incomming connection
+    * `ConnectionConditions.passive_connection_made` — required
+      "passive_connection_made" — required "passive_connection" key, user
+      already connected to passived connection
+    * `ConnectionConditions.rename_from_required` — required "rename_from" key,
+      user already tell filename for rename
+
+    Usage ::
+
+        >>> @ConnectionConditions(
+        ...     ConnectionConditions.login_required,
+        ...     ConnectionConditions.passive_server_started,
+        ...     ConnectionConditions.passive_connection_made)
+        ... def foo(self, connection, rest):
+        ...     ...
+    """
     user_required = ("user", "no user (use USER firstly)")
     login_required = ("logged", "not logged in")
     passive_server_started = (
@@ -363,7 +434,22 @@ class ConnectionConditions:
 
 
 class PathConditions:
+    """
+    Decorator for checking paths. Available options:
 
+    * `path_must_exists`
+    * `path_must_not_exists`
+    * `path_must_be_dir`
+    * `path_must_be_file`
+
+    Usage ::
+
+        >>> @PathConditions(
+        ...     PathConditions.path_must_exists,
+        ...     PathConditions.path_must_be_dir)
+        ... def foo(self, connection, path):
+        ...     ...
+    """
     path_must_exists = ("exists", False, "path does not exists")
     path_must_not_exists = ("exists", True, "path already exists")
     path_must_be_dir = ("is_dir", False, "path is not a directory")
@@ -395,11 +481,15 @@ class PathConditions:
 class PathPermissions:
     """
     Decorator for checking path permissions. There is two permissions right
-    now: `aioftp.PathPermissions.readable` and
-    `aioftp.PathPermissions.writable`. Decorator will check the permissions
-    and return proper code and information to client if permission denied
+    now:
 
-    Usage::
+    * `PathPermissions.readable`
+    * `PathPermissions.writable`
+
+    Decorator will check the permissions and return proper code and information
+    to client if permission denied
+
+    Usage ::
 
         >>> @PathPermissions(
         ...     PathPermissions.readable,
@@ -438,7 +528,7 @@ def unpack_keywords(f):
     """
     Decorator for unpacking options from connection argument by name
 
-    Usage::
+    Usage ::
 
         >>> @unpack_keywords
         ... def foo(self, connection, rest, *, user, idle_timeout):
@@ -485,9 +575,9 @@ class Server(BaseServer):
         unlink file, etc.)
     :type path_timeout: :py:class:`float` or :py:class:`int`
 
-    :param socket_timeout: timeout for socket read operations, another
+    :param idle_timeout: timeout for socket read operations, another
         words: how long user can keep silence without sending commands
-    :type socket_timeout: :py:class:`float` or :py:class:`int`
+    :type idle_timeout: :py:class:`float` or :py:class:`int`
 
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`

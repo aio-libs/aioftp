@@ -1,6 +1,13 @@
 from . import common
 
 
+__all__ = (
+    "StatusCodeError",
+    "PathIsNotFileOrDir",
+    "PathIsNotAbsolute",
+)
+
+
 class StatusCodeError(Exception):
     """
     Raised for unexpected or "bad" status codes.

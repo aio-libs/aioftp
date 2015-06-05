@@ -8,7 +8,19 @@ Server API
     :show-inheritance:
     :inherited-members:
 
-.. autofunction :: aioftp.unpack_keywords
+.. autoclass :: aioftp.User
+    :members:
+
+.. autoclass :: aioftp.Permission
+    :members:
+
+.. autoclass :: aioftp.ConnectionConditions
+    :members:
+
+.. autoclass :: aioftp.PathConditions
+    :members:
 
 .. autoclass :: aioftp.PathPermissions
     :members:
+
+.. autofunction :: aioftp.unpack_keywords

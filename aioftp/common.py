@@ -1,6 +1,9 @@
 import logging
 
 
+__all__ = ("Code",)
+
+
 logger = logging.getLogger("aioftp")
 
 
@@ -23,7 +26,7 @@ class Code(str):
             then it passes.
         :type mask: :py:class:`str`
 
-        Usage::
+        Usage ::
 
             >>> Code("123").matches("1")
             True
