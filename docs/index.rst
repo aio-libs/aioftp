@@ -87,8 +87,8 @@ Server example
 
 .. code-block:: python
 
-    import aioftp
     import asyncio
+    import aioftp
 
 
     loop = asyncio.get_event_loop()
