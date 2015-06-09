@@ -390,7 +390,7 @@ class ConnectionConditions:
     * `ConnectionConditions.rename_from_required` — required "rename_from" key,
       user already tell filename for rename
 
-    Usage ::
+    ::
 
         >>> @ConnectionConditions(
         ...     ConnectionConditions.login_required,
@@ -442,7 +442,7 @@ class PathConditions:
     * `path_must_be_dir`
     * `path_must_be_file`
 
-    Usage ::
+    ::
 
         >>> @PathConditions(
         ...     PathConditions.path_must_exists,
@@ -489,7 +489,7 @@ class PathPermissions:
     Decorator will check the permissions and return proper code and information
     to client if permission denied
 
-    Usage ::
+    ::
 
         >>> @PathPermissions(
         ...     PathPermissions.readable,
@@ -528,7 +528,7 @@ def unpack_keywords(f):
     """
     Decorator for unpacking options from connection argument by name
 
-    Usage ::
+    ::
 
         >>> @unpack_keywords
         ... def foo(self, connection, rest, *, user, idle_timeout):

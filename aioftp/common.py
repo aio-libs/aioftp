@@ -26,7 +26,7 @@ class Code(str):
             then it passes.
         :type mask: :py:class:`str`
 
-        Usage ::
+        ::
 
             >>> Code("123").matches("1")
             True
