@@ -115,7 +115,7 @@ What we have here? Dispatcher calls our method with some arguments:
     :py:class:`asyncio.StreamReader`, :py:class:`asyncio.StreamWriter`)
   * passive_server: :py:class:`asyncio.Server`
 
-  You can add your own flags and value to the «connection» and edit the
+  You can add your own flags and values to the «connection» and edit the
   existing ones of course.
 
 * rest: :py:class:`str` rest part of command string
@@ -155,7 +155,7 @@ For more complex example lets try to realize same client «COLL x» command.
                 with contextlib.closing(data_writer) as data_writer:
 
                     c = int(count)
-                    data = bytes(range(0x100)) * (8192 // 256)
+                    data = bytes(range(256)) * (8192 // 256)
                     for x in range(0, c, 8192):
 
                         data_writer.write(data[:min(8192, c - x)])
@@ -212,7 +212,7 @@ results and logging information.
                 with contextlib.closing(data_writer) as data_writer:
 
                     c = int(count)
-                    data = bytes(range(0x100)) * (8192 // 256)
+                    data = bytes(range(256)) * (8192 // 256)
                     for x in range(0, c, 8192):
 
                         data_writer.write(data[:min(8192, c - x)])
@@ -375,7 +375,7 @@ and server part too, for checking the abort requested.
                 with contextlib.closing(data_writer) as data_writer:
 
                     c = int(count)
-                    data = bytes(range(0x100)) * (8192 // 256)
+                    data = bytes(range(256)) * (8192 // 256)
                     info = "data transfer done"
                     for x in range(0, c, 8192):
 
