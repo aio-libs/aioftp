@@ -1,3 +1,9 @@
+0.1.1 (10-06-2015)
+------------------
+
+- Typos in server strings
+- docstrings for path abstraction layer
+
 0.1.0 (05-06-2015)
 ------------------
 
