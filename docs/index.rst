@@ -112,9 +112,10 @@ Further reading
 
     client_tutorial
     server_tutorial
+    developer_tutorial
     client_api
     server_api
-    developer_tutorial
+    path_io_api
 
 Indices and tables
 ------------------
