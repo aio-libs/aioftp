@@ -15,79 +15,202 @@ __all__ = (
 
 
 class AbstractPathIO:
+    """
+    Abstract class for path io operations.
 
+    :param loop: loop to use
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+    """
     def __init__(self, loop=None):
 
         self.loop = loop or asyncio.get_event_loop()
 
     @asyncio.coroutine
     def exists(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Check path for existence
+
+        :param path: path to check
+        :type path: :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`bool`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def is_dir(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Check path for is directory
+
+        :param path: path to check
+        :type path: :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`bool`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def is_file(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Check path for is file
+
+        :param path: path to check
+        :type path: :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`bool`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def mkdir(self, path, *, parents=False):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Make directory
+
+        :param path: path to create
+        :type path: :py:class:`pathlib.Path`
+
+        :param parents: create parents is does not exists
+        :type parents: :py:class:`bool`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def rmdir(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Remove directory
+
+        :param path: path to remove
+        :type path: :py:class:`pathlib.Path`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def unlink(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Remove file
+
+        :param path: path to remove
+        :type path: :py:class:`pathlib.Path`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def list(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        List path content. If path is file, then return empty sequence.
+
+        :param path: path to list
+        :type path: :py:class:`pathlib.Path`
+
+        :rtype: :py:class:`collections.Iterable` of :py:class:`pathlib.Path`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def stat(self, path):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Get path stats
+
+        :param path: path, which stats need
+        :type path: :py:class:`pathlib.Path`
+
+        :return: path stats. For proper work you need only this stats:
+          st_size, st_mtime, st_ctime, st_nlink
+        :rtype: same as :py:class:`os.stat_result`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def open(self, path, *args, **kwargs):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Open file. You should implement "mode" argument, which can be:
+        "rb", "wb", "ab" (read, write, append binary). Return type depends on
+        implementation, anyway the only place you need this file-object
+        is in your implementation of read, write and close.
+
+        :param path: path to create
+        :type path: :py:class:`pathlib.Path`
+
+        :return: file-object
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def write(self, file, data):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Write some data to file
+
+        :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
+
+        :param data: data to write
+        :type data: :py:class:`bytes`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def read(self, file):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Read some data from file
+
+        :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
+
+        :rtype: :py:class:`bytes`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def close(self, file):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Close file
+
+        :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
+        """
         raise NotImplementedError
 
     @asyncio.coroutine
     def rename(self, source, destination):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Rename path
+
+        :param source: rename from
+        :type source: :py:class:`pathlib.Path`
+
+        :param destination: rename to
+        :type destination: :py:class:`pathlib.Path`
+        """
         raise NotImplementedError
 
 
 class PathIO(AbstractPathIO):
-
+    """
+    Blocking path io. Directly based on :py:class:`pathlib.Path` methods.
+    """
     @asyncio.coroutine
     def exists(self, path):
 
@@ -155,7 +278,11 @@ class PathIO(AbstractPathIO):
 
 
 class AsyncPathIO(AbstractPathIO):
-
+    """
+    Non-blocking path io. Based on
+    :py:meth:`aioftp.BaseEventLoop.run_in_executor` and
+    :py:class:`pathlib.Path` methods.
+    """
     @asyncio.coroutine
     def exists(self, path):
 
@@ -253,7 +380,10 @@ class Node:
 
 
 class MemoryPathIO(AbstractPathIO):
-
+    """
+    Non-blocking path io. Based on in-memory tree. It is just proof of concept
+    and probably not so fast as it can be.
+    """
     Stats = collections.namedtuple(
         "Stats",
         (
