@@ -835,7 +835,7 @@ class Server(BaseServer):
                     )
 
             reader, writer = connection["command_connection"]
-            code, info = "200", "mlsd data transer done"
+            code, info = "200", "mlsd data transfer done"
             yield from self.write_response(
                 reader,
                 writer,
@@ -848,7 +848,7 @@ class Server(BaseServer):
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
         asyncio.async(mlsd_worker(), loop=loop)
-        return True, "150", "mlsd transer started"
+        return True, "150", "mlsd transfer started"
 
     @unpack_keywords
     @asyncio.coroutine
@@ -920,7 +920,7 @@ class Server(BaseServer):
                     )
 
             reader, writer = connection["command_connection"]
-            code, info = "226", "list data transer done"
+            code, info = "226", "list data transfer done"
             yield from self.write_response(
                 reader,
                 writer,
@@ -933,7 +933,7 @@ class Server(BaseServer):
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
         asyncio.async(list_worker(), loop=loop)
-        return True, "150", "list transer started"
+        return True, "150", "list transfer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_exists)
@@ -1060,7 +1060,7 @@ class Server(BaseServer):
 
             # ensure_future
             asyncio.async(stor_worker(), loop=loop)
-            code, info = "150", "data transer started"
+            code, info = "150", "data transfer started"
 
         else:
 
@@ -1140,7 +1140,7 @@ class Server(BaseServer):
         real_path, virtual_path = self.get_paths(connection, rest)
         # ensure_future
         asyncio.async(retr_worker(), loop=loop)
-        return True, "150", "data transer started"
+        return True, "150", "data transfer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
