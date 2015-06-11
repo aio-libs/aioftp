@@ -43,6 +43,7 @@ Dependencies
 ------------
 
 - Python 3.4+
+- docopt (for execution module as script only)
 
 License
 -------
@@ -109,3 +110,9 @@ Server example
         ftp.close()
         loop.run_until_complete(ftp.wait_closed())
         loop.close()
+
+Or just use simple server
+
+.. code-block:: shell
+
+    python -m aioftp --help
