@@ -200,8 +200,6 @@ Take a look on the last example. You can pass relative paths in any path
 oriented methods, but in this case you should know the current working
 directory.
 
-If you need just check if path exists
-
 Remove path
 -----------
 
