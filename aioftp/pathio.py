@@ -30,7 +30,7 @@ class AbstractPathIO:
         """
         :py:func:`asyncio.coroutine`
 
-        Check path for existence
+        Check if path exists
 
         :param path: path to check
         :type path: :py:class:`pathlib.Path`
@@ -44,7 +44,7 @@ class AbstractPathIO:
         """
         :py:func:`asyncio.coroutine`
 
-        Check path for is directory
+        Check if path is directory
 
         :param path: path to check
         :type path: :py:class:`pathlib.Path`
@@ -58,7 +58,7 @@ class AbstractPathIO:
         """
         :py:func:`asyncio.coroutine`
 
-        Check path for is file
+        Check if path is file
 
         :param path: path to check
         :type path: :py:class:`pathlib.Path`
@@ -111,7 +111,7 @@ class AbstractPathIO:
         """
         :py:func:`asyncio.coroutine`
 
-        List path content. If path is file, then return empty sequence.
+        List path content. If path is file, then return empty sequence
 
         :param path: path to list
         :type path: :py:class:`pathlib.Path`
@@ -142,9 +142,9 @@ class AbstractPathIO:
         :py:func:`asyncio.coroutine`
 
         Open file. You should implement "mode" argument, which can be:
-        "rb", "wb", "ab" (read, write, append binary). Return type depends on
-        implementation, anyway the only place you need this file-object
-        is in your implementation of read, write and close.
+        "rb", "wb", "ab" (read, write, append. all binary). Return type depends
+        on implementation, anyway the only place you need this file-object
+        is in your implementation of read, write and close
 
         :param path: path to create
         :type path: :py:class:`pathlib.Path`
@@ -280,7 +280,7 @@ class PathIO(AbstractPathIO):
 class AsyncPathIO(AbstractPathIO):
     """
     Non-blocking path io. Based on
-    :py:meth:`aioftp.BaseEventLoop.run_in_executor` and
+    :py:meth:`asyncio.BaseEventLoop.run_in_executor` and
     :py:class:`pathlib.Path` methods.
     """
     @asyncio.coroutine

@@ -16,8 +16,9 @@ nothing:
 
 ::
 
-    import aioftp
     import asyncio
+
+    import aioftp
 
 
     class MyClient(aioftp.Client):
@@ -30,13 +31,14 @@ nothing:
 Lets take a look to a more complex example. Say, we want to collect some data
 via extra connection. For this one you need one of «extra connection» methods:
 :py:meth:`aioftp.Client.store` and :py:meth:`aioftp.Client.retrieve`.
-Here we implements some «COLL x» command. I don't know what it does, but it sends
-some data via extra connection. And the size of data is equal to «x».
+Here we implements some «COLL x» command. I don't know what it does, but it
+retrieve some data via extra connection. And the size of data is equal to «x».
 
 ::
 
-    import aioftp
     import asyncio
+
+    import aioftp
 
 
     class MyClient(aioftp.Client):
@@ -75,8 +77,9 @@ again:
 
 ::
 
-    import aioftp
     import asyncio
+
+    import aioftp
 
 
     class MyServer(aioftp.Server):
@@ -134,9 +137,10 @@ For more complex example lets try to realize same client «COLL x» command.
 
 ::
 
-    import aioftp
     import asyncio
     import contextlib
+
+    import aioftp
 
 
     class MyServer(aioftp.Server):
@@ -191,9 +195,10 @@ results and logging information.
 
 ::
 
-    import aioftp
     import asyncio
     import contextlib
+
+    import aioftp
 
 
     class MyServer(aioftp.Server):
@@ -354,9 +359,10 @@ and server part too, for checking the abort requested.
 
 ::
 
-    import aioftp
     import asyncio
     import contextlib
+
+    import aioftp
 
 
     class MyServer(aioftp.Server):
@@ -452,8 +458,6 @@ and server part too, for checking the abort requested.
 
         def AwesomeCallback():
 
-            abort_done = False
-
             def callback(data):
 
                 nonlocal abort_done
@@ -469,6 +473,7 @@ and server part too, for checking the abort requested.
                             abort_done = True
                             break
 
+            abort_done = False
             return callback
 
         @asyncio.coroutine

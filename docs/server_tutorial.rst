@@ -3,6 +3,9 @@
 Server tutorial
 ===============
 
+aioftp server is much more like a tool. You configure it, run and forget about
+it.
+
 Configuring server
 ------------------
 

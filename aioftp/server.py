@@ -168,7 +168,7 @@ class BaseServer:
     def close(self):
         """
         Shutdown the server and close all connections. Use this method with
-            :py:meth:`aioftp.Server.wait_closed`
+        :py:meth:`aioftp.Server.wait_closed`
         """
         self.server.close()
         for reader, writer in self.connections:
@@ -535,7 +535,7 @@ def unpack_keywords(f):
         ...     # user == connection["user"]
         ...     # idle_timeout = connection["idle_timeout"]
         ...
-        ... foo(connection, rest)
+        ... o.foo(connection, rest)
     """
     @asyncio.coroutine
     @functools.wraps(f)
