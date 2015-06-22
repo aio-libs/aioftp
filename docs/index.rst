@@ -72,7 +72,7 @@ Client example
 
             if info["type"] == "file" and path.suffix == ".mp3":
 
-                yield from ftp.download(path, path.name)
+                yield from ftp.download(path)
 
 
     loop = asyncio.get_event_loop()
