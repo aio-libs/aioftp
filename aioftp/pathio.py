@@ -370,7 +370,8 @@ class Node:
     def __repr__(self):
 
         return str.format(
-            "Node(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})",
+            "{}(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})",
+            self.__class__.__name__,
             self.type,
             self.name,
             self.ctime,

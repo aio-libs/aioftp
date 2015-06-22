@@ -60,7 +60,8 @@ class Permission:
     def __repr__(self):
 
         return str.format(
-            "Permission({!r}, readable={!r}, writable={!r})",
+            "{}({!r}, readable={!r}, writable={!r})",
+            self.__class__.__name__,
             self.path,
             self.readable,
             self.writable,
@@ -123,8 +124,8 @@ class User:
     def __repr__(self):
 
         return str.format(
-            "User({!r}, {!r}, base_path={!r}, home_path={!r}, "
-            "permissions={!r})",
+            "{}({!r}, {!r}, base_path={!r}, home_path={!r}, permissions={!r})",
+            self.__class__.__name__,
             self.login,
             self.password,
             self.base_path,
