@@ -20,6 +20,7 @@ class Code(str):
     """
     Representation of server status code.
     """
+
     def matches(self, mask):
         """
         :param mask: Template for comparision. If mask symbol is not digit

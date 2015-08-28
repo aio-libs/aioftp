@@ -585,7 +585,6 @@ class Server(BaseServer):
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
-
     path_facts = (
         ("st_size", "Size"),
         ("st_mtime", "Modify"),

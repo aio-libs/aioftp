@@ -33,6 +33,7 @@ class StatusCodeError(Exception):
 
     Exception members are tuples, even for one code.
     """
+
     def __init__(self, expected_codes, received_codes, info):
 
         super().__init__(
@@ -53,6 +54,7 @@ class PathIsNotFileOrDir(Exception):
     Raised when "path abstract layer" tells, that `path` is not a file and
         is not a directory.
     """
+
     pass
 
 
@@ -60,4 +62,5 @@ class PathIsNotAbsolute(Exception):
     """
     Raised when "path" is not absolute.
     """
+
     pass

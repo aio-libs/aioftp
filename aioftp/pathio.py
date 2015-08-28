@@ -212,6 +212,7 @@ class PathIO(AbstractPathIO):
     """
     Blocking path io. Directly based on :py:class:`pathlib.Path` methods.
     """
+
     @asyncio.coroutine
     def exists(self, path):
 
@@ -284,6 +285,7 @@ class AsyncPathIO(AbstractPathIO):
     :py:meth:`asyncio.BaseEventLoop.run_in_executor` and
     :py:class:`pathlib.Path` methods.
     """
+
     @asyncio.coroutine
     def exists(self, path):
 
@@ -386,6 +388,7 @@ class MemoryPathIO(AbstractPathIO):
     Non-blocking path io. Based on in-memory tree. It is just proof of concept
     and probably not so fast as it can be.
     """
+
     Stats = collections.namedtuple(
         "Stats",
         (

@@ -290,6 +290,7 @@ class Client(BaseClient):
     :param timeout: timeout for read operations
     :type timeout: :py:class:`float` or :py:class:`int`
     """
+
     @asyncio.coroutine
     def connect(self, host, port=21):
         """
