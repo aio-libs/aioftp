@@ -40,6 +40,7 @@ class Permission:
     :param writable: is writable
     :type writable: :py:class:`bool`
     """
+
     def __init__(self, path="/", *, readable=True, writable=True):
 
         self.path = pathlib.Path(path)
@@ -89,6 +90,7 @@ class User:
     :type permissions: :py:class:`tuple` or :py:class:`list` of
         :py:class:`aioftp.Permission`
     """
+
     def __init__(self, login=None, password=None, *,
                  base_path=pathlib.Path("."), home_path=pathlib.Path("/"),
                  permissions=None):
@@ -153,8 +155,8 @@ class BaseServer:
             :py:func:`asyncio.start_server`
         """
         self.connections = {}
-        self.host = host
-        self.port = port
+        self.server_host = host
+        self.server_port = port
         self.server = yield from asyncio.start_server(
             self.dispatcher,
             host,
@@ -302,8 +304,8 @@ class BaseServer:
         connection = {
             "client_host": host,
             "client_port": port,
-            "server_host": self.host,
-            "server_port": self.port,
+            "server_host": self.server_host,
+            "server_port": self.server_port,
             "command_connection": (reader, writer),
             "socket_timeout": self.socket_timeout,
             "path_timeout": self.path_timeout,

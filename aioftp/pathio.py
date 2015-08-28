@@ -21,6 +21,7 @@ class AbstractPathIO:
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
+
     def __init__(self, loop=None):
 
         self.loop = loop or asyncio.get_event_loop()
@@ -392,6 +393,7 @@ class MemoryPathIO(AbstractPathIO):
             "st_ctime",
             "st_mtime",
             "st_nlink",
+            "st_mode",
         )
     )
 
@@ -575,6 +577,7 @@ class MemoryPathIO(AbstractPathIO):
                 node.ctime,
                 node.mtime,
                 1,
+                0o100777,
             )
 
     @asyncio.coroutine
