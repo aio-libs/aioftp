@@ -1,3 +1,10 @@
+0.1.3 (28-08-2015)
+------------------
+
+- pep8 "Method definitions inside a class are surrounded by a single blank line"
+- MemoryPathIO.Stats should include st_mode
+Thanks to (`rsichny <https://github.com/rsichny>`_)
+
 0.1.2 (11-06-2015)
 ------------------
 
