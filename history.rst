@@ -1,3 +1,9 @@
+0.1.4 (31-08-2015)
+------------------
+
+- close data connection after client disconnects
+Thanks to (`rsichny <https://github.com/rsichny>`_)
+
 0.1.3 (28-08-2015)
 ------------------
 

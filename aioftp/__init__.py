@@ -8,7 +8,7 @@ from .common import *
 from .pathio import *
 
 
-version = (0, 1, 3)
+version = (0, 1, 4)
 __version__ = str.join(".", map(str, version))
 
 __all__ = (
