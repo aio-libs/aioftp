@@ -74,7 +74,7 @@ def test_closing_pasv_connection(loop, client, server):
 
     yield from client.login()
     r, w = yield from client.get_passive_connection()
-    host, port = w.transport.get_extra_info('peername')
+    host, port = w.transport.get_extra_info("peername")
     yield from client.quit()
     yield from asyncio.open_connection(host, port, loop=loop)
 

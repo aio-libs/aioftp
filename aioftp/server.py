@@ -369,8 +369,9 @@ class BaseServer:
             message = str.format("closing connection from {}:{}", host, port)
             common.logger.info(add_prefix(message))
 
-            if 'passive_server' in connection:
-                connection['passive_server'].close()
+            if "passive_server" in connection:
+
+                connection["passive_server"].close()
 
             writer.close()
             self.connections.pop(key)
