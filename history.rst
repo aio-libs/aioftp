@@ -1,3 +1,8 @@
+0.1.5 (01-09-2015)
+------------------
+
+- bugfix server on windows (PurePosixPath for virtual path)
+
 0.1.4 (31-08-2015)
 ------------------
 
