@@ -4,3 +4,4 @@ docs/_build
 /dist/
 /.coverage
 __pycache__
+*.pyc
