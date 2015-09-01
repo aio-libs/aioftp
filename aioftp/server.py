@@ -32,7 +32,7 @@ class Permission:
     Path permission
 
     :param path: path
-    :type path: :py:class:`str` or :py:class:`pathlib.Path`
+    :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
     :param readable: is readable
     :type readable: :py:class:`bool`
@@ -43,7 +43,7 @@ class Permission:
 
     def __init__(self, path="/", *, readable=True, writable=True):
 
-        self.path = pathlib.Path(path)
+        self.path = pathlib.PurePosixPath(path)
         self.readable = readable
         self.writable = writable
 
@@ -84,7 +84,7 @@ class User:
 
     :param home_path: virtual user path for client representation (must be
         absolute)
-    :type home_path: :py:class:`str` or :py:class:`pathlib.Path`
+    :type home_path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
     :param permissions: list of path permissions
     :type permissions: :py:class:`tuple` or :py:class:`list` of
@@ -92,13 +92,13 @@ class User:
     """
 
     def __init__(self, login=None, password=None, *,
-                 base_path=pathlib.Path("."), home_path=pathlib.Path("/"),
-                 permissions=None):
+                 base_path=pathlib.Path("."),
+                 home_path=pathlib.PurePosixPath("/"), permissions=None):
 
         self.login = login
         self.password = password
         self.base_path = pathlib.Path(base_path)
-        self.home_path = pathlib.Path(home_path)
+        self.home_path = pathlib.PurePosixPath(home_path)
         if not self.home_path.is_absolute():
 
             raise errors.PathIsNotAbsolute(home_path)
@@ -110,11 +110,11 @@ class User:
         Return nearest parent permission for `path`.
 
         :param path: path which permission you want to know
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`aioftp.Permission`
         """
-        path = pathlib.Path(path)
+        path = pathlib.PurePosixPath(path)
         parents = filter(lambda p: p.is_parent(path), self.permissions)
         perm = min(
             parents,
@@ -619,17 +619,17 @@ class Server(BaseServer):
         :type connection: :py:class:`dict`
 
         :param path: received path from user
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :return: (real_path, virtual_path)
-        :rtype: (:py:class:`pathlib.Path`, :py:class:`pathlib.Path`)
+        :rtype: (:py:class:`pathlib.Path`, :py:class:`pathlib.PurePosixPath`)
         """
-        virtual_path = pathlib.Path(path)
+        virtual_path = pathlib.PurePosixPath(path)
         if not virtual_path.is_absolute():
 
             virtual_path = current_directory / virtual_path
 
-        resolved_virtual_path = pathlib.Path("/")
+        resolved_virtual_path = pathlib.PurePosixPath("/")
         for part in virtual_path.parts[1:]:
 
             if part == "..":
@@ -916,9 +916,11 @@ class Server(BaseServer):
                     path_timeout,
                     loop=loop,
                 )
+                print(real_path, paths)
                 for path in paths:
 
                     s = yield from self.build_list_string(connection, path)
+                    print(s)
                     data_writer.write(str.encode(s + "\n", "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),

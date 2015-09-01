@@ -41,5 +41,5 @@ def test_permission_representation():
     p = aioftp.Permission(writable=False)
     nose.tools.eq_(
         repr(p),
-        "Permission(PosixPath('/'), readable=True, writable=False)"
+        "Permission(PurePosixPath('/'), readable=True, writable=False)"
     )
