@@ -15,6 +15,6 @@ def test_user_representation():
     nose.tools.eq_(
         repr(u),
         "User('foo', 'bar', base_path=PosixPath('.'), "
-        "home_path=PosixPath('/'), permissions=" +
+        "home_path=PurePosixPath('/'), permissions=" +
         repr([aioftp.Permission()]) + ")"
     )
