@@ -916,11 +916,10 @@ class Server(BaseServer):
                     path_timeout,
                     loop=loop,
                 )
-                print(real_path, paths)
+
                 for path in paths:
 
                     s = yield from self.build_list_string(connection, path)
-                    print(s)
                     data_writer.write(str.encode(s + "\n", "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),
