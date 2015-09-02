@@ -132,7 +132,7 @@ class AbstractPathIO:
         :type path: :py:class:`pathlib.Path`
 
         :return: path stats. For proper work you need only this stats:
-          st_size, st_mtime, st_ctime, st_nlink
+          st_size, st_mtime, st_ctime, st_nlink, st_mode
         :rtype: same as :py:class:`os.stat_result`
         """
         raise NotImplementedError
