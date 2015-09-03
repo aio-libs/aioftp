@@ -4,7 +4,7 @@ Usage: aioftp [(<login> <password>)] [options]
 
 Options:
     -q, --quiet             set logging level to "ERROR" instead of "INFO"
-    --host=host             host for binding
+    --host=host             host for binding [default: 127.0.0.1]
     --port=port             port for binding [default: 8021]
 """
 import asyncio
