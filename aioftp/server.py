@@ -164,9 +164,15 @@ class BaseServer:
             loop=self.loop,
             **kw
         )
-        host, port = self.server.sockets[0].getsockname()
-        message = str.format("serving on {}:{}", host, port)
-        common.logger.info(add_prefix(message))
+
+        for socket in self.server.sockets:
+
+            message = str.format(
+                "serving on {!r} ({!r})",
+                socket.getsockname(),
+                socket.family,
+            )
+            common.logger.info(add_prefix(message))
 
     def close(self):
         """
