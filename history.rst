@@ -1,3 +1,15 @@
+0.1.7 (03-09-2015)
+------------------
+
+- bugfix on windows (can't make passive connection to 0.0.0.0:port)
+- default host is "127.0.0.1" since now
+- silently ignoring ipv6 sockets in server binding list
+
+0.1.6 (03-09-2015)
+------------------
+
+- bugfix on windows (ipv6 address come first in list of binded sockets)
+
 0.1.5 (01-09-2015)
 ------------------
 
