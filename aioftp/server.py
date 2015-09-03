@@ -4,6 +4,7 @@ import functools
 import contextlib
 import inspect
 import datetime
+import socket
 
 
 from . import common
@@ -165,14 +166,13 @@ class BaseServer:
             **kw
         )
 
-        for socket in self.server.sockets:
+        for sock in self.server.sockets:
 
-            message = str.format(
-                "serving on {!r} ({!r})",
-                socket.getsockname(),
-                socket.family,
-            )
-            common.logger.info(add_prefix(message))
+            if sock.family == socket.AF_INET:
+
+                host, port = sock.getsockname()
+                message = str.format("serving on {}:{}", host, port)
+                common.logger.info(add_prefix(message))
 
     def close(self):
         """
@@ -1201,7 +1201,13 @@ class Server(BaseServer):
 
             code, info = "227", ["listen socket already exists"]
 
-        host, port = connection["passive_server"].sockets[0].getsockname()
+        for sock in connection["passive_server"].sockets:
+
+            if sock.family == socket.AF_INET:
+
+                host, port = sock.getsockname()
+                break
+
         nums = tuple(map(int, str.split(host, "."))) + (port >> 8, port & 0xff)
         info.append(str.format("({})", str.join(",", map(str, nums))))
         return True, code, info
