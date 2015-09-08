@@ -425,9 +425,10 @@ class ConnectionConditions:
     )
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
-    def __init__(self, *fields):
+    def __init__(self, *fields, timeout=1):
 
         self.fields = fields
+        self.timeout = timeout
 
     def __call__(self, f):
 
@@ -435,12 +436,18 @@ class ConnectionConditions:
         @functools.wraps(f)
         def wrapper(cls, connection, rest, *args):
 
+            template = "bad sequence of commands ({})"
+
             for name, message in self.fields:
 
                 if name not in connection:
-
-                    template = "bad sequence of commands ({})"
                     return True, "503", str.format(template, message)
+                elif isinstance(connection[name], asyncio.Future):
+                    try:
+                        yield from asyncio.wait_for(connection[name], self.timeout, loop=connection["loop"])
+                    except asyncio.TimeoutError:
+                        connection.pop(name)
+                        return True, "503", str.format(template, message)
 
             return (yield from f(cls, connection, rest, *args))
 
@@ -829,7 +836,7 @@ class Server(BaseServer):
         @asyncio.coroutine
         def mlsd_worker():
 
-            data_reader, data_writer = connection.pop("passive_connection")
+            data_reader, data_writer = yield from connection.pop("passive_connection")
             with contextlib.closing(data_writer) as data_writer:
 
                 paths = yield from asyncio.wait_for(
@@ -914,7 +921,7 @@ class Server(BaseServer):
         @asyncio.coroutine
         def list_worker():
 
-            data_reader, data_writer = connection.pop("passive_connection")
+            data_reader, data_writer = yield from connection.pop("passive_connection")
             with contextlib.closing(data_writer) as data_writer:
 
                 paths = yield from asyncio.wait_for(
@@ -1017,7 +1024,7 @@ class Server(BaseServer):
         @asyncio.coroutine
         def stor_worker():
 
-            data_reader, data_writer = connection.pop("passive_connection")
+            data_reader, data_writer = yield from connection.pop("passive_connection")
             try:
 
                 fout = yield from asyncio.wait_for(
@@ -1098,7 +1105,7 @@ class Server(BaseServer):
         @asyncio.coroutine
         def retr_worker():
 
-            data_reader, data_writer = connection.pop("passive_connection")
+            data_reader, data_writer = yield from connection.pop("passive_connection")
             try:
 
                 fin = yield from asyncio.wait_for(
@@ -1179,13 +1186,16 @@ class Server(BaseServer):
         @asyncio.coroutine
         def handler(reader, writer):
 
-            if "passive_connection" in connection:
+            if "passive_connection" not in connection or connection["passive_connection"].done():
 
                 writer.close()
 
             else:
 
-                connection["passive_connection"] = reader, writer
+                connection["passive_connection"].set_result((reader, writer))
+
+        if "passive_connection" not in connection:
+            connection["passive_connection"] = asyncio.Future(loop=loop)
 
         if "passive_server" not in connection:
 

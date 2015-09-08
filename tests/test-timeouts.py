@@ -38,6 +38,15 @@ def test_path_timeout(loop, client, server):
     yield from client.make_directory("foo")
 
 
+@aioftp_setup()
+@with_connection
+def test_passive_connection_timeout(loop, client, server):
+
+    yield from client.login()
+    yield from client.command("PASV", "227")
+    yield from client.command("LIST", "503")
+
+
 if __name__ == "__main__":
 
     import logging
