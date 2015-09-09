@@ -480,10 +480,14 @@ class PathConditions:
         def wrapper(cls, connection, rest, *args):
 
             real_path, virtual_path = cls.get_paths(connection, rest)
-            path_io = connection["path_io"]
             for name, fail, message in self.conditions:
 
-                if (yield from getattr(path_io, name)(real_path)) == fail:
+                result = yield from asyncio.wait_for(
+                    getattr(connection["path_io"], name)(real_path),
+                    connection["path_timeout"],
+                    loop=connection["loop"],
+                )
+                if result == fail:
 
                     return True, "550", message
 
