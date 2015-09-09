@@ -8,7 +8,7 @@ from . import errors
 from . import common
 
 
-__all__ = ("Client",)
+__all__ = ("Client", "Code")
 
 
 def add_prefix(message):
@@ -37,6 +37,27 @@ def ChainCallback(*callbacks):
                 f(*args, **kwargs)
 
     return callback
+
+
+class Code(str):
+    """
+    Representation of server status code.
+    """
+
+    def matches(self, mask):
+        """
+        :param mask: Template for comparision. If mask symbol is not digit
+            then it passes.
+        :type mask: :py:class:`str`
+
+        ::
+
+            >>> Code("123").matches("1")
+            True
+            >>> Code("123").matches("1x3")
+            True
+        """
+        return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
 
 
 class BaseClient:
@@ -91,7 +112,7 @@ class BaseClient:
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
         common.logger.info(add_prefix(s))
-        return common.Code(s[:3]), s[3:]
+        return Code(s[:3]), s[3:]
 
     @asyncio.coroutine
     def parse_response(self):
