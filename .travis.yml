@@ -8,5 +8,9 @@ install:
 script:
     - python run-tests.py
 
+branches:
+    only:
+        -master
+
 after_success:
     coveralls
