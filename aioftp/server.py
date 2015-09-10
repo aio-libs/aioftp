@@ -5,6 +5,7 @@ import contextlib
 import inspect
 import datetime
 import socket
+import collections
 
 
 from . import common
@@ -19,6 +20,7 @@ __all__ = (
     "PathConditions",
     "PathPermissions",
     "unpack_keywords",
+    "Connection",
     "Server",
 )
 
@@ -135,6 +137,93 @@ class User:
             self.home_path,
             self.permissions,
         )
+
+
+class Connection(collections.defaultdict):
+    """
+    Connection state container for transparent work with futures for async
+    wait
+
+    Container based on :py:class:`collections.defaultdict`, which holds
+    :py:class:`asyncio.Future` as default factory. There is two layers of
+    abstraction:
+
+    :param loop: event loop
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    * Low level based on simple dictionary keys to attributes mapping and
+        available at Connection.future.
+    * High level based on futures result and dictionary keys to attributes
+        mapping and available at Connection.
+
+    To clarify, here is groups of equal expressions
+    ::
+
+        >>> connection.future.foo
+        >>> connection["foo"]
+
+        >>> connection.foo
+        >>> connection["foo"].result()
+
+        >>> del connection.future.foo
+        >>> del connection.foo
+        >>> del connection["foo"]
+    """
+
+    __slots__ = ("future",)
+
+    class Container:
+
+        def __init__(self, storage):
+
+            self.storage = storage
+
+        def __getattr__(self, name):
+
+            return self.storage[name]
+
+        def __delattr__(self, name):
+
+            self.storage.pop(name)
+
+    def __init__(self, *, loop=None, **kwargs):
+
+        factory = functools.partial(asyncio.Future, loop=loop)
+        super().__init__(factory)
+        self.future = Connection.Container(self)
+        for k, v in kwargs.items():
+
+            self[k].set_result(v)
+
+    def __getattr__(self, name):
+
+        if name in self:
+
+            return self[name].result()
+
+        else:
+
+            raise AttributeError("'{}' not in storage", name)
+
+    def __setattr__(self, name, value):
+
+        if name in Connection.__slots__:
+
+            super().__setattr__(name, value)
+
+        else:
+
+            self[name].set_result(value)
+
+    def __delattr__(self, name):
+
+        if name in self:
+
+            self.pop(name)
+
+        else:
+
+            super().__delattr__(name)
 
 
 class BaseServer:

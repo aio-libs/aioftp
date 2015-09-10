@@ -14,6 +14,9 @@ Server API
 .. autoclass :: aioftp.Permission
     :members:
 
+.. autoclass :: aioftp.Connection
+    :members:
+
 .. autoclass :: aioftp.ConnectionConditions
     :members:
 
