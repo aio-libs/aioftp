@@ -65,6 +65,7 @@ def with_connection(f):
         finally:
 
             server.close()
+            client.close()
             yield from server.wait_closed()
 
     return wrapper

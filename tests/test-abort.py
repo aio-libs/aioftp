@@ -14,6 +14,7 @@ def test_abort_stor(loop, client, server, *, tmp_dir):
     @asyncio.coroutine
     def request_abort():
 
+        yield from asyncio.sleep(0.1, loop=loop)
         yield from client.abort()
         future.set_result(True)
 
@@ -81,6 +82,7 @@ def test_abort_retr(loop, client, server, *, tmp_dir):
     @asyncio.coroutine
     def request_abort():
 
+        yield from asyncio.sleep(0.1, loop=loop)
         yield from client.abort()
         future.set_result(True)
 

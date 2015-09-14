@@ -141,7 +141,7 @@ def test_recursive_list(loop, client, server, *, tmp_dir):
 
 @nose.tools.raises(aioftp.PathIsNotFileOrDir)
 @aioftp_setup()
-def test_recursive_list(loop, client, server):
+def test_not_a_file_or_dir(loop, client, server):
 
     class NotFileOrDirPathIO(aioftp.AbstractPathIO):
 
@@ -156,10 +156,10 @@ def test_recursive_list(loop, client, server):
             return False
 
     yield from server.build_mlsx_string(
-        {
-            "path_io": NotFileOrDirPathIO(loop),
-            "path_timeout": None,
-            "loop": loop,
-        },
+        aioftp.Connection(
+            path_io=NotFileOrDirPathIO(loop),
+            path_timeout=None,
+            loop=loop,
+        ),
         pathlib.Path("/foo")
     )
