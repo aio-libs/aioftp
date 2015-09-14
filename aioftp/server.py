@@ -468,7 +468,7 @@ class BaseServer:
             message = str.format("closing connection from {}:{}", host, port)
             common.logger.info(add_prefix(message))
 
-            if "passive_server" in connection:
+            if connection.future.passive_server.done():
 
                 connection.passive_server.close()
 
@@ -483,7 +483,8 @@ class BaseServer:
 
 class ConnectionConditions:
     """
-    Decorator for checking `connection` keys for existence. Available options:
+    Decorator for checking `connection` keys for existence or wait for them.
+    Available options:
 
     * `ConnectionConditions.user_required` — required "user" key, user already
       identified
@@ -491,9 +492,8 @@ class ConnectionConditions:
       already logged in.
     * `ConnectionConditions.passive_server_started` — required "passive_server"
       key, user already send PASV and server awaits incomming connection
-    * `ConnectionConditions.passive_connection_made` — required
-      "passive_connection_made" — required "passive_connection" key, user
-      already connected to passived connection
+    * `ConnectionConditions.data_connection_made` — required "data_connection"
+      key, user already connected to passive connection
     * `ConnectionConditions.rename_from_required` — required "rename_from" key,
       user already tell filename for rename
 
@@ -502,7 +502,8 @@ class ConnectionConditions:
         >>> @ConnectionConditions(
         ...     ConnectionConditions.login_required,
         ...     ConnectionConditions.passive_server_started,
-        ...     ConnectionConditions.passive_connection_made)
+        ...     ConnectionConditions.data_connection_made,
+        ...     timeout=1)
         ... def foo(self, connection, rest):
         ...     ...
     """
@@ -512,15 +513,16 @@ class ConnectionConditions:
         "passive_server",
         "no listen socket created (use PASV firstly)"
     )
-    passive_connection_made = (
-        "passive_connection",
+    data_connection_made = (
+        "data_connection",
         "no passive connection created (connect firstly)"
     )
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
-    def __init__(self, *fields):
+    def __init__(self, *fields, timeout=0):
 
         self.fields = fields
+        self.timeout = timeout
 
     def __call__(self, f):
 
@@ -530,6 +532,7 @@ class ConnectionConditions:
 
             for name, message in self.fields:
 
+                # futures.append
                 if name not in connection:
 
                     template = "bad sequence of commands ({})"
@@ -878,7 +881,7 @@ class Server(BaseServer):
     @ConnectionConditions(
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
-        ConnectionConditions.passive_connection_made)
+        ConnectionConditions.data_connection_made)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
     @asyncio.coroutine
@@ -887,8 +890,8 @@ class Server(BaseServer):
         @asyncio.coroutine
         def mlsd_worker():
 
-            data_reader, data_writer = connection.passive_connection
-            del connection.passive_connection
+            data_reader, data_writer = connection.data_connection
+            del connection.data_connection
             with contextlib.closing(data_writer) as data_writer:
 
                 paths = yield from asyncio.wait_for(
@@ -960,7 +963,7 @@ class Server(BaseServer):
     @ConnectionConditions(
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
-        ConnectionConditions.passive_connection_made)
+        ConnectionConditions.data_connection_made)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
     @asyncio.coroutine
@@ -969,8 +972,8 @@ class Server(BaseServer):
         @asyncio.coroutine
         def list_worker():
 
-            data_reader, data_writer = connection.passive_connection
-            del connection.passive_connection
+            data_reader, data_writer = connection.data_connection
+            del connection.data_connection
             with contextlib.closing(data_writer) as data_writer:
 
                 paths = yield from asyncio.wait_for(
@@ -1063,7 +1066,7 @@ class Server(BaseServer):
     @ConnectionConditions(
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
-        ConnectionConditions.passive_connection_made)
+        ConnectionConditions.data_connection_made)
     @PathPermissions(PathPermissions.writable)
     @asyncio.coroutine
     def stor(self, connection, rest, mode="wb"):
@@ -1071,8 +1074,8 @@ class Server(BaseServer):
         @asyncio.coroutine
         def stor_worker():
 
-            data_reader, data_writer = connection.passive_connection
-            del connection.passive_connection
+            data_reader, data_writer = connection.data_connection
+            del connection.data_connection
             try:
 
                 fout = yield from asyncio.wait_for(
@@ -1092,7 +1095,7 @@ class Server(BaseServer):
                         info = "data transfer done"
                         break
 
-                    if "abort" in connection and connection.abort:
+                    if connection.future.abort.done() and connection.abort:
 
                         connection.abort = False
                         info = "data transfer aborted"
@@ -1140,7 +1143,7 @@ class Server(BaseServer):
     @ConnectionConditions(
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
-        ConnectionConditions.passive_connection_made)
+        ConnectionConditions.data_connection_made)
     @PathConditions(
         PathConditions.path_must_exists,
         PathConditions.path_must_be_file)
@@ -1151,8 +1154,8 @@ class Server(BaseServer):
         @asyncio.coroutine
         def retr_worker():
 
-            data_reader, data_writer = connection.passive_connection
-            del connection.passive_connection
+            data_reader, data_writer = connection.data_connection
+            del connection.data_connection
             try:
 
                 fin = yield from asyncio.wait_for(
@@ -1172,7 +1175,7 @@ class Server(BaseServer):
                         info = "data transfer done"
                         break
 
-                    if "abort" in connection and connection.abort:
+                    if connection.future.abort.done() and connection.abort:
 
                         connection.abort = False
                         info = "data transfer aborted"
@@ -1232,13 +1235,13 @@ class Server(BaseServer):
         @asyncio.coroutine
         def handler(reader, writer):
 
-            if "passive_connection" in connection:
+            if connection.future.data_connection.done():
 
                 writer.close()
 
             else:
 
-                connection.passive_connection = reader, writer
+                connection.data_connection = reader, writer
 
         if "passive_server" not in connection:
 
