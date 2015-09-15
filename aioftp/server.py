@@ -409,6 +409,7 @@ class BaseServer:
             socket_timeout=self.socket_timeout,
             path_timeout=self.path_timeout,
             idle_timeout=self.idle_timeout,
+            wait_data_connection_timeout=self.wait_data_connection_timeout,
             block_size=self.block_size,
             path_io=self.path_io,
             loop=self.loop,
@@ -497,13 +498,14 @@ class ConnectionConditions:
     * `ConnectionConditions.rename_from_required` — required "rename_from" key,
       user already tell filename for rename
 
+    This use `connection.wait_data_connection_timeout` parameter for timeout
+
     ::
 
         >>> @ConnectionConditions(
         ...     ConnectionConditions.login_required,
         ...     ConnectionConditions.passive_server_started,
-        ...     ConnectionConditions.data_connection_made,
-        ...     timeout=1)
+        ...     ConnectionConditions.data_connection_made)
         ... def foo(self, connection, rest):
         ...     ...
     """
@@ -513,10 +515,7 @@ class ConnectionConditions:
         "passive_server",
         "no listen socket created (use PASV firstly)"
     )
-    data_connection_made = (
-        "data_connection",
-        "no passive connection created (connect firstly)"
-    )
+    data_connection_made = ("data_connection", "no data connection made")
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
     def __init__(self, *fields, timeout=0):
@@ -530,13 +529,25 @@ class ConnectionConditions:
         @functools.wraps(f)
         def wrapper(cls, connection, rest, *args):
 
-            for name, message in self.fields:
+            futures = {connection[name]: msg for name, msg in self.fields}
+            aggregate = asyncio.gather(*futures, loop=connection.loop)
 
-                # futures.append
-                if name not in connection:
+            try:
 
-                    template = "bad sequence of commands ({})"
-                    return True, "503", str.format(template, message)
+                yield from asyncio.wait_for(
+                    asyncio.shield(aggregate, loop=connection.loop),
+                    connection.wait_data_connection_timeout,
+                    loop=connection.loop
+                )
+
+            except asyncio.TimeoutError:
+
+                for future, message in futures.items():
+
+                    if not future.done():
+
+                        template = "bad sequence of commands ({})"
+                        return True, "503", str.format(template, message)
 
             return (yield from f(cls, connection, rest, *args))
 
@@ -652,15 +663,22 @@ class Server(BaseServer):
     :type block_size: :py:class:`int`
 
     :param socket_timeout: timeout for socket read and write operations
-    :type socket_timeout: :py:class:`float` or :py:class:`int`
+    :type socket_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
 
     :param path_timeout: timeout for path-related operations (make directory,
         unlink file, etc.)
-    :type path_timeout: :py:class:`float` or :py:class:`int`
+    :type path_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
 
     :param idle_timeout: timeout for socket read operations, another
         words: how long user can keep silence without sending commands
-    :type idle_timeout: :py:class:`float` or :py:class:`int`
+    :type idle_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
+
+    :param wait_data_connection_timeout: wait for data connection to establish
+    :type wait_data_connection_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
 
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
@@ -673,6 +691,7 @@ class Server(BaseServer):
 
     def __init__(self, users=None, *, loop=None, block_size=8192,
                  socket_timeout=None, path_timeout=None, idle_timeout=None,
+                 wait_data_connection_timeout=1,
                  path_io_factory=pathio.AsyncPathIO):
 
         self.users = users or [User()]
@@ -681,6 +700,7 @@ class Server(BaseServer):
         self.socket_timeout = socket_timeout
         self.path_timeout = path_timeout
         self.idle_timeout = idle_timeout
+        self.wait_data_connection_timeout = wait_data_connection_timeout
         self.path_io = path_io_factory(self.loop)
 
     def get_paths(self, connection, path):
