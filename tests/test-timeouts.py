@@ -38,6 +38,39 @@ def test_path_timeout(loop, client, server):
     yield from client.make_directory("foo")
 
 
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path="tests/foo", home_path="/"),)],
+        {}))
+@with_connection
+@with_tmp_dir("foo")
+def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo.txt"
+    b = b"foobar"
+
+    yield from client.login()
+    yield from client.command("STOR " + f.name)
+    # yield from asyncio.sleep(0.5, loop=loop)
+    reader, writer = yield from client.get_passive_connection("I")
+
+    with contextlib.closing(writer) as writer:
+
+        writer.write(b)
+        yield from writer.drain()
+
+    yield from client.command(None, "2xx", "1xx")
+    yield from client.quit()
+
+    with f.open("rb") as fin:
+
+        rb = fin.read()
+
+    f.unlink()
+
+    nose.tools.eq_(b, rb)
+
+
 if __name__ == "__main__":
 
     import logging
