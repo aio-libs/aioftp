@@ -25,5 +25,3 @@ Server API
 
 .. autoclass :: aioftp.PathPermissions
     :members:
-
-.. autofunction :: aioftp.unpack_keywords
