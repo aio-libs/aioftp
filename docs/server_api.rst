@@ -4,9 +4,8 @@ Server API
 ==========
 
 .. autoclass :: aioftp.Server
-    :members:
+    :members: start, close, wait_closed
     :show-inheritance:
-    :inherited-members:
 
 .. autoclass :: aioftp.User
     :members:
@@ -16,6 +15,7 @@ Server API
 
 .. autoclass :: aioftp.Connection
     :members:
+    :show-inheritance:
 
 .. autoclass :: aioftp.ConnectionConditions
     :members:
