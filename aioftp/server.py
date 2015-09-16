@@ -6,6 +6,7 @@ import inspect
 import datetime
 import socket
 import collections
+import concurrent
 
 
 from . import common
@@ -392,6 +393,53 @@ class BaseServer:
         cmd, _, rest = str.partition(s, " ")
         return str.lower(cmd), rest
 
+    def CommandParser(self, connection):
+        """
+        Shorthand for parse_command with current connection
+
+        :param connection:
+        :type connection: :py:class:`aioftp.Connection`
+
+        :return: :py:meth:`aioftp.Server.parse_command` coroutine
+        :rtype: :py:func:`asyncio.coroutine`
+        """
+        return self.parse_command(
+            *connection.command_connection,
+            loop=connection.loop,
+            idle_timeout=connection.idle_timeout
+        )
+
+    @asyncio.coroutine
+    def response_writer(self, connection, response_queue):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Worker for write_response with current connection. Get data to response
+        from queue, this is for right order of responses. Exits if received
+        `None`.
+
+        :param connection:
+        :type connection: :py:class:`aioftp.Connection`
+
+        :param response_queue:
+        :type response_queue: :py:class:`asyncio.Queue`
+
+        :return: :py:meth:`aioftp.Server.write_response` coroutine
+        :rtype: :py:func:`asyncio.coroutine`
+        """
+        while True:
+
+            args = yield from response_queue.get()
+            if args is None:
+
+                break
+
+            yield from self.write_response(
+                *(connection.command_connection + args),
+                loop=connection.loop,
+                socket_timeout=connection.socket_timeout
+            )
+
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
 
@@ -413,61 +461,76 @@ class BaseServer:
             block_size=self.block_size,
             path_io=self.path_io,
             loop=self.loop,
+            extra_workers=set(),
         )
+
+        response_queue = asyncio.Queue(loop=connection.loop)
+        pending = {
+            self.greeting(connection, ""),
+            self.response_writer(connection, response_queue),
+            self.CommandParser(connection),
+        }
         self.connections[key] = connection
 
         try:
 
-            ok, *args = yield from self.greeting(connection, "")
-            yield from self.write_response(
-                reader,
-                writer,
-                *args,
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout
-            )
+            ok = True
+            while ok or not response_queue.empty():
 
-            while ok:
-
-                cmd, rest = yield from self.parse_command(
-                    reader,
-                    writer,
-                    loop=connection.loop,
-                    idle_timeout=connection.idle_timeout
+                pending |= connection.extra_workers
+                connection.extra_workers.clear()
+                done, pending = yield from asyncio.wait(
+                    pending,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                    loop=connection.loop
                 )
+                for task in done:
 
-                if cmd == "pass":
+                    head, *_ = result = task.result()
 
-                    # is there a better solution?
-                    cmd = "pass_"
+                    # this is parse_command result
+                    if isinstance(head, str):
 
-                if hasattr(self, cmd):
+                        pending.add(self.CommandParser(connection))
 
-                    ok, *args = yield from getattr(self, cmd)(connection, rest)
-                    yield from self.write_response(
-                        reader,
-                        writer,
-                        *args,
-                        loop=connection.loop,
-                        socket_timeout=connection.socket_timeout
-                    )
+                        cmd, rest = result
+                        if cmd == "pass":
 
-                else:
+                            # is there a better solution?
+                            cmd = "pass_"
 
-                    template = "'{}' not implemented"
-                    yield from self.write_response(
-                        reader,
-                        writer,
-                        "502",
-                        str.format(template, cmd),
-                        loop=connection.loop,
-                        socket_timeout=connection.socket_timeout
-                    )
+                        if hasattr(self, cmd):
+
+                            pending.add(getattr(self, cmd)(connection, rest))
+
+                        else:
+
+                            message = str.format("'{}' not implemented", cmd)
+                            response_queue.put_nowait(("502", message))
+
+                    # this is "command" result
+                    else:
+
+                        ok, *args = result
+                        response_queue.put_nowait(tuple(args))
+                        if not ok:
+
+                            # bad solution, but have no better ideas right now
+                            response_queue.put_nowait(None)
+                            break
 
         finally:
 
             message = str.format("closing connection from {}:{}", host, port)
             common.logger.info(add_prefix(message))
+
+            if not connection.loop.is_closed():
+
+                for task in pending:
+
+                    if isinstance(task, asyncio.Task):
+
+                        task.cancel()
 
             if connection.future.passive_server.done():
 
@@ -930,19 +993,10 @@ class Server(BaseServer):
                     )
 
             reader, writer = connection.command_connection
-            code, info = "200", "mlsd data transfer done"
-            yield from self.write_response(
-                reader,
-                writer,
-                code,
-                info,
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout,
-            )
+            return True, "200", "mlsd data transfer done"
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        # ensure_future
-        asyncio.async(mlsd_worker(), loop=connection.loop)
+        connection.extra_workers.add(mlsd_worker())
         return True, "150", "mlsd transfer started"
 
     @asyncio.coroutine
@@ -1013,19 +1067,10 @@ class Server(BaseServer):
                     )
 
             reader, writer = connection.command_connection
-            code, info = "226", "list data transfer done"
-            yield from self.write_response(
-                reader,
-                writer,
-                code,
-                info,
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout,
-            )
+            return True, "226", "list data transfer done"
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        # ensure_future
-        asyncio.async(list_worker(), loop=connection.loop)
+        connection.extra_workers.add(list_worker())
         return True, "150", "list transfer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
@@ -1136,22 +1181,17 @@ class Server(BaseServer):
                     loop=connection.loop,
                 )
 
-            reader, writer = connection.command_connection
-            code = "226"
-            yield from self.write_response(
-                reader,
-                writer,
-                code,
-                info,
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout,
-            )
+            return True, "226", info
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        if (yield from connection.path_io.is_dir(real_path.parent)):
+        parent_is_dir = yield from asyncio.wait_for(
+            connection.path_io.is_dir(real_path.parent),
+            connection.path_timeout,
+            loop=connection.loop,
+        )
+        if parent_is_dir:
 
-            # ensure_future
-            asyncio.async(stor_worker(), loop=connection.loop)
+            connection.extra_workers.add(stor_worker())
             code, info = "150", "data transfer started"
 
         else:
@@ -1217,20 +1257,10 @@ class Server(BaseServer):
                     loop=connection.loop,
                 )
 
-            reader, writer = connection.command_connection
-            code = "226"
-            yield from self.write_response(
-                reader,
-                writer,
-                code,
-                info,
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout,
-            )
+            return True, "226", info
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        # ensure_future
-        asyncio.async(retr_worker(), loop=connection.loop)
+        connection.extra_workers.add(retr_worker())
         return True, "150", "data transfer started"
 
     @ConnectionConditions(ConnectionConditions.login_required)
@@ -1263,7 +1293,7 @@ class Server(BaseServer):
 
                 connection.data_connection = reader, writer
 
-        if "passive_server" not in connection:
+        if not connection.future.passive_server.done():
 
             connection.passive_server = yield from asyncio.start_server(
                 handler,
