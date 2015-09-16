@@ -448,6 +448,7 @@ class BaseServer:
         common.logger.info(add_prefix(message))
 
         key = reader, writer
+        response_queue = asyncio.Queue(loop=self.loop)
         connection = Connection(
             client_host=host,
             client_port=port,
@@ -462,9 +463,9 @@ class BaseServer:
             path_io=self.path_io,
             loop=self.loop,
             extra_workers=set(),
+            response=lambda *args: response_queue.put_nowait(args)
         )
 
-        response_queue = asyncio.Queue(loop=connection.loop)
         pending = {
             self.greeting(connection, ""),
             self.response_writer(connection, response_queue),
@@ -486,10 +487,20 @@ class BaseServer:
                 )
                 for task in done:
 
-                    head, *_ = result = task.result()
+                    result = task.result()
+
+                    # this is "command" result
+                    if isinstance(result, bool):
+
+                        ok = result
+                        if not ok:
+
+                            # bad solution, but have no better ideas right now
+                            connection.response(None)
+                            break
 
                     # this is parse_command result
-                    if isinstance(head, str):
+                    else:
 
                         pending.add(self.CommandParser(connection))
 
@@ -506,18 +517,7 @@ class BaseServer:
                         else:
 
                             message = str.format("'{}' not implemented", cmd)
-                            response_queue.put_nowait(("502", message))
-
-                    # this is "command" result
-                    else:
-
-                        ok, *args = result
-                        response_queue.put_nowait(tuple(args))
-                        if not ok:
-
-                            # bad solution, but have no better ideas right now
-                            response_queue.put_nowait(None)
-                            break
+                            connection.response("502", message)
 
         finally:
 
@@ -581,10 +581,10 @@ class ConnectionConditions:
     data_connection_made = ("data_connection", "no data connection made")
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
-    def __init__(self, *fields, timeout=0):
+    def __init__(self, *fields, wait=False):
 
         self.fields = fields
-        self.timeout = timeout
+        self.wait = wait
 
     def __call__(self, f):
 
@@ -595,11 +595,19 @@ class ConnectionConditions:
             futures = {connection[name]: msg for name, msg in self.fields}
             aggregate = asyncio.gather(*futures, loop=connection.loop)
 
+            if self.wait:
+
+                timeout = connection.wait_data_connection_timeout
+
+            else:
+
+                timeout = 0
+
             try:
 
                 yield from asyncio.wait_for(
                     asyncio.shield(aggregate, loop=connection.loop),
-                    connection.wait_data_connection_timeout,
+                    timeout,
                     loop=connection.loop
                 )
 
@@ -610,7 +618,9 @@ class ConnectionConditions:
                     if not future.done():
 
                         template = "bad sequence of commands ({})"
-                        return True, "503", str.format(template, message)
+                        info = str.format(template, message)
+                        connection.response("503", info)
+                        return True
 
             return (yield from f(cls, connection, rest, *args))
 
@@ -659,7 +669,8 @@ class PathConditions:
                 )
                 if result == fail:
 
-                    return True, "550", message
+                    connection.response("550", message)
+                    return True
 
             return (yield from f(cls, connection, rest, *args))
 
@@ -704,7 +715,8 @@ class PathPermissions:
 
                 if not getattr(current_permission, permission):
 
-                    return True, "550", "permission denied"
+                    connection.response("550", "permission denied")
+                    return True
 
                 return (yield from f(cls, connection, rest, *args))
 
@@ -804,7 +816,8 @@ class Server(BaseServer):
     @asyncio.coroutine
     def greeting(self, connection, rest):
 
-        return True, "220", "welcome"
+        connection.response("220", "welcome")
+        return True
 
     @asyncio.coroutine
     def user(self, connection, rest):
@@ -846,7 +859,8 @@ class Server(BaseServer):
             code, info = "331", "require password"
             ok = True
 
-        return ok, code, info
+        connection.response(code, info)
+        return ok
 
     @ConnectionConditions(ConnectionConditions.user_required)
     @asyncio.coroutine
@@ -862,18 +876,22 @@ class Server(BaseServer):
 
             code, info = "530", "wrong password"
 
-        return True, code, info
+        connection.response(code, info)
+        return True
 
     @asyncio.coroutine
     def quit(self, connection, rest):
 
-        return False, "221", "bye"
+        connection.response("221", "bye")
+        return False
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
     def pwd(self, connection, rest):
 
-        return True, "257", str.format("\"{}\"", connection.current_directory)
+        code, info = "257", str.format("\"{}\"", connection.current_directory)
+        connection.response(code, info)
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(
@@ -885,7 +903,8 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         connection.current_directory = virtual_path
-        return True, "250", ""
+        connection.response("250", "")
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
@@ -906,7 +925,8 @@ class Server(BaseServer):
             connection.path_timeout,
             loop=connection.loop,
         )
-        return True, "257", ""
+        connection.response("257", "")
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(
@@ -922,7 +942,8 @@ class Server(BaseServer):
             connection.path_timeout,
             loop=connection.loop,
         )
-        return True, "250", ""
+        connection.response("250", "")
+        return True
 
     @asyncio.coroutine
     def build_mlsx_string(self, connection, path):
@@ -963,10 +984,10 @@ class Server(BaseServer):
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
-        ConnectionConditions.passive_server_started,
-        ConnectionConditions.data_connection_made)
+        ConnectionConditions.passive_server_started)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
+    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def mlsd(self, connection, rest):
 
@@ -992,12 +1013,13 @@ class Server(BaseServer):
                         loop=connection.loop,
                     )
 
-            reader, writer = connection.command_connection
-            return True, "200", "mlsd data transfer done"
+            connection.response("200", "mlsd data transfer done")
+            return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
         connection.extra_workers.add(mlsd_worker())
-        return True, "150", "mlsd transfer started"
+        connection.response("150", "mlsd transfer started")
+        return True
 
     @asyncio.coroutine
     def build_list_string(self, connection, path):
@@ -1036,10 +1058,10 @@ class Server(BaseServer):
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
-        ConnectionConditions.passive_server_started,
-        ConnectionConditions.data_connection_made)
+        ConnectionConditions.passive_server_started)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
+    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def list(self, connection, rest):
 
@@ -1066,12 +1088,13 @@ class Server(BaseServer):
                         loop=connection.loop,
                     )
 
-            reader, writer = connection.command_connection
-            return True, "226", "list data transfer done"
+            connection.response("226", "list data transfer done")
+            return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
         connection.extra_workers.add(list_worker())
-        return True, "150", "list transfer started"
+        connection.response("150", "list transfer started")
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_exists)
@@ -1081,7 +1104,8 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         s = yield from self.build_mlsx_string(connection, real_path)
-        return True, "250", ["start", s, "end"], True
+        connection.response("250", ["start", s, "end"], True)
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_exists)
@@ -1091,7 +1115,8 @@ class Server(BaseServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         connection.rename_from = real_path
-        return True, "350", "rename from accepted"
+        connection.response("350", "rename from accepted")
+        return True
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
@@ -1110,7 +1135,8 @@ class Server(BaseServer):
             connection.path_timeout,
             loop=connection.loop,
         )
-        return True, "250", ""
+        connection.response("250", "")
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(
@@ -1126,13 +1152,14 @@ class Server(BaseServer):
             connection.path_timeout,
             loop=connection.loop,
         )
-        return True, "250", ""
+        connection.response("250", "")
+        return True
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
-        ConnectionConditions.passive_server_started,
-        ConnectionConditions.data_connection_made)
+        ConnectionConditions.passive_server_started)
     @PathPermissions(PathPermissions.writable)
+    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def stor(self, connection, rest, mode="wb"):
 
@@ -1181,7 +1208,8 @@ class Server(BaseServer):
                     loop=connection.loop,
                 )
 
-            return True, "226", info
+            connection.response("226", info)
+            return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
         parent_is_dir = yield from asyncio.wait_for(
@@ -1198,16 +1226,17 @@ class Server(BaseServer):
 
             code, info = "550", "path unreachable"
 
-        return True, code, info
+        connection.response(code, info)
+        return True
 
     @ConnectionConditions(
         ConnectionConditions.login_required,
-        ConnectionConditions.passive_server_started,
-        ConnectionConditions.data_connection_made)
+        ConnectionConditions.passive_server_started)
     @PathConditions(
         PathConditions.path_must_exists,
         PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.readable)
+    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def retr(self, connection, rest):
 
@@ -1257,11 +1286,13 @@ class Server(BaseServer):
                     loop=connection.loop,
                 )
 
-            return True, "226", info
+            connection.response("226", info)
+            return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
         connection.extra_workers.add(retr_worker())
-        return True, "150", "data transfer started"
+        connection.response("150", "data transfer started")
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
@@ -1276,7 +1307,8 @@ class Server(BaseServer):
 
             code, info = "502", str.format("type '{}' not implemented", rest)
 
-        return True, code, info
+        connection.response(code, info)
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
@@ -1316,14 +1348,17 @@ class Server(BaseServer):
 
         nums = tuple(map(int, str.split(host, "."))) + (port >> 8, port & 0xff)
         info.append(str.format("({})", str.join(",", map(str, nums))))
-        return True, code, info
+
+        connection.response(code, info)
+        return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     @asyncio.coroutine
     def abor(self, connection, rest):
 
         connection.abort = True
-        return True, "150", "abort requested"
+        connection.response("150", "abort requested")
+        return True
 
     @asyncio.coroutine
     def appe(self, connection, rest):
