@@ -92,11 +92,15 @@ class User:
     :param permissions: list of path permissions
     :type permissions: :py:class:`tuple` or :py:class:`list` of
         :py:class:`aioftp.Permission`
+
+    :param maximum_connections: Maximum connections per user
+    :type maximum_connections: :py:class:`int`
     """
 
     def __init__(self, login=None, password=None, *,
                  base_path=pathlib.Path("."),
-                 home_path=pathlib.PurePosixPath("/"), permissions=None):
+                 home_path=pathlib.PurePosixPath("/"), permissions=None,
+                 maximum_connections=None):
 
         self.login = login
         self.password = password
@@ -107,6 +111,7 @@ class User:
             raise errors.PathIsNotAbsolute(home_path)
 
         self.permissions = permissions or [Permission()]
+        self.available_connections = maximum_connections
 
     def get_permissions(self, path):
         """
@@ -557,6 +562,15 @@ class BaseServer:
 
                 writer.close()
 
+            if connection.future.user.done() and \
+               connection.user.available_connections is not None:
+
+                connection.user.available_connections += 1
+
+            if self.available_connections is not None:
+
+                self.available_connections += 1
+
             self.connections.pop(key)
 
     @asyncio.coroutine
@@ -797,6 +811,9 @@ class Server(BaseServer):
 
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
+
+    :param maximum_connections: Maximum command connections per server
+    :type maximum_connections: :py:class:`int`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -806,8 +823,8 @@ class Server(BaseServer):
 
     def __init__(self, users=None, *, loop=None, block_size=8192,
                  socket_timeout=None, path_timeout=None, idle_timeout=None,
-                 wait_future_timeout=1,
-                 path_io_factory=pathio.AsyncPathIO):
+                 wait_future_timeout=1, path_io_factory=pathio.AsyncPathIO,
+                 maximum_connections=None):
 
         self.users = users or [User()]
         self.loop = loop or asyncio.get_event_loop()
@@ -817,6 +834,7 @@ class Server(BaseServer):
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
         self.path_io = path_io_factory(self.loop)
+        self.available_connections = maximum_connections
 
     def get_paths(self, connection, path):
         """
@@ -856,8 +874,19 @@ class Server(BaseServer):
     @asyncio.coroutine
     def greeting(self, connection, rest):
 
-        connection.response("220", "welcome")
-        return True
+        if self.available_connections == 0:
+
+            ok, code, info = False, "421", "Too many connections"
+
+        else:
+
+            ok, code, info = True, "220", "welcome"
+            if self.available_connections is not None:
+
+                self.available_connections -= 1
+
+        connection.response(code, info)
+        return ok
 
     @asyncio.coroutine
     def user(self, connection, rest):
@@ -879,17 +908,34 @@ class Server(BaseServer):
             code, info = "530", "no such username"
             ok = False
 
+        elif current_user.available_connections == 0:
+
+            code = "530"
+            template = "too much connections for '{}'"
+            info = str.format(template, current_user.login or "anonymous")
+            ok = False
+
         elif current_user.login is None:
 
             connection.logged = True
             connection.current_directory = current_user.home_path
             connection.user = current_user
+            if connection.user.available_connections is not None:
+
+                connection.user.available_connections -= 1
+
             code, info = "230", "anonymous login"
             ok = True
 
         elif current_user.password is None:
 
+            connection.logged = True
+            connection.current_directory = current_user.home_path
             connection.user = current_user
+            if connection.user.available_connections is not None:
+
+                connection.user.available_connections -= 1
+
             code, info = "230", "login without password"
             ok = True
 
