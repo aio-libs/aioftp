@@ -24,7 +24,7 @@ def test_quit(loop, client, server):
 
 @aioftp_setup()
 @with_connection
-def test_quit(loop, client, server):
+def test_dirty_quit(loop, client, server):
 
     yield from asyncio.sleep(0.5, loop=loop)
     client.close()
@@ -106,9 +106,10 @@ if __name__ == "__main__":
     import os
 
     os.environ["AIOFTP_TESTS"] = "PathIO"
+    os.environ["PYTHONASYNCIODEBUG"] = "1"
     logging.basicConfig(
         level=logging.INFO
     )
 
-    test_server_shutdown()
+    test_extra_pasv_connection()
     print("done")

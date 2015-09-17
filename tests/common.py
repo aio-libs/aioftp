@@ -43,6 +43,15 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
 
             finally:
 
+                if hasattr(server, "server"):
+
+                    server.close()
+                    loop.run_until_complete(server.wait_closed())
+
+                if hasattr(client, "writer"):
+
+                    client.close()
+
                 loop.close()
 
         return wrapper
@@ -64,8 +73,8 @@ def with_connection(f):
 
         finally:
 
-            server.close()
             client.close()
+            server.close()
             yield from server.wait_closed()
 
     return wrapper

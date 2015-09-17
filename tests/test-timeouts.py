@@ -155,7 +155,7 @@ def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
         [(aioftp.User(base_path="tests/foo", home_path="/"),)],
         {}))
 @with_connection
-@expect_codes_in_exception("503")
+@expect_codes_in_exception("425")
 @with_tmp_dir("foo")
 def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
 
@@ -204,5 +204,6 @@ if __name__ == "__main__":
         level=logging.INFO
     )
 
-    test_path_timeout()
+    test_wait_pasv_timeout_ok()
+    test_wait_pasv_timeout_ok_but_too_long()
     print("done")
