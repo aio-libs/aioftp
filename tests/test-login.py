@@ -19,7 +19,7 @@ def test_anonymous_login(loop, client, server):
 
 @aioftp_setup()
 @with_connection
-def test_anonymous_login_with_login_data(loop, client, server):
+def test_login_with_login_data(loop, client, server):
 
     yield from client.login("foo", "bar")
     yield from client.quit()
@@ -61,3 +61,17 @@ def test_login_with_login_and_password_bad_password(loop, client, server):
 
     yield from client.login("foo", "baz")
     yield from client.quit()
+
+
+if __name__ == "__main__":
+
+    import logging
+    import os
+
+    os.environ["AIOFTP_TESTS"] = "PathIO"
+    logging.basicConfig(
+        level=logging.INFO
+    )
+
+    test_login_with_login_and_no_password()
+    print("done")

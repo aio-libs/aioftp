@@ -22,14 +22,9 @@ def test_abort_stor(loop, client, server, *, tmp_dir):
 
         def __init__(self):
 
-            self.abort = True
+            asyncio.async(request_abort(), loop=loop)
 
         def read(self, count=1):
-
-            if self.abort:
-
-                self.abort = False
-                asyncio.async(request_abort(), loop=loop)
 
             return b"-" * count
 
@@ -112,5 +107,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO
     )
-    test_abort_retr()
+    # this test for testing infinite loop of
+    # WARNING:asyncio:socket.send() raised exception
+    test_abort_stor()
     print("done")
