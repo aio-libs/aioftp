@@ -274,9 +274,9 @@ class BaseServer:
         :py:meth:`aioftp.Server.wait_closed`
         """
         self.server.close()
-        for reader, writer in self.connections:
+        for connection in self.connections.values():
 
-            writer.close()
+            connection._dispatcher.cancel()
 
     @asyncio.coroutine
     def wait_closed(self):
@@ -440,6 +440,20 @@ class BaseServer:
                 socket_timeout=connection.socket_timeout
             )
 
+    def _generate_tasks(self, connection, pending):
+
+        for o in pending | connection.extra_workers:
+
+            if asyncio.iscoroutine(o):
+
+                yield connection.loop.create_task(o)
+
+            else:
+
+                yield o
+
+        connection.extra_workers.clear()
+
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
 
@@ -458,12 +472,13 @@ class BaseServer:
             socket_timeout=self.socket_timeout,
             path_timeout=self.path_timeout,
             idle_timeout=self.idle_timeout,
-            wait_data_connection_timeout=self.wait_data_connection_timeout,
+            wait_future_timeout=self.wait_future_timeout,
             block_size=self.block_size,
             path_io=self.path_io,
             loop=self.loop,
             extra_workers=set(),
-            response=lambda *args: response_queue.put_nowait(args)
+            response=lambda *args: response_queue.put_nowait(args),
+            _dispatcher=asyncio.Task.current_task(loop=self.loop),
         )
 
         pending = {
@@ -478,8 +493,7 @@ class BaseServer:
             ok = True
             while ok or not response_queue.empty():
 
-                pending |= connection.extra_workers
-                connection.extra_workers.clear()
+                pending = set(self._generate_tasks(connection, pending))
                 done, pending = yield from asyncio.wait(
                     pending,
                     return_when=concurrent.futures.FIRST_COMPLETED,
@@ -532,11 +546,17 @@ class BaseServer:
 
                         task.cancel()
 
-            if connection.future.passive_server.done():
+                if connection.future.passive_server.done():
 
-                connection.passive_server.close()
+                    connection.passive_server.close()
 
-            writer.close()
+                if connection.future.data_connection.done():
+
+                    r, w = connection.data_connection
+                    w.close()
+
+                writer.close()
+
             self.connections.pop(key)
 
     @asyncio.coroutine
@@ -550,25 +570,36 @@ class ConnectionConditions:
     Decorator for checking `connection` keys for existence or wait for them.
     Available options:
 
-    * `ConnectionConditions.user_required` — required "user" key, user already
-      identified
-    * `ConnectionConditions.login_required` — required "logged" key, user
-      already logged in.
-    * `ConnectionConditions.passive_server_started` — required "passive_server"
-      key, user already send PASV and server awaits incomming connection
-    * `ConnectionConditions.data_connection_made` — required "data_connection"
-      key, user already connected to passive connection
-    * `ConnectionConditions.rename_from_required` — required "rename_from" key,
-      user already tell filename for rename
+    :param fields: * `ConnectionConditions.user_required` — required "user"
+          key, user already identified
+        * `ConnectionConditions.login_required` — required "logged" key, user
+          already logged in.
+        * `ConnectionConditions.passive_server_started` — required
+          "passive_server" key, user already send PASV and server awaits
+          incomming connection
+        * `ConnectionConditions.data_connection_made` — required
+          "data_connection" key, user already connected to passive connection
+        * `ConnectionConditions.rename_from_required` — required "rename_from"
+          key, user already tell filename for rename
 
-    This use `connection.wait_data_connection_timeout` parameter for timeout
+    :param wait: Indicates if should wait for parameters for
+        `connection.wait_future_timeout`
+    :type wait: :py:class:`bool`
+
+    :param fail_code: return code if failure
+    :type fail_code: :py:class:`str`
+
+    :param fail_info: return information string if failure. If `None`, then
+        use default string
+    :type fail_info: :py:class:`str`
 
     ::
 
         >>> @ConnectionConditions(
         ...     ConnectionConditions.login_required,
         ...     ConnectionConditions.passive_server_started,
-        ...     ConnectionConditions.data_connection_made)
+        ...     ConnectionConditions.data_connection_made,
+        ...     wait=True)
         ... def foo(self, connection, rest):
         ...     ...
     """
@@ -581,10 +612,12 @@ class ConnectionConditions:
     data_connection_made = ("data_connection", "no data connection made")
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
-    def __init__(self, *fields, wait=False):
+    def __init__(self, *fields, wait=False, fail_code="503", fail_info=None):
 
         self.fields = fields
         self.wait = wait
+        self.fail_code = fail_code
+        self.fail_info = fail_info
 
     def __call__(self, f):
 
@@ -597,7 +630,7 @@ class ConnectionConditions:
 
             if self.wait:
 
-                timeout = connection.wait_data_connection_timeout
+                timeout = connection.wait_future_timeout
 
             else:
 
@@ -617,9 +650,16 @@ class ConnectionConditions:
 
                     if not future.done():
 
-                        template = "bad sequence of commands ({})"
-                        info = str.format(template, message)
-                        connection.response("503", info)
+                        if self.fail_info is None:
+
+                            template = "bad sequence of commands ({})"
+                            info = str.format(template, message)
+
+                        else:
+
+                            info = self.fail_info
+
+                        connection.response(self.fail_code, info)
                         return True
 
             return (yield from f(cls, connection, rest, *args))
@@ -751,8 +791,8 @@ class Server(BaseServer):
     :type idle_timeout: :py:class:`float`, :py:class:`int` or
         :py:class:`None`
 
-    :param wait_data_connection_timeout: wait for data connection to establish
-    :type wait_data_connection_timeout: :py:class:`float`, :py:class:`int` or
+    :param wait_future_timeout: wait for data connection to establish
+    :type wait_future_timeout: :py:class:`float`, :py:class:`int` or
         :py:class:`None`
 
     :param path_io_factory: factory of «path abstract layer»
@@ -766,7 +806,7 @@ class Server(BaseServer):
 
     def __init__(self, users=None, *, loop=None, block_size=8192,
                  socket_timeout=None, path_timeout=None, idle_timeout=None,
-                 wait_data_connection_timeout=1,
+                 wait_future_timeout=1,
                  path_io_factory=pathio.AsyncPathIO):
 
         self.users = users or [User()]
@@ -775,7 +815,7 @@ class Server(BaseServer):
         self.socket_timeout = socket_timeout
         self.path_timeout = path_timeout
         self.idle_timeout = idle_timeout
-        self.wait_data_connection_timeout = wait_data_connection_timeout
+        self.wait_future_timeout = wait_future_timeout
         self.path_io = path_io_factory(self.loop)
 
     def get_paths(self, connection, path):
@@ -987,12 +1027,16 @@ class Server(BaseServer):
         ConnectionConditions.passive_server_started)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
-    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def mlsd(self, connection, rest):
 
+        @ConnectionConditions(
+            ConnectionConditions.data_connection_made,
+            wait=True,
+            fail_code="425",
+            fail_info="Can't open data connection")
         @asyncio.coroutine
-        def mlsd_worker():
+        def mlsd_worker(self, connection, rest):
 
             data_reader, data_writer = connection.data_connection
             del connection.data_connection
@@ -1017,7 +1061,7 @@ class Server(BaseServer):
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(mlsd_worker())
+        connection.extra_workers.add(mlsd_worker(self, connection, rest))
         connection.response("150", "mlsd transfer started")
         return True
 
@@ -1061,12 +1105,16 @@ class Server(BaseServer):
         ConnectionConditions.passive_server_started)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
-    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def list(self, connection, rest):
 
+        @ConnectionConditions(
+            ConnectionConditions.data_connection_made,
+            wait=True,
+            fail_code="425",
+            fail_info="Can't open data connection")
         @asyncio.coroutine
-        def list_worker():
+        def list_worker(self, connection, rest):
 
             data_reader, data_writer = connection.data_connection
             del connection.data_connection
@@ -1092,7 +1140,7 @@ class Server(BaseServer):
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(list_worker())
+        connection.extra_workers.add(list_worker(self, connection, rest))
         connection.response("150", "list transfer started")
         return True
 
@@ -1159,12 +1207,16 @@ class Server(BaseServer):
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started)
     @PathPermissions(PathPermissions.writable)
-    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def stor(self, connection, rest, mode="wb"):
 
+        @ConnectionConditions(
+            ConnectionConditions.data_connection_made,
+            wait=True,
+            fail_code="425",
+            fail_info="Can't open data connection")
         @asyncio.coroutine
-        def stor_worker():
+        def stor_worker(self, connection, rest):
 
             data_reader, data_writer = connection.data_connection
             del connection.data_connection
@@ -1219,7 +1271,7 @@ class Server(BaseServer):
         )
         if parent_is_dir:
 
-            connection.extra_workers.add(stor_worker())
+            connection.extra_workers.add(stor_worker(self, connection, rest))
             code, info = "150", "data transfer started"
 
         else:
@@ -1236,12 +1288,16 @@ class Server(BaseServer):
         PathConditions.path_must_exists,
         PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.readable)
-    @ConnectionConditions(ConnectionConditions.data_connection_made, wait=True)
     @asyncio.coroutine
     def retr(self, connection, rest):
 
+        @ConnectionConditions(
+            ConnectionConditions.data_connection_made,
+            wait=True,
+            fail_code="425",
+            fail_info="Can't open data connection")
         @asyncio.coroutine
-        def retr_worker():
+        def retr_worker(self, connection, rest):
 
             data_reader, data_writer = connection.data_connection
             del connection.data_connection
@@ -1290,7 +1346,7 @@ class Server(BaseServer):
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(retr_worker())
+        connection.extra_workers.add(retr_worker(self, connection, rest))
         connection.response("150", "data transfer started")
         return True
 
