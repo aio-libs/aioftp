@@ -984,9 +984,15 @@ class Client(BaseClient):
 
                     break
 
-                writer.write(block)
                 try:
 
+                    writer.write(block)
+                    # sometimes have
+                    # WARNING:asyncio:socket.send() raised exception
+                    # infinite loop on abort
+                    # why this works?
+                    # TODO: test another versions of python
+                    yield
                     yield from writer.drain()
 
                 except ConnectionResetError:
