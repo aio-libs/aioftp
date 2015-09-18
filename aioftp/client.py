@@ -194,7 +194,7 @@ class BaseClient:
         if command:
 
             common.logger.info(add_prefix(command))
-            self.writer.write(str.encode(command + "\n", encoding="utf-8"))
+            self.writer.write(str.encode(command + "\r\n", encoding="utf-8"))
 
         if expected_codes or wait_codes:
 
