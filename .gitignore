@@ -5,3 +5,5 @@ docs/_build
 /.coverage
 __pycache__
 *.pyc
+*.egg-info
+.idea
