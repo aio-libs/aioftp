@@ -15,7 +15,7 @@ args = dict(
     name='aioftp',
     version='0.1.8',
     description=('ftp client/server for asyncio'),
-    long_description='\n\n'.join(read('README.rst')),
+    long_description='\n\n'.join(read('readme.rst')),
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Development Status :: 4 - Beta',
