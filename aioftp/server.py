@@ -111,7 +111,8 @@ class User:
             raise errors.PathIsNotAbsolute(home_path)
 
         self.permissions = permissions or [Permission()]
-        self.available_connections = maximum_connections
+        self.maximum_connections = maximum_connections
+        self.available_connections = self.maximum_connections
 
     def get_permissions(self, path):
         """
@@ -134,13 +135,15 @@ class User:
     def __repr__(self):
 
         return str.format(
-            "{}({!r}, {!r}, base_path={!r}, home_path={!r}, permissions={!r})",
+            "{}({!r}, {!r}, base_path={!r}, home_path={!r}, permissions={!r}, "
+            "maximum_connections={!r})",
             self.__class__.__name__,
             self.login,
             self.password,
             self.base_path,
             self.home_path,
             self.permissions,
+            self.maximum_connections,
         )
 
 
@@ -834,7 +837,8 @@ class Server(BaseServer):
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
         self.path_io = path_io_factory(self.loop)
-        self.available_connections = maximum_connections
+        self.maximum_connections = maximum_connections
+        self.available_connections = self.maximum_connections
 
     def get_paths(self, connection, path):
         """
