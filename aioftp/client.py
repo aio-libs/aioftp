@@ -60,6 +60,43 @@ class Code(str):
         return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
 
 
+class StreamIO:
+
+    def __init__(self, client, reader, writer):
+
+        self.client = client
+        self.reader = reader
+        self.writer = writer
+
+    @asyncio.coroutine
+    def readline(self):
+
+        return (yield from self.reader.readline())
+
+    @asyncio.coroutine
+    def read(self, count=8192):
+
+        return (yield from self.reader.read(count))
+
+    @asyncio.coroutine
+    def write(self, data):
+
+        self.writer.write(data)
+        # this is "cheat" solution, so should be changed later
+        yield from asyncio.sleep(0, loop=self.client.loop)
+        yield from self.writer.drain()
+
+    @asyncio.coroutine
+    def finish(self):
+
+        self.close()
+        yield from self.client.command(None, "2xx", "1xx")
+
+    def close(self):
+
+        self.writer.close()
+
+
 class BaseClient:
 
     def __init__(self, *, loop=None, create_connection=None, timeout=None):
@@ -441,7 +478,7 @@ class Client(BaseClient):
         yield from self.command("RMD " + str(path), "250")
 
     @asyncio.coroutine
-    def list(self, path="", *, recursive=False, callback=None):
+    def list(self, path="", *, recursive=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -453,12 +490,19 @@ class Client(BaseClient):
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
 
-        :param callback: callback function with two arguments: path and stats
-        :type callback: :py:func:`callable`
-
         :rtype: :py:class:`list` or :py:class:`None`
         """
-        def _callback(line):
+        result = []
+        directories = []
+        command = str.strip("MLSD " + str(path))
+        stream = yield from self.get_stream(command, "1xx")
+        while True:
+
+            line = yield from stream.readline()
+            if not line:
+
+                yield from stream.finish()
+                break
 
             name, info = self.parse_mlsx_line(line)
             if info["type"] in ("file", "dir"):
@@ -468,36 +512,15 @@ class Client(BaseClient):
 
                     directories.append(stat)
 
-                if callback is None:
+                result.append(stat)
 
-                    files.append(stat)
-
-                else:
-
-                    callback(*stat)
-
-        files = []
-        directories = []
-        yield from self.retrieve(
-            str.strip("MLSD " + str(path)),
-            "1xx",
-            use_lines=True,
-            callback=_callback,
-        )
         if recursive:
 
-            deep_files = []
             for name, info in directories:
 
-                deep_files += yield from self.list(
-                    name,
-                    recursive=recursive,
-                    callback=callback,
-                )
+                result += yield from self.list(name, recursive=recursive)
 
-            files += deep_files
-
-        return files
+        return result
 
     @asyncio.coroutine
     def stat(self, path):
@@ -616,67 +639,36 @@ class Client(BaseClient):
                 yield from self.remove_directory(path)
 
     @asyncio.coroutine
-    def upload_file(self, destination, file, *, callback=None,
-                    block_size=8192):
+    def upload_stream(self, destination):
         """
         :py:func:`asyncio.coroutine`
 
-        Low level upload method for uploading file from file-like object.
+        Create stream for write data to `destination` file.
 
-        :param destination: destination path of file or directory on server
-            side
+        :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :param file: file-like object for reading data (providing read method)
-
-        :param callback: callback function with one argument — sended
-            :py:class:`bytes` to server.
-        :type callback: :py:func:`callable`
-
-        :param block_size: block size for transaction
-        :type block_size: :py:class:`int`
+        :rtype: :py:class:`aioftp.StreamIO`
         """
-        yield from self.store(
-            "STOR " + str(destination),
-            "1xx",
-            file=file,
-            callback=callback,
-            block_size=block_size,
-        )
+        return (yield from self.get_stream("STOR " + str(destination), "1xx"))
 
     @asyncio.coroutine
-    def append_file(self, destination, file, *, callback=None,
-                    block_size=8192):
+    def append_stream(self, destination):
         """
         :py:func:`asyncio.coroutine`
 
-        Low level append method for uploading file from file-like object and
-        apppend it to existing file.
+        Create stream for append (write) data to `destination` file.
 
-        :param destination: destination path of file or directory on server
-            side
+        :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :param file: file-like object for reading data (providing read method)
-
-        :param callback: callback function with one argument — sended
-            :py:class:`bytes` to server.
-        :type callback: :py:func:`callable`
-
-        :param block_size: block size for transaction
-        :type block_size: :py:class:`int`
+        :rtype: :py:class:`aioftp.StreamIO`
         """
-        yield from self.store(
-            "APPE " + str(destination),
-            "1xx",
-            file=file,
-            callback=callback,
-            block_size=block_size,
-        )
+        return (yield from self.get_stream("APPE " + str(destination), "1xx"))
 
     @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
-               callback=None, block_size=8192):
+               block_size=8192):
         """
         :py:func:`asyncio.coroutine`
 
@@ -694,12 +686,6 @@ class Client(BaseClient):
             file and change it name, as well with directories)
         :type write_into: :py:class:`bool`
 
-        :param callback: callback function with one argument — sended
-            :py:class:`bytes` to server. This one should be used only for
-            progress view, cause there is no information about which file this
-            bytes really belongs.
-        :type callback: :py:func:`callable`
-
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
@@ -714,12 +700,16 @@ class Client(BaseClient):
             yield from self.make_directory(destination.parent)
             with source.open(mode="rb") as fin:
 
-                yield from self.upload_file(
-                    destination,
-                    fin,
-                    callback=callback,
-                    block_size=block_size,
-                )
+                stream = yield from self.upload_stream(destination)
+                while True:
+
+                    block = fin.read(block_size)
+                    if not block:
+
+                        yield from stream.finish()
+                        break
+
+                    yield from stream.write(block)
 
         elif source.is_dir():
 
@@ -743,40 +733,32 @@ class Client(BaseClient):
                     yield from self.make_directory(relative.parent)
                     with p.open(mode="rb") as fin:
 
-                        yield from self.upload_file(
-                            relative,
-                            fin,
-                            callback=callback,
-                            block_size=block_size,
-                        )
+                        stream = yield from self.upload_stream(relative)
+                        while True:
+
+                            block = fin.read(block_size)
+                            if not block:
+
+                                yield from stream.finish()
+                                break
 
     @asyncio.coroutine
-    def download_file(self, source, *, callback, block_size=8192):
+    def download_stream(self, source):
         """
         :py:func:`asyncio.coroutine`
 
-        Low level download method for downloading file without saving.
+        Create stream for read data from `source` file.
 
-        :param source: source path of file or directory on server side
+        :param source: source path of file on server side
         :type source: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :param callback: callback function with one argument — received
-            :py:class:`bytes` from server.
-        :type callback: :py:func:`callable`
-
-        :param block_size: block size for transaction
-        :type block_size: :py:class:`int`
+        :rtype: :py:class:`aioftp.StreamIO`
         """
-        yield from self.retrieve(
-            "RETR " + str(source),
-            "1xx",
-            callback=callback,
-            block_size=block_size,
-        )
+        return (yield from self.get_stream("RETR " + str(source), "1xx"))
 
     @asyncio.coroutine
     def download(self, source, destination="", *, write_into=False,
-                 callback=None, block_size=8192):
+                 block_size=8192):
         """
         :py:func:`asyncio.coroutine`
 
@@ -793,12 +775,6 @@ class Client(BaseClient):
         :param write_into: write source into destination (if you want download
             file and change it name, as well with directories)
         :type write_into: :py:class:`bool`
-
-        :param callback: callback function with one argument — received
-            :py:class:`bytes` from server. This one should be used only for
-            progress view, cause there is no information about which file this
-            bytes really belongs.
-        :type callback: :py:func:`callable`
 
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
@@ -817,11 +793,16 @@ class Client(BaseClient):
 
             with destination.open(mode="wb") as fout:
 
-                yield from self.download_file(
-                    source,
-                    callback=ChainCallback(fout.write, callback),
-                    block_size=block_size,
-                )
+                stream = yield from self.download_stream(source)
+                while True:
+
+                    block = yield from stream.read(block_size)
+                    if not block:
+
+                        yield from stream.finish()
+                        break
+
+                    fout.write(block)
 
         elif (yield from self.is_dir(source)):
 
@@ -840,11 +821,16 @@ class Client(BaseClient):
 
                     with full.open(mode="wb") as fout:
 
-                        yield from self.download_file(
-                            name,
-                            callback=ChainCallback(fout.write, callback),
-                            block_size=block_size,
-                        )
+                        stream = yield from self.download_stream(name)
+                        while True:
+
+                            block = yield from stream.read(block_size)
+                            if not block:
+
+                                yield from stream.finish()
+                                break
+
+                            fout.write(block)
 
                 elif info["type"] == "dir":
 
@@ -887,122 +873,23 @@ class Client(BaseClient):
         return reader, writer
 
     @asyncio.coroutine
-    def retrieve(self, *command_args, conn_type="I", use_lines=False,
-                 callback=None, block_size=8192):
+    def get_stream(self, *command_args, conn_type="I"):
         """
         :py:func:`asyncio.coroutine`
 
-        Retrieve data from passive connection with some command
+        Create :py:class:`aioftp.StreamIO` for straight read/write io.
 
         :param command_args: arguments for :py:meth:`aioftp.Client.command`
 
         :param conn_type: connection type ("I", "A", "E", "L")
         :type conn_type: :py:class:`str`
 
-        :param use_lines: use lines or block size for read
-        :type use_lines: :py:class:`bool`
-
-        :param callback: callback function with one argument — received
-            :py:class:`bytes` from server.
-        :type callback: :py:func:`callable`
-
-        :param block_size: block size for transaction
-        :type block_size: :py:class:`int`
-
-        :raises asyncio.TimeoutError: if there where no data for `timeout`
-            period
+        :rtype: :py:class:`aioftp.StreamIO`
         """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
-        with contextlib.closing(writer) as writer:
-
-            while True:
-
-                if use_lines:
-
-                    block = yield from asyncio.wait_for(
-                        reader.readline(),
-                        self.timeout,
-                        loop=self.loop,
-                    )
-
-                else:
-
-                    block = yield from asyncio.wait_for(
-                        reader.read(block_size),
-                        self.timeout,
-                        loop=self.loop,
-                    )
-
-                if not block:
-
-                    break
-
-                if callback:
-
-                    callback(block)
-
-        yield from self.command(None, "2xx", "1xx")
-
-    @asyncio.coroutine
-    def store(self, *command_args, file, conn_type="I", use_lines=False,
-              callback=None, block_size=8192):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Store data to passive connection with some command
-
-        :param command_args: arguments for :py:meth:`aioftp.Client.command`
-
-        :param file: file-like object for reading data (providing read method)
-
-        :param conn_type: connection type ("I", "A", "E", "L")
-        :type conn_type: :py:class:`str`
-
-        :param use_lines: use lines or block size for write
-        :type use_lines: :py:class:`bool`
-
-        :param callback: callback function with one argument — sended
-            :py:class:`bytes` to server.
-        :type callback: :py:func:`callable`
-
-        :param block_size: block size for transaction
-        :type block_size: :py:class:`int`
-        """
-        reader, writer = yield from self.get_passive_connection(conn_type)
-        yield from self.command(*command_args)
-        with contextlib.closing(writer) as writer:
-
-            while True:
-
-                if use_lines:
-
-                    block = file.readline()
-
-                else:
-
-                    block = file.read(block_size)
-
-                if not block:
-
-                    break
-
-                try:
-
-                    writer.write(block)
-                    # this is "cheat" solution, so should be changed later
-                    yield from asyncio.sleep(0, loop=self.loop)
-                    yield from writer.drain()
-
-                except ConnectionResetError:
-
-                    break
-
-                if callback:
-
-                    callback(block)
-
-        yield from self.command(None, "2xx", "1xx")
+        stream = StreamIO(self, reader, writer)
+        return stream
 
     @asyncio.coroutine
     def abort(self):
