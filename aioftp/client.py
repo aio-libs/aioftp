@@ -195,6 +195,9 @@ class BaseClient:
 
             common.logger.info(add_prefix(command))
             self.writer.write(str.encode(command + "\r\n", encoding="utf-8"))
+            # this is "cheat" solution, so should be changed later
+            yield from asyncio.sleep(0, loop=self.loop)
+            yield from self.writer.drain()
 
         if expected_codes or wait_codes:
 
@@ -987,12 +990,8 @@ class Client(BaseClient):
                 try:
 
                     writer.write(block)
-                    # sometimes have
-                    # WARNING:asyncio:socket.send() raised exception
-                    # infinite loop on abort
-                    # why this works?
-                    # TODO: test another versions of python
-                    yield
+                    # this is "cheat" solution, so should be changed later
+                    yield from asyncio.sleep(0, loop=self.loop)
                     yield from writer.drain()
 
                 except ConnectionResetError:
