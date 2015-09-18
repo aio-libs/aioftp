@@ -16,5 +16,6 @@ def test_user_representation():
         repr(u),
         "User('foo', 'bar', base_path=PosixPath('.'), "
         "home_path=PurePosixPath('/'), permissions=" +
-        repr([aioftp.Permission()]) + ")"
+        repr([aioftp.Permission()]) +
+        ", maximum_connections=" + repr(u.maximum_connections) + ")"
     )
