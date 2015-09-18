@@ -111,5 +111,5 @@ if __name__ == "__main__":
         level=logging.INFO
     )
 
-    test_extra_pasv_connection()
+    test_server_shutdown()
     print("done")

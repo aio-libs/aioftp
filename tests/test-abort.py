@@ -18,19 +18,21 @@ def test_abort_stor(loop, client, server, *, tmp_dir):
         yield from client.abort()
         future.set_result(True)
 
-    class FakeInfiniteFile():
-
-        def __init__(self):
-
-            asyncio.async(request_abort(), loop=loop)
-
-        def read(self, count=1):
-
-            return b"-" * count
-
     future = asyncio.Future(loop=loop)
     yield from client.login()
-    yield from client.upload_file("/test.txt", FakeInfiniteFile())
+    stream = yield from client.upload_stream("/test.txt")
+    asyncio.async(request_abort(), loop=loop)
+    while True:
+
+        try:
+
+            yield from stream.write(b"-" * 8192)
+
+        except (ConnectionResetError, BrokenPipeError):
+
+            break
+
+    yield from stream.finish()
     yield from future
     yield from client.quit()
     file = (tmp_dir / "test.txt")
@@ -81,19 +83,25 @@ def test_abort_retr(loop, client, server, *, tmp_dir):
         yield from client.abort()
         future.set_result(True)
 
-    def callback(data):
-
-        nonlocal abort_requested
-        nose.tools.eq_(set(data), set(b"-"))
-        if not abort_requested:
-
-            abort_requested = True
-            asyncio.async(request_abort(), loop=loop)
-
     abort_requested = False
     future = asyncio.Future(loop=loop)
     yield from client.login()
-    yield from client.download_file("/test.txt", callback=callback)
+    stream = yield from client.download_stream("/test.txt")
+    asyncio.async(request_abort(), loop=loop)
+    while True:
+
+        try:
+
+            data = yield from stream.read(8192)
+            if not data:
+
+                break
+
+        except (ConnectionResetError, BrokenPipeError):
+
+            break
+
+    yield from stream.finish()
     yield from future
     yield from client.quit()
 
@@ -110,4 +118,5 @@ if __name__ == "__main__":
     # this test for testing infinite loop of
     # WARNING:asyncio:socket.send() raised exception
     test_abort_stor()
+    # test_abort_retr()
     print("done")

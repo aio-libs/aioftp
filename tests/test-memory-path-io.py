@@ -17,13 +17,18 @@ def test_memory_path_upload_download(loop, client, server):
     nose.tools.eq_(len(r), 0)
 
     data = b"foobar"
-    yield from client.upload_file("foo.txt", io.BytesIO(data))
 
-    recv = bytearray()
-    yield from client.download_file("foo.txt", callback=recv.extend)
+    stream = yield from client.upload_stream("foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
+
+    stream = yield from client.download_stream("foo.txt")
+    rdata = yield from stream.read()
+    yield from stream.finish()
+
 
     yield from client.quit()
-    nose.tools.eq_(data, bytes(recv))
+    nose.tools.eq_(data, rdata)
 
 
 @aioftp_setup(
@@ -39,13 +44,16 @@ def test_memory_path_directory_create(loop, client, server):
 
     yield from client.make_directory("bar")
     data = b"foobar"
-    yield from client.upload_file("bar/foo.txt", io.BytesIO(data))
 
-    recv = bytearray()
-    yield from client.download_file("bar/foo.txt", callback=recv.extend)
+    stream = yield from client.upload_stream("bar/foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
 
-    yield from client.quit()
-    nose.tools.eq_(data, bytes(recv))
+    stream = yield from client.download_stream("bar/foo.txt")
+    rdata = yield from stream.read()
+    yield from stream.finish()
+
+    nose.tools.eq_(data, rdata)
 
 
 @aioftp_setup(
@@ -60,14 +68,21 @@ def test_memory_path_append(loop, client, server):
     nose.tools.eq_(len(r), 0)
 
     data = b"foobar"
-    yield from client.upload_file("foo.txt", io.BytesIO(data))
-    yield from client.append_file("foo.txt", io.BytesIO(data))
 
-    recv = bytearray()
-    yield from client.download_file("foo.txt", callback=recv.extend)
+    stream = yield from client.upload_stream("foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
+
+    stream = yield from client.append_stream("foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
+
+    stream = yield from client.download_stream("foo.txt")
+    rdata = yield from stream.read()
+    yield from stream.finish()
 
     yield from client.quit()
-    nose.tools.eq_(data * 2, bytes(recv))
+    nose.tools.eq_(data * 2, rdata)
 
 
 @aioftp_setup(
@@ -83,7 +98,11 @@ def test_memory_path_remove(loop, client, server):
 
     yield from client.make_directory("bar")
     data = b"foobar"
-    yield from client.upload_file("bar/foo.txt", io.BytesIO(data))
+
+    stream = yield from client.upload_stream("bar/foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
+
     yield from client.remove("bar")
     r = yield from client.list()
     nose.tools.eq_(len(r), 0)
@@ -101,8 +120,14 @@ def test_memory_path_unreachable_path_upload(loop, client, server):
 
     yield from client.login()
     data = b"foobar"
-    yield from client.upload_file("bar", io.BytesIO(data))
-    yield from client.upload_file("bar/foo.txt", io.BytesIO(data))
+
+    stream = yield from client.upload_stream("bar")
+    yield from stream.write(data)
+    yield from stream.finish()
+
+    stream = yield from client.upload_stream("bar/foo.txt")
+    yield from stream.write(data)
+    yield from stream.finish()
 
 
 @aioftp_setup(

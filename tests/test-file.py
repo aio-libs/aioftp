@@ -58,14 +58,15 @@ def test_file_download(loop, client, server, *, tmp_dir):
 
         fout.write("foobar")
 
-    b = bytearray()
     yield from client.login()
-    yield from client.download_file("foo", callback=b.extend)
+    stream = yield from client.download_stream("foo")
+    data = yield from stream.read()
+    yield from stream.finish()
     yield from client.quit()
 
     f.unlink()
 
-    nose.tools.eq_(b, b"foobar")
+    nose.tools.eq_(data, b"foobar")
 
 
 @aioftp_setup(
@@ -79,11 +80,13 @@ def test_file_upload(loop, client, server, *, tmp_dir):
         nose.tools.eq_(data, b)
 
     f = tmp_dir / "foo"
-
     b = b"foobar"
-    file_like = io.BytesIO(b)
+
     yield from client.login()
-    yield from client.upload_file("foo", file_like, callback=callback)
+
+    stream = yield from client.upload_stream("foo")
+    yield from stream.write(b)
+    yield from stream.finish()
     yield from client.quit()
 
     with f.open("rb") as fin:
@@ -109,7 +112,9 @@ def test_file_append(loop, client, server, *, tmp_dir):
     ab = b"foobar"
     file_like = io.BytesIO(ab)
     yield from client.login()
-    yield from client.append_file("foo", file_like)
+    stream = yield from client.append_stream("foo")
+    yield from stream.write(ab)
+    yield from stream.finish()
     yield from client.quit()
 
     with f.open("rb") as fin:
@@ -457,5 +462,18 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO
     )
+    # test_remove_single_file()
+    # test_recursive_remove()
+    # test_file_download()
+    # test_file_upload()
+    # test_file_append()
+    test_upload_folder()
+    test_upload_folder_into()
+    test_upload_folder_into_another()
+    test_download_folder()
+    test_download_folder_into()
+    test_download_folder_into_another()
+    test_upload_file_into_another()
+    test_download_file()
     test_download_file_write_into()
     print("done")

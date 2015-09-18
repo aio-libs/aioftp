@@ -96,12 +96,16 @@ def test_native_list(loop, client, server, *, tmp_dir):
 
     lines = []
     yield from client.login()
-    yield from client.retrieve(
-        str.strip("LIST"),
-        "1xx",
-        use_lines=True,
-        callback=lines.append,
-    )
+    stream = yield from client.get_stream(str.strip("LIST"), "1xx")
+    while True:
+
+        raw = yield from stream.readline()
+        if not raw:
+
+            break
+
+        lines.append(raw)
+
     con = next(iter(server.connections.values()))
     yield from client.quit()
     ans = yield from server.build_list_string(con, tmp_file)
@@ -163,3 +167,23 @@ def test_not_a_file_or_dir(loop, client, server):
         ),
         pathlib.Path("/foo")
     )
+
+
+if __name__ == "__main__":
+
+    import logging
+    import os
+
+    os.environ["AIOFTP_TESTS"] = "PathIO"
+    logging.basicConfig(
+        level=logging.INFO
+    )
+
+    test_exists()
+    test_is_dir()
+    test_is_file()
+    test_stats()
+    test_native_list()
+    test_recursive_list()
+    test_not_a_file_or_dir()
+    print("done")
