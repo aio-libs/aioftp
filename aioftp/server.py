@@ -300,7 +300,8 @@ class BaseServer:
                    loop, socket_timeout=None):
 
         common.logger.info(add_prefix(line))
-        writer.write(str.encode(line + "\r\n", encoding=encoding))
+        message = line + common.end_of_line
+        writer.write(str.encode(message, encoding=encoding))
         yield from asyncio.wait_for(
             writer.drain(),
             socket_timeout,
@@ -1100,7 +1101,8 @@ class Server(BaseServer):
                 for path in paths:
 
                     s = yield from self.build_mlsx_string(connection, path)
-                    data_writer.write(str.encode(s + "\n", "utf-8"))
+                    message = s + common.end_of_line
+                    data_writer.write(str.encode(message, "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),
                         connection.socket_timeout,
@@ -1179,7 +1181,8 @@ class Server(BaseServer):
                 for path in paths:
 
                     s = yield from self.build_list_string(connection, path)
-                    data_writer.write(str.encode(s + "\n", "utf-8"))
+                    message = s + common.end_of_line
+                    data_writer.write(str.encode(message, "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),
                         connection.socket_timeout,

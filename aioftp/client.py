@@ -82,8 +82,6 @@ class StreamIO:
     def write(self, data):
 
         self.writer.write(data)
-        # this is "cheat" solution, so should be changed later
-        yield from asyncio.sleep(0, loop=self.client.loop)
         yield from self.writer.drain()
 
     @asyncio.coroutine
@@ -231,9 +229,8 @@ class BaseClient:
         if command:
 
             common.logger.info(add_prefix(command))
-            self.writer.write(str.encode(command + "\r\n", encoding="utf-8"))
-            # this is "cheat" solution, so should be changed later
-            yield from asyncio.sleep(0, loop=self.loop)
+            message = command + common.end_of_line
+            self.writer.write(str.encode(message, encoding="utf-8"))
             yield from self.writer.drain()
 
         if expected_codes or wait_codes:
@@ -324,7 +321,7 @@ class BaseClient:
 
             s = b
 
-        line = str.rstrip(s, "\n")
+        line = str.rstrip(s)
         facts_found, _, name = str.partition(line, " ")
         entry = {}
         for fact in str.split(facts_found[:-1], ";"):

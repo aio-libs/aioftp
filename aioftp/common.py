@@ -5,6 +5,7 @@ __all__ = ()
 
 
 logger = logging.getLogger("aioftp")
+end_of_line = "\r\n"
 
 
 def wrap_with_container(o):
