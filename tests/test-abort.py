@@ -26,7 +26,10 @@ def test_abort_stor(loop, client, server, *, tmp_dir):
 
         try:
 
-            yield from stream.write(b"-" * 8192)
+            for _ in range(5):
+
+                yield from stream.write(b"-" * 8192)
+                yield from asyncio.sleep(0.1, loop=loop)
 
         except (ConnectionResetError, BrokenPipeError):
 
