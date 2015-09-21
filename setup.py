@@ -37,7 +37,7 @@ class NoseTestCommand(TestCommand):
         if cov.exists():
             cov.unlink()
 
-        nose.run(argv=['aioftp'])
+        nose.run(argv=['nosetests'])
 
 
 setup(
