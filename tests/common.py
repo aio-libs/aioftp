@@ -7,8 +7,6 @@ import aioftp
 
 import nose
 
-sys.path.insert(0, str(pathlib.Path("..").absolute()))
-
 
 PORT = 8888
 
