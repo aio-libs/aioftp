@@ -8,8 +8,8 @@ from .common import *
 from .pathio import *
 
 
-version = (0, 1, 7)
-__version__ = str.join(".", map(str, version))
+__version__ = '0.1.7'
+version = tuple(__version__.split("."))
 
 __all__ = (
     client.__all__ +

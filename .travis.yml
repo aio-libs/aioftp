@@ -1,12 +1,13 @@
 language: python
 python:
     - 3.4
+    - 3.5
 
 install:
-    - travis_retry pip install -r test-requirements.txt
+    - travis_retry pip install coveralls
 
 script:
-    - python run-tests.py
+    - python setup.py test
 
 branches:
     only:
