@@ -3,11 +3,11 @@ import functools
 import sys
 import pathlib
 import os
+import aioftp
 
 import nose
 
 sys.path.insert(0, str(pathlib.Path("..").absolute()))
-import aioftp
 
 
 PORT = 8888
@@ -21,38 +21,41 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
         @functools.wraps(f)
         def wrapper():
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(None)
+            s_args, s_kwargs = server_args
+            c_args, c_kwargs = client_args
 
-            args, kwargs = server_args
-            el = os.environ["AIOFTP_TESTS"]
-            factory = getattr(aioftp, el)
-            if "path_io_factory" not in kwargs:
+            def run_in_loop(s_args, s_kwargs, c_args, c_kwargs):
 
-                kwargs["path_io_factory"] = factory
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(None)
 
-            server = aioftp.Server(*args, loop=loop, **kwargs)
+                server = aioftp.Server(*s_args, loop=loop, **s_kwargs)
+                client = aioftp.Client(*c_args, loop=loop, **c_kwargs)
 
-            args, kwargs = client_args
-            client = aioftp.Client(*args, loop=loop, **kwargs)
+                coro = asyncio.coroutine(f)
+                try:
 
-            coro = asyncio.coroutine(f)
-            try:
+                    loop.run_until_complete(coro(loop, client, server))
 
-                loop.run_until_complete(coro(loop, client, server))
+                finally:
 
-            finally:
+                    if hasattr(server, "server"):
 
-                if hasattr(server, "server"):
+                        server.close()
+                        loop.run_until_complete(server.wait_closed())
 
-                    server.close()
-                    loop.run_until_complete(server.wait_closed())
+                    if hasattr(client, "writer"):
 
-                if hasattr(client, "writer"):
+                        client.close()
 
-                    client.close()
+                    loop.close()
 
-                loop.close()
+            if "path_io_factory" not in s_kwargs:
+                for factory in (aioftp.PathIO, aioftp.AsyncPathIO):
+                    s_kwargs["path_io_factory"] = factory
+                    run_in_loop(s_args, s_kwargs, c_args, c_kwargs)
+            else:
+                run_in_loop(s_args, s_kwargs, c_args, c_kwargs)
 
         return wrapper
 
