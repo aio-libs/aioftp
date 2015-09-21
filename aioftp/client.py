@@ -845,10 +845,6 @@ class Client(BaseClient):
                 full = destination / name.relative_to(source)
                 if info["type"] == "file":
 
-                    if not full.parent.exists():
-
-                        full.parent.mkdir(parents=True)
-
                     with full.open(mode="wb") as fout:
 
                         stream = yield from self.download_stream(name)
