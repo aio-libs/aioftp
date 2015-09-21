@@ -8,7 +8,7 @@ from . import errors
 from . import common
 
 
-__all__ = ("Client", "Code")
+__all__ = ("Client", "Code", "StreamIO")
 
 
 def add_prefix(message):
@@ -24,19 +24,6 @@ def open_connection(host, port, loop, create_connection):
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
     return reader, writer
-
-
-def ChainCallback(*callbacks):
-
-    def callback(*args, **kwargs):
-
-        for f in callbacks:
-
-            if f:
-
-                f(*args, **kwargs)
-
-    return callback
 
 
 class Code(str):
@@ -61,6 +48,18 @@ class Code(str):
 
 
 class StreamIO:
+    """
+    Stream input/output wrapper.
+
+    :param client: aioftp client
+    :type client: :py:class:`aioftp.Client`
+
+    :param reader: stream reader
+    :type reader: :py:class:`asyncio.StreamReader`
+
+    :param writer: stream writer
+    :type writer: :py:class:`asyncio.StreamWriter`
+    """
 
     def __init__(self, client, reader, writer):
 
@@ -70,28 +69,62 @@ class StreamIO:
 
     @asyncio.coroutine
     def readline(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Proxy for :py:meth:`asyncio.StreamReader.readline`.
+        """
         return (yield from self.reader.readline())
 
     @asyncio.coroutine
     def read(self, count=8192):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Proxy for :py:meth:`asyncio.StreamReader.read`.
+
+        :param count: block size for read operation
+        :type count: :py:class:`int`
+        """
         return (yield from self.reader.read(count))
 
     @asyncio.coroutine
     def write(self, data):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Combination of :py:meth:`asyncio.StreamWriter.write` and
+        :py:meth:`asyncio.StreamWriter.drain`.
+
+        :param data: data to write
+        :type data: :py:class:`bytes`
+        """
         self.writer.write(data)
         yield from self.writer.drain()
 
     @asyncio.coroutine
-    def finish(self):
+    def finish(self, expected_codes="2xx", wait_codes="1xx"):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Close connection and wait for `expected_codes` response from server
+        passing `wait_codes`.
+
+        :param expected_codes: tuple of expected codes or expected code
+        :type expected_codes: :py:class:`tuple` of :py:class:`str` or
+            :py:class:`str`
+
+        :param wait_codes: tuple of wait codes or wait code
+        :type wait_codes: :py:class:`tuple` of :py:class:`str` or
+            :py:class:`str`
+        """
         self.close()
-        yield from self.client.command(None, "2xx", "1xx")
+        yield from self.client.command(None, expected_codes, wait_codes)
 
     def close(self):
-
+        """
+        Close connection.
+        """
         self.writer.close()
 
 
