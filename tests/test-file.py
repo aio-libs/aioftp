@@ -132,7 +132,9 @@ def make_some_files(path):
     for i in range(4):
 
         f = path / str.format("file{}", i)
-        f.touch()
+        with f.open("w") as fout:
+
+            fout.write("foobar")
 
     yield
     for i in range(4):
