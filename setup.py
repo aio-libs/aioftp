@@ -26,12 +26,12 @@ class NoseTestCommand(TestCommand):
 
     def run_tests(self):
         import pathlib
-        import sh
+        import shutil
         import nose
 
         for path in pathlib.Path("tests").glob("*"):
             if path.is_dir():
-                sh.rm("-rdf", str(path))
+                shutil.rmtree(str(path))
 
         cov = pathlib.Path(".coverage")
         if cov.exists():
@@ -52,7 +52,7 @@ setup(
     license='Apache 2',
     packages=find_packages(),
     install_requires=[],
-    tests_require=['nose', 'coverage', 'sh'],
+    tests_require=['nose', 'coverage'],
     cmdclass={'test': NoseTestCommand},
     include_package_data=True
 )
