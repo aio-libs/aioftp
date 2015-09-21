@@ -529,6 +529,7 @@ class BaseServer:
             loop=self.loop,
             extra_workers=set(),
             response=lambda *args: response_queue.put_nowait(args),
+            acquired=False,
             _dispatcher=asyncio.Task.current_task(loop=self.loop),
         )
 
@@ -608,7 +609,10 @@ class BaseServer:
 
                 writer.close()
 
-            self.available_connections[self].release()
+            if connection.acquired:
+
+                self.available_connections[self].release()
+
             if connection.future.user.done():
 
                 self.available_connections[connection.user].release()
@@ -931,6 +935,7 @@ class Server(BaseServer):
         else:
 
             ok, code, info = True, "220", "welcome"
+            connection.acquired = True
             self.available_connections[self].acquire()
 
         connection.response(code, info)
