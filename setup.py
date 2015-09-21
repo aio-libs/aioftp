@@ -12,7 +12,7 @@ def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
 try:
-    version = re.findall(r"^__version__ = '([^']+)'\r?$",
+    version = re.findall(r"""^__version__ = "([^']+)"\r?$""",
                          read(os.path.join('aioftp', '__init__.py')), re.M)[0]
 except IndexError:
     raise RuntimeError('Unable to determine version.')
