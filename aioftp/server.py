@@ -112,7 +112,6 @@ class User:
 
         self.permissions = permissions or [Permission()]
         self.maximum_connections = maximum_connections
-        self.available_connections = self.maximum_connections
 
     def get_permissions(self, path):
         """
@@ -237,6 +236,49 @@ class Connection(collections.defaultdict):
         else:
 
             super().__delattr__(name)
+
+
+class AvailableConnections:
+    """
+    Semaphore-like object. Have no blocks, only raises ValueError on bounds
+        crossing. If value is `None` have no limits (bounds checks).
+
+    :param value:
+    :type value: :py:class:`int` or `None`
+    """
+    def __init__(self, value=None):
+
+        self.value = self.maximum_value = value
+
+    def locked(self):
+        """
+        Returns True if semaphore-like can not be acquired.
+
+        :rtype: :py:class:`bool`
+        """
+        return self.value == 0
+
+    def acquire(self):
+        """
+        Acquire, decrementing the internal counter by one.
+        """
+        if self.value is not None:
+
+            self.value -= 1
+            if self.value < 0:
+
+                raise ValueError("Too much acquires")
+
+    def release(self):
+        """
+        Release, incrementing the internal counter by one.
+        """
+        if self.value is not None:
+
+            self.value += 1
+            if self.value > self.maximum_value:
+
+                raise ValueError("Too much releases")
 
 
 class BaseServer:
@@ -566,14 +608,10 @@ class BaseServer:
 
                 writer.close()
 
-            if connection.future.user.done() and \
-               connection.user.available_connections is not None:
+            self.available_connections[self].release()
+            if connection.future.user.done():
 
-                connection.user.available_connections += 1
-
-            if self.available_connections is not None:
-
-                self.available_connections += 1
+                self.available_connections[connection.user].release()
 
             self.connections.pop(key)
 
@@ -838,8 +876,15 @@ class Server(BaseServer):
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
         self.path_io = path_io_factory(self.loop)
+
         self.maximum_connections = maximum_connections
-        self.available_connections = self.maximum_connections
+        self.available_connections = {
+            self: AvailableConnections(self.maximum_connections)
+        }
+        for user in self.users:
+
+            value = user.maximum_connections
+            self.available_connections[user] = AvailableConnections(value)
 
     def get_paths(self, connection, path):
         """
@@ -879,16 +924,14 @@ class Server(BaseServer):
     @asyncio.coroutine
     def greeting(self, connection, rest):
 
-        if self.available_connections == 0:
+        if self.available_connections[self].locked():
 
             ok, code, info = False, "421", "Too many connections"
 
         else:
 
             ok, code, info = True, "220", "welcome"
-            if self.available_connections is not None:
-
-                self.available_connections -= 1
+            self.available_connections[self].acquire()
 
         connection.response(code, info)
         return ok
@@ -913,7 +956,7 @@ class Server(BaseServer):
             code, info = "530", "no such username"
             ok = False
 
-        elif current_user.available_connections == 0:
+        elif self.available_connections[current_user].locked():
 
             code = "530"
             template = "too much connections for '{}'"
@@ -925,10 +968,7 @@ class Server(BaseServer):
             connection.logged = True
             connection.current_directory = current_user.home_path
             connection.user = current_user
-            if connection.user.available_connections is not None:
-
-                connection.user.available_connections -= 1
-
+            self.available_connections[connection.user].acquire()
             code, info = "230", "anonymous login"
             ok = True
 
@@ -937,16 +977,14 @@ class Server(BaseServer):
             connection.logged = True
             connection.current_directory = current_user.home_path
             connection.user = current_user
-            if connection.user.available_connections is not None:
-
-                connection.user.available_connections -= 1
-
+            self.available_connections[connection.user].acquire()
             code, info = "230", "login without password"
             ok = True
 
         else:
 
             connection.user = current_user
+            self.available_connections[connection.user].acquire()
             code, info = "331", "require password"
             ok = True
 
