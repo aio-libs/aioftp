@@ -8,7 +8,7 @@ from .common import *
 from .pathio import *
 
 
-__version__ = '0.1.7'
+__version__ = "0.1.7"
 version = tuple(__version__.split("."))
 
 __all__ = (
