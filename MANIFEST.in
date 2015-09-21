@@ -1,0 +1,8 @@
+include flit.ini
+include readme.rst
+include license.txt
+include history.rst
+include doc-requirements.txt
+include test-requirements.txt
+include run-tests.py
+recursive-include tests *
