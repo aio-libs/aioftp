@@ -972,10 +972,10 @@ class Server(BaseServer):
         ("st_ctime", "Create"),
     )
 
-    def __init__(self, users=None, *, loop=None, block_size=8192,
-                 socket_timeout=None, path_timeout=None, idle_timeout=None,
-                 wait_future_timeout=1, path_io_factory=pathio.AsyncPathIO,
-                 maximum_connections=None):
+    def __init__(self, users=None, *, loop=None,
+                 block_size=common.default_block_size, socket_timeout=None,
+                 path_timeout=None, idle_timeout=None, wait_future_timeout=1,
+                 path_io_factory=pathio.AsyncPathIO, maximum_connections=None):
 
         if isinstance(users, UserManager):
             self.user_manager = users
