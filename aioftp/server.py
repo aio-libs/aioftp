@@ -147,23 +147,56 @@ class User:
 
 
 class UserManager:
+    """
+    Abstract user manager.
+    """
 
     @asyncio.coroutine
     def get_user(self, login):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Get user and response for USER call
+
+        :param login: user's login
+        :type login: :py:class:`str`
+
+        :return: (user, logged, code, info)
+        :rtype: (:py:class:`aioftp.User`, :py:class:`bool`, :py:class:`str`, :py:class:`str`)
+        """
 
         raise NotImplementedError
 
     @asyncio.coroutine
     def authenticate(self, user, password):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Check if user can be authenticated with provided password
+
+        :param user: user
+        :type user: :py:class:`aioftp.User`
+
+        :rtype: :py:class:`bool`
+        """
 
         raise NotImplementedError
 
     def notify_logout(self, user):
+        """
+        Called when user connection is closed if user was initiated
+
+        :param user: user
+        :type user: :py:class:`aioftp.User`
+        """
 
         pass
 
 
 class MemoryUserManager(UserManager):
+    """
+    A built-in user manager that keeps predefined set of users in memory.
+    """
 
     def __init__(self, users):
         self.users = users or [User()]
@@ -899,9 +932,9 @@ class Server(BaseServer):
     """
     FTP server.
 
-    :param users: list of users
+    :param users: list of users or user manager object
     :type users: :py:class:`tuple` or :py:class:`list` of
-        :py:class:`aioftp.User`
+        :py:class:`aioftp.User` or :py:class:`aioftp.server.UserManager`
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -942,9 +975,13 @@ class Server(BaseServer):
     def __init__(self, users=None, *, loop=None, block_size=8192,
                  socket_timeout=None, path_timeout=None, idle_timeout=None,
                  wait_future_timeout=1, path_io_factory=pathio.AsyncPathIO,
-                 user_manager_factory=MemoryUserManager, maximum_connections=None):
+                 maximum_connections=None):
 
-        self.user_manager = user_manager_factory(users)
+        if isinstance(users, UserManager):
+            self.user_manager = users
+        else:
+            self.user_manager = MemoryUserManager(users)
+
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
