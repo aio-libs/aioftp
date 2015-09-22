@@ -148,10 +148,12 @@ class User:
 
 class UserManager:
 
+    @asyncio.coroutine
     def get_user(self, login):
 
         raise NotImplementedError
 
+    @asyncio.coroutine
     def authenticate(self, user, password):
 
         raise NotImplementedError
@@ -171,6 +173,7 @@ class MemoryUserManager(UserManager):
             for user in self.users
         )
 
+    @asyncio.coroutine
     def get_user(self, login):
 
         user = None
@@ -206,6 +209,7 @@ class MemoryUserManager(UserManager):
 
         return user, logged, code, info
 
+    @asyncio.coroutine
     def authenticate(self, user, password):
         return user.password == password
 
@@ -1009,7 +1013,7 @@ class Server(BaseServer):
         ok = False
 
         try:
-            connection.user, logged, code, info = self.user_manager.get_user(rest)
+            connection.user, logged, code, info = yield from self.user_manager.get_user(rest)
             connection.logged = logged
             connection.current_directory = connection.user.home_path
             ok = True
@@ -1023,7 +1027,7 @@ class Server(BaseServer):
     @asyncio.coroutine
     def pass_(self, connection, rest):
 
-        if self.user_manager.authenticate(connection.user, rest):
+        if (yield from self.user_manager.authenticate(connection.user, rest)):
 
             connection.logged = True
             code, info = "230", "normal login"
