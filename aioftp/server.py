@@ -162,9 +162,9 @@ class UserManager:
         :type login: :py:class:`str`
 
         :return: (user, logged, code, info)
-        :rtype: (:py:class:`aioftp.User`, :py:class:`bool`, :py:class:`str`, :py:class:`str`)
+        :rtype: (:py:class:`aioftp.User`, :py:class:`bool`, :py:class:`str`,
+            :py:class:`str`)
         """
-
         raise NotImplementedError
 
     @asyncio.coroutine
@@ -179,17 +179,18 @@ class UserManager:
 
         :rtype: :py:class:`bool`
         """
-
         raise NotImplementedError
 
+    @asyncio.coroutine
     def notify_logout(self, user):
         """
+        :py:func:`asyncio.coroutine`
+
         Called when user connection is closed if user was initiated
 
         :param user: user
         :type user: :py:class:`aioftp.User`
         """
-
         pass
 
 
@@ -199,8 +200,8 @@ class MemoryUserManager(UserManager):
     """
 
     def __init__(self, users):
-        self.users = users or [User()]
 
+        self.users = users or [User()]
         self.available_connections = dict(
             (user, AvailableConnections(user.maximum_connections))
             for user in self.users
@@ -210,43 +211,50 @@ class MemoryUserManager(UserManager):
     def get_user(self, login):
 
         user = None
-
         for u in self.users:
+
             if u.login is None and user is None:
+
                 user = u
+
             elif u.login == login:
+
                 user = u
                 break
 
         if user is None:
+
             raise IndexError("530", "no such username")
 
         elif self.available_connections[user].locked():
-            raise IndexError(
-                "530",
-                str.format("too much connections for '{}'",
-                           user.login or "anonymous")
-            )
+
+            template = "too much connections for '{}'"
+            message = str.format(template, user.login or "anonymous")
+            raise IndexError("530", message)
 
         elif user.login is None:
-            self.available_connections[user].acquire()
+
             logged, code, info = True, "230", "anonymous login"
 
         elif user.password is None:
-            self.available_connections[user].acquire()
+
             logged, code, info = True, "230", "login without password"
 
         else:
-            self.available_connections[user].acquire()
+
             logged, code, info = False, "331", "require password"
 
+        self.available_connections[user].acquire()
         return user, logged, code, info
 
     @asyncio.coroutine
     def authenticate(self, user, password):
+
         return user.password == password
 
+    @asyncio.coroutine
     def notify_logout(self, user):
+
         self.available_connections[user].release()
 
 
@@ -720,7 +728,7 @@ class BaseServer:
 
             if connection.future.user.done():
 
-                self.user_manager.notify_logout(connection.user)
+                yield from self.user_manager.notify_logout(connection.user)
 
             self.connections.pop(key)
 
@@ -991,7 +999,7 @@ class Server(BaseServer):
         self.path_io = path_io_factory(self.loop)
 
         self.maximum_connections = maximum_connections
-        self.available_connections = AvailableConnections(self.maximum_connections)
+        self.available_connections = AvailableConnections(maximum_connections)
 
     def get_paths(self, connection, path):
         """
@@ -1048,13 +1056,15 @@ class Server(BaseServer):
     def user(self, connection, rest):
 
         ok = False
-
         try:
-            connection.user, logged, code, info = yield from self.user_manager.get_user(rest)
-            connection.logged = logged
+
+            args = yield from self.user_manager.get_user(rest)
+            connection.user, connection.logged, code, info = args
             connection.current_directory = connection.user.home_path
             ok = True
+
         except IndexError as e:
+
             code, info = e.args
 
         connection.response(code, info)
