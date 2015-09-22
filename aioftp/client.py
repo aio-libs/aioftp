@@ -17,13 +17,28 @@ def add_prefix(message):
 
 
 @asyncio.coroutine
-def open_connection(host, port, loop, create_connection):
+def open_connection(host, port, loop, create_connection, *,
+                    read_speed_limit, read_memory,
+                    write_speed_limit, write_memory):
 
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
-    return reader, writer
+
+    throttle_reader = common.Throttle(
+        reader,
+        loop=loop,
+        throttle=read_speed_limit,
+        memory=read_memory
+    )
+    throttle_writer = common.Throttle(
+        writer,
+        loop=loop,
+        throttle=write_speed_limit,
+        memory=write_memory
+    )
+    return throttle_reader, throttle_writer
 
 
 class Code(str):
@@ -130,12 +145,19 @@ class StreamIO:
 
 class BaseClient:
 
-    def __init__(self, *, loop=None, create_connection=None, timeout=None):
+    def __init__(self, *, loop=None, create_connection=None, timeout=None,
+                 read_speed_limit=None, write_speed_limit=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
         self.timeout = timeout
+
+        self.read_speed_limit = read_speed_limit
+        self.write_speed_limit = write_speed_limit
+
+        self.read_memory = common.ThrottleMemory()
+        self.write_memory = common.ThrottleMemory()
 
     @asyncio.coroutine
     def connect(self, host, port=21):
@@ -145,6 +167,10 @@ class BaseClient:
             port,
             self.loop,
             self.create_connection,
+            read_speed_limit=self.read_speed_limit,
+            read_memory=self.read_memory,
+            write_speed_limit=self.write_speed_limit,
+            write_memory=self.write_memory
         )
 
     def close(self):
@@ -895,6 +921,10 @@ class Client(BaseClient):
             port,
             self.loop,
             self.create_connection,
+            read_speed_limit=self.read_speed_limit,
+            read_memory=self.read_memory,
+            write_speed_limit=self.write_speed_limit,
+            write_memory=self.write_memory
         )
         return reader, writer
 
