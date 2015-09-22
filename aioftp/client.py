@@ -77,7 +77,7 @@ class StreamIO:
         return (yield from self.reader.readline())
 
     @asyncio.coroutine
-    def read(self, count=8192):
+    def read(self, count=common.default_block_size):
         """
         :py:func:`asyncio.coroutine`
 
@@ -698,7 +698,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
-               block_size=8192):
+               block_size=common.default_block_size):
         """
         :py:func:`asyncio.coroutine`
 
@@ -788,7 +788,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def download(self, source, destination="", *, write_into=False,
-                 block_size=8192):
+                 block_size=common.default_block_size):
         """
         :py:func:`asyncio.coroutine`
 
