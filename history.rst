@@ -1,3 +1,17 @@
+0.2.0 (22-09-2015)
+------------------
+
+- client throttle
+- new server dispatcher (can wait for connections)
+- maximum connections per user/server
+- new client stream api
+- end of line character "\r\n" everywhere
+- setup.py support
+- tests via "python setup.py test"
+- "sh" module removed from test requirements
+Thanks to (`rsichny <https://github.com/rsichny>`_) and
+(`jettify <https://github.com/jettify>`_)
+
 0.1.7 (03-09-2015)
 ------------------
 

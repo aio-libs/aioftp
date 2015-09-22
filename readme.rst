@@ -34,6 +34,7 @@ Goals
 
 - Minimum usable core.
 - Do not use deprecated or overridden commands and features (if possible).
+- Very high level api.
 
 Client use this commands: USER, PASS, ACCT, PWD, CWD, CDUP, MKD, RMD, MLSD,
 MLST, RNFR, RNTO, DELE, STOR, APPE, RETR, TYPE, PASV, ABOR, QUIT
