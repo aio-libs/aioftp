@@ -146,6 +146,110 @@ class User:
         )
 
 
+class UserManager:
+    """
+    Abstract user manager.
+    """
+
+    @asyncio.coroutine
+    def get_user(self, login):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Get user and response for USER call
+
+        :param login: user's login
+        :type login: :py:class:`str`
+
+        :return: (user, logged, code, info)
+        :rtype: (:py:class:`aioftp.User`, :py:class:`bool`, :py:class:`str`, :py:class:`str`)
+        """
+
+        raise NotImplementedError
+
+    @asyncio.coroutine
+    def authenticate(self, user, password):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Check if user can be authenticated with provided password
+
+        :param user: user
+        :type user: :py:class:`aioftp.User`
+
+        :rtype: :py:class:`bool`
+        """
+
+        raise NotImplementedError
+
+    def notify_logout(self, user):
+        """
+        Called when user connection is closed if user was initiated
+
+        :param user: user
+        :type user: :py:class:`aioftp.User`
+        """
+
+        pass
+
+
+class MemoryUserManager(UserManager):
+    """
+    A built-in user manager that keeps predefined set of users in memory.
+    """
+
+    def __init__(self, users):
+        self.users = users or [User()]
+
+        self.available_connections = dict(
+            (user, AvailableConnections(user.maximum_connections))
+            for user in self.users
+        )
+
+    @asyncio.coroutine
+    def get_user(self, login):
+
+        user = None
+
+        for u in self.users:
+            if u.login is None and user is None:
+                user = u
+            elif u.login == login:
+                user = u
+                break
+
+        if user is None:
+            raise IndexError("530", "no such username")
+
+        elif self.available_connections[user].locked():
+            raise IndexError(
+                "530",
+                str.format("too much connections for '{}'",
+                           user.login or "anonymous")
+            )
+
+        elif user.login is None:
+            self.available_connections[user].acquire()
+            logged, code, info = True, "230", "anonymous login"
+
+        elif user.password is None:
+            self.available_connections[user].acquire()
+            logged, code, info = True, "230", "login without password"
+
+        else:
+            self.available_connections[user].acquire()
+            logged, code, info = False, "331", "require password"
+
+        return user, logged, code, info
+
+    @asyncio.coroutine
+    def authenticate(self, user, password):
+        return user.password == password
+
+    def notify_logout(self, user):
+        self.available_connections[user].release()
+
+
 class Connection(collections.defaultdict):
     """
     Connection state container for transparent work with futures for async
@@ -246,6 +350,7 @@ class AvailableConnections:
     :param value:
     :type value: :py:class:`int` or `None`
     """
+
     def __init__(self, value=None):
 
         self.value = self.maximum_value = value
@@ -611,11 +716,11 @@ class BaseServer:
 
             if connection.acquired:
 
-                self.available_connections[self].release()
+                self.available_connections.release()
 
             if connection.future.user.done():
 
-                self.available_connections[connection.user].release()
+                self.user_manager.notify_logout(connection.user)
 
             self.connections.pop(key)
 
@@ -827,9 +932,9 @@ class Server(BaseServer):
     """
     FTP server.
 
-    :param users: list of users
+    :param users: list of users or user manager object
     :type users: :py:class:`tuple` or :py:class:`list` of
-        :py:class:`aioftp.User`
+        :py:class:`aioftp.User` or :py:class:`aioftp.server.UserManager`
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -872,7 +977,11 @@ class Server(BaseServer):
                  wait_future_timeout=1, path_io_factory=pathio.AsyncPathIO,
                  maximum_connections=None):
 
-        self.users = users or [User()]
+        if isinstance(users, UserManager):
+            self.user_manager = users
+        else:
+            self.user_manager = MemoryUserManager(users)
+
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -882,13 +991,7 @@ class Server(BaseServer):
         self.path_io = path_io_factory(self.loop)
 
         self.maximum_connections = maximum_connections
-        self.available_connections = {
-            self: AvailableConnections(self.maximum_connections)
-        }
-        for user in self.users:
-
-            value = user.maximum_connections
-            self.available_connections[user] = AvailableConnections(value)
+        self.available_connections = AvailableConnections(self.maximum_connections)
 
     def get_paths(self, connection, path):
         """
@@ -928,7 +1031,7 @@ class Server(BaseServer):
     @asyncio.coroutine
     def greeting(self, connection, rest):
 
-        if self.available_connections[self].locked():
+        if self.available_connections.locked():
 
             ok, code, info = False, "421", "Too many connections"
 
@@ -936,7 +1039,7 @@ class Server(BaseServer):
 
             ok, code, info = True, "220", "welcome"
             connection.acquired = True
-            self.available_connections[self].acquire()
+            self.available_connections.acquire()
 
         connection.response(code, info)
         return ok
@@ -944,54 +1047,15 @@ class Server(BaseServer):
     @asyncio.coroutine
     def user(self, connection, rest):
 
-        current_user = None
-        for user in self.users:
+        ok = False
 
-            if user.login is None and current_user is None:
-
-                current_user = user
-
-            elif user.login == rest:
-
-                current_user = user
-                break
-
-        if current_user is None:
-
-            code, info = "530", "no such username"
-            ok = False
-
-        elif self.available_connections[current_user].locked():
-
-            code = "530"
-            template = "too much connections for '{}'"
-            info = str.format(template, current_user.login or "anonymous")
-            ok = False
-
-        elif current_user.login is None:
-
-            connection.logged = True
-            connection.current_directory = current_user.home_path
-            connection.user = current_user
-            self.available_connections[connection.user].acquire()
-            code, info = "230", "anonymous login"
+        try:
+            connection.user, logged, code, info = yield from self.user_manager.get_user(rest)
+            connection.logged = logged
+            connection.current_directory = connection.user.home_path
             ok = True
-
-        elif current_user.password is None:
-
-            connection.logged = True
-            connection.current_directory = current_user.home_path
-            connection.user = current_user
-            self.available_connections[connection.user].acquire()
-            code, info = "230", "login without password"
-            ok = True
-
-        else:
-
-            connection.user = current_user
-            self.available_connections[connection.user].acquire()
-            code, info = "331", "require password"
-            ok = True
+        except IndexError as e:
+            code, info = e.args
 
         connection.response(code, info)
         return ok
@@ -1000,10 +1064,9 @@ class Server(BaseServer):
     @asyncio.coroutine
     def pass_(self, connection, rest):
 
-        if connection.user.password == rest:
+        if (yield from self.user_manager.authenticate(connection.user, rest)):
 
             connection.logged = True
-            connection.current_directory = connection.user.home_path
             code, info = "230", "normal login"
 
         else:

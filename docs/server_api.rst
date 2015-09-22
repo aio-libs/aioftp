@@ -10,6 +10,9 @@ Server API
 .. autoclass :: aioftp.User
     :members:
 
+.. autoclass :: aioftp.server.UserManager
+    :members:
+
 .. autoclass :: aioftp.Permission
     :members:
 
