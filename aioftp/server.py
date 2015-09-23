@@ -152,10 +152,6 @@ class AbstractUserManager:
     """
     Abstract user manager.
 
-    :param users: list of users
-    :type users: :py:class:`list` or :py:class:`tuple` of
-        :py:class:`aioftp.User`
-
     :param timeout: timeout used by `with_timeout` decorator
     :type timeout: :py:class:`float`, :py:class:`int` or `None`
 
@@ -163,9 +159,8 @@ class AbstractUserManager:
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
-    def __init__(self, users, *, timeout=None, loop=None):
+    def __init__(self, *, timeout=None, loop=None):
 
-        self.users = users or [User()]
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
@@ -215,11 +210,18 @@ class AbstractUserManager:
 class MemoryUserManager(AbstractUserManager):
     """
     A built-in user manager that keeps predefined set of users in memory.
+
+    :param users: container of users
+    :type users: :py:class:`list`, :py:class:`tuple`, etc. of
+        :py:class:`aioftp.User`
+
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, users, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
+
+        self.users = users or [User()]
         self.available_connections = dict(
             (user, AvailableConnections(user.maximum_connections))
             for user in self.users
@@ -652,7 +654,6 @@ class BaseServer:
             server_port=self.server_port,
             command_connection=(reader, writer),
             socket_timeout=self.socket_timeout,
-            path_timeout=self.path_timeout,
             idle_timeout=self.idle_timeout,
             wait_future_timeout=self.wait_future_timeout,
             block_size=self.block_size,
@@ -956,8 +957,8 @@ class Server(BaseServer):
 
     :param users: list of users or user manager object
     :type users: :py:class:`tuple` or :py:class:`list` of
-        :py:class:`aioftp.User` or
-        :py:class:`aioftp.server.AbstractUserManager`
+        :py:class:`aioftp.User` or instance of
+        :py:class:`aioftp.server.AbstractUserManager` subclass
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -1021,21 +1022,20 @@ class Server(BaseServer):
         self.socket_timeout = socket_timeout
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
+        self.path_io = path_io_factory(timeout=path_timeout, loop=self.loop)
 
-        self.path_timeout = path_timeout
-        self.path_io = path_io_factory(
-            timeout=self.path_timeout,
-            loop=self.loop
-        )
+        if isinstance(users, AbstractUserManager):
 
-        self.user_manager_timeout = user_manager_timeout
-        self.user_manager = user_manager_factory(
-            users,
-            timeout=self.user_manager_timeout,
-            loop=self.loop
-        )
+            self.user_manager = users
 
-        self.maximum_connections = maximum_connections
+        else:
+
+            self.user_manager = MemoryUserManager(
+                users,
+                timeout=user_manager_timeout,
+                loop=self.loop
+            )
+
         self.available_connections = AvailableConnections(maximum_connections)
 
     def get_paths(self, connection, path):
