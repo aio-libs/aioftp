@@ -1,3 +1,11 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- fixed throttle bug when slow path io (#20)
+- path io timeouts moved to pathio.py
+- with_timeout decorator for methods
+Thanks to `rsichny <https://github.com/rsichny>`_
+
 0.2.0 (22-09-2015)
 ------------------
 
@@ -9,8 +17,8 @@
 - setup.py support
 - tests via "python setup.py test"
 - "sh" module removed from test requirements
-Thanks to (`rsichny <https://github.com/rsichny>`_) and
-(`jettify <https://github.com/jettify>`_)
+Thanks to `rsichny <https://github.com/rsichny>`_ and
+`jettify <https://github.com/jettify>`_
 
 0.1.7 (03-09-2015)
 ------------------
@@ -33,14 +41,14 @@ Thanks to (`rsichny <https://github.com/rsichny>`_) and
 ------------------
 
 - close data connection after client disconnects
-Thanks to (`rsichny <https://github.com/rsichny>`_)
+Thanks to `rsichny <https://github.com/rsichny>`_
 
 0.1.3 (28-08-2015)
 ------------------
 
 - pep8 "Method definitions inside a class are surrounded by a single blank line"
 - MemoryPathIO.Stats should include st_mode
-Thanks to (`rsichny <https://github.com/rsichny>`_)
+Thanks to `rsichny <https://github.com/rsichny>`_
 
 0.1.2 (11-06-2015)
 ------------------
