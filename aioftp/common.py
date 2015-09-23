@@ -2,9 +2,16 @@ import logging
 import collections
 import time
 import asyncio
+import functools
 
 
-__all__ = ("Throttle", "ThrottleMemory", "end_of_line", "default_block_size")
+__all__ = (
+    "Throttle",
+    "ThrottleMemory",
+    "end_of_line",
+    "default_block_size",
+    "with_timeout"
+)
 
 
 logger = logging.getLogger("aioftp")
@@ -19,6 +26,17 @@ def wrap_with_container(o):
         o = (o,)
 
     return o
+
+
+def with_timeout(f):
+
+    @functools.wraps(f)
+    def wrapper(cls, *args, **kwargs):
+
+        coro = f(cls, *args, **kwargs)
+        return asyncio.wait_for(coro, cls.timeout, loop=cls.loop)
+
+    return wrapper
 
 
 class ThrottleMemory:
