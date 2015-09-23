@@ -6,6 +6,7 @@ import pathlib
 
 from . import errors
 from . import common
+from . import pathio
 
 
 __all__ = ("Client", "Code", "StreamIO")
@@ -146,7 +147,8 @@ class StreamIO:
 class BaseClient:
 
     def __init__(self, *, loop=None, create_connection=None, timeout=None,
-                 read_speed_limit=None, write_speed_limit=None):
+                 read_speed_limit=None, write_speed_limit=None,
+                 path_io_factory=pathio.AsyncPathIO, path_timeout=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
@@ -158,6 +160,9 @@ class BaseClient:
 
         self.read_memory = common.ThrottleMemory(loop)
         self.write_memory = common.ThrottleMemory(loop)
+
+        self.path_timeout = path_timeout
+        self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
     @asyncio.coroutine
     def connect(self, host, port=21):
@@ -751,15 +756,16 @@ class Client(BaseClient):
 
             destination = destination / source.name
 
-        if source.is_file():
+        if (yield from self.path_io.is_file(source)):
 
             yield from self.make_directory(destination.parent)
-            with source.open(mode="rb") as fin:
+            try:
 
+                fin = yield from self.path_io.open(source, mode="rb")
                 stream = yield from self.upload_stream(destination)
                 while True:
 
-                    block = fin.read(block_size)
+                    block = yield from self.path_io.read(fin, block_size)
                     if not block:
 
                         yield from stream.finish()
@@ -767,36 +773,40 @@ class Client(BaseClient):
 
                     yield from stream.write(block)
 
-        elif source.is_dir():
+            finally:
+
+                yield from self.path_io.close(fin)
+
+        elif (yield from self.path_io.is_dir(source)):
 
             yield from self.make_directory(destination)
-            for p in source.rglob("*"):
+            sources = collections.deque([source])
+            while sources:
 
-                if write_into:
+                src = sources.popleft()
+                for path in (yield from self.path_io.list(src)):
 
-                    relative = destination.name / p.relative_to(source)
+                    if write_into:
 
-                else:
+                        relative = destination.name / path.relative_to(source)
 
-                    relative = p.relative_to(source.parent)
+                    else:
 
-                if p.is_dir():
+                        relative = path.relative_to(source.parent)
 
-                    yield from self.make_directory(relative)
+                    if (yield from self.path_io.is_dir(path)):
 
-                else:
+                        yield from self.make_directory(relative)
+                        sources.append(path)
 
-                    yield from self.make_directory(relative.parent)
-                    with p.open(mode="rb") as fin:
+                    else:
 
-                        stream = yield from self.upload_stream(relative)
-                        while True:
-
-                            block = fin.read(block_size)
-                            if not block:
-
-                                yield from stream.finish()
-                                break
+                        yield from self.upload(
+                            path,
+                            relative,
+                            write_into=True,
+                            block_size=block_size
+                        )
 
     @asyncio.coroutine
     def download_stream(self, source):
@@ -843,11 +853,12 @@ class Client(BaseClient):
 
         if (yield from self.is_file(source)):
 
-            if not destination.parent.exists():
+            if not (yield from self.path_io.exists(destination.parent)):
 
-                destination.parent.mkdir()
+                yield from self.path_io.mkdir(destination.parent)
 
-            with destination.open(mode="wb") as fout:
+            fout = yield from self.path_io.open(destination, mode="wb")
+            try:
 
                 stream = yield from self.download_stream(source)
                 while True:
@@ -858,31 +869,35 @@ class Client(BaseClient):
                         yield from stream.finish()
                         break
 
-                    fout.write(block)
+                    yield from self.path_io.write(fout, block)
+
+            finally:
+
+                yield from self.path_io.close(fout)
 
         elif (yield from self.is_dir(source)):
 
-            if not destination.exists():
+            if not (yield from self.path_io.exists(destination)):
 
-                destination.mkdir(parents=True)
+                yield from self.path_io.mkdir(destination, parents=True)
 
             for name, info in (yield from self.list(source, recursive=True)):
 
                 full = destination / name.relative_to(source)
-                if info["type"] == "file":
+                if info["type"] == "dir":
 
-                    with full.open(mode="wb") as fout:
+                    if not (yield from self.path_io.exists(full)):
 
-                        stream = yield from self.download_stream(name)
-                        while True:
+                        yield from self.path_io.mkdir(full, parents=True)
 
-                            block = yield from stream.read(block_size)
-                            if not block:
+                elif info["type"] == "file":
 
-                                yield from stream.finish()
-                                break
-
-                            fout.write(block)
+                    yield from self.download(
+                        name,
+                        full,
+                        write_into=True,
+                        block_size=block_size
+                    )
 
                 elif info["type"] == "dir":
 
