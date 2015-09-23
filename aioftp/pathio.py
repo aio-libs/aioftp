@@ -5,6 +5,8 @@ import operator
 import io
 import time
 
+from .common import with_timeout
+
 
 __all__ = (
     "AbstractPathIO",
@@ -18,12 +20,16 @@ class AbstractPathIO:
     """
     Abstract class for path io operations.
 
+    :param timeout: timeout used by `with_timeout` decorator
+    :type timeout: :py:class:`float`, :py:class:`int` or `None`
+
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
-    def __init__(self, loop=None):
+    def __init__(self, *, timeout=None, loop=None):
 
+        self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
     @asyncio.coroutine
@@ -286,37 +292,44 @@ class AsyncPathIO(AbstractPathIO):
     :py:class:`pathlib.Path` methods.
     """
 
+    @with_timeout
     @asyncio.coroutine
     def exists(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.exists))
 
+    @with_timeout
     @asyncio.coroutine
     def is_dir(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.is_dir))
 
+    @with_timeout
     @asyncio.coroutine
     def is_file(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.is_file))
 
+    @with_timeout
     @asyncio.coroutine
     def mkdir(self, path, *, parents=False):
 
         f = functools.partial(path.mkdir, parents=parents)
         return (yield from self.loop.run_in_executor(None, f))
 
+    @with_timeout
     @asyncio.coroutine
     def rmdir(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.rmdir))
 
+    @with_timeout
     @asyncio.coroutine
     def unlink(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.unlink))
 
+    @with_timeout
     @asyncio.coroutine
     def list(self, path):
 
@@ -326,33 +339,39 @@ class AsyncPathIO(AbstractPathIO):
 
         return (yield from self.loop.run_in_executor(None, worker, "*"))
 
+    @with_timeout
     @asyncio.coroutine
     def stat(self, path):
 
         return (yield from self.loop.run_in_executor(None, path.stat))
 
+    @with_timeout
     @asyncio.coroutine
     def open(self, path, *args, **kwargs):
 
         f = functools.partial(path.open, *args, **kwargs)
         return (yield from self.loop.run_in_executor(None, f))
 
+    @with_timeout
     @asyncio.coroutine
     def write(self, file, data):
 
         return (yield from self.loop.run_in_executor(None, file.write, data))
 
+    @with_timeout
     @asyncio.coroutine
     def read(self, file, *args, **kwargs):
 
         f = functools.partial(file.read, *args, **kwargs)
         return (yield from self.loop.run_in_executor(None, f))
 
+    @with_timeout
     @asyncio.coroutine
     def close(self, file):
 
         return (yield from self.loop.run_in_executor(None, file.close))
 
+    @with_timeout
     @asyncio.coroutine
     def rename(self, source, destination):
 
@@ -400,9 +419,9 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, loop=None):
+    def __init__(self, *, timeout=None, loop=None):
 
-        super().__init__(loop)
+        super().__init__(timeout=timeout, loop=loop)
         self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):
