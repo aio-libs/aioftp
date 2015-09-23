@@ -22,6 +22,8 @@ __all__ = (
     "PathConditions",
     "PathPermissions",
     "Server",
+    "AbstractUserManager",
+    "MemoryUserManager",
 )
 
 
@@ -146,13 +148,29 @@ class User:
         )
 
 
-class UserManager:
+class AbstractUserManager:
     """
     Abstract user manager.
+
+    :param users: list of users
+    :type users: :py:class:`list` or :py:class:`tuple` of
+        :py:class:`aioftp.User`
+
+    :param timeout: timeout used by `with_timeout` decorator
+    :type timeout: :py:class:`float`, :py:class:`int` or `None`
+
+    :param loop: loop to use
+    :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
+    def __init__(self, users, *, timeout=None, loop=None):
+
+        self.users = users or [User()]
+        self.timeout = timeout
+        self.loop = loop or asyncio.get_event_loop()
+
     @asyncio.coroutine
-    def get_user(self, login):
+    def get_user(self, login, *, timeout=None, loop=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -194,14 +212,14 @@ class UserManager:
         pass
 
 
-class MemoryUserManager(UserManager):
+class MemoryUserManager(AbstractUserManager):
     """
     A built-in user manager that keeps predefined set of users in memory.
     """
 
-    def __init__(self, users):
+    def __init__(self, *args, **kwargs):
 
-        self.users = users or [User()]
+        super().__init__(*args, **kwargs)
         self.available_connections = dict(
             (user, AvailableConnections(user.maximum_connections))
             for user in self.users
@@ -875,12 +893,8 @@ class PathConditions:
             real_path, virtual_path = cls.get_paths(connection, rest)
             for name, fail, message in self.conditions:
 
-                result = yield from asyncio.wait_for(
-                    getattr(connection.path_io, name)(real_path),
-                    connection.path_timeout,
-                    loop=connection.loop
-                )
-                if result == fail:
+                coro = getattr(connection.path_io, name)
+                if (yield from coro(real_path)) == fail:
 
                     connection.response("550", message)
                     return True
@@ -942,7 +956,8 @@ class Server(BaseServer):
 
     :param users: list of users or user manager object
     :type users: :py:class:`tuple` or :py:class:`list` of
-        :py:class:`aioftp.User` or :py:class:`aioftp.server.UserManager`
+        :py:class:`aioftp.User` or
+        :py:class:`aioftp.server.AbstractUserManager`
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -954,11 +969,6 @@ class Server(BaseServer):
     :type socket_timeout: :py:class:`float`, :py:class:`int` or
         :py:class:`None`
 
-    :param path_timeout: timeout for path-related operations (make directory,
-        unlink file, etc.)
-    :type path_timeout: :py:class:`float`, :py:class:`int` or
-        :py:class:`None`
-
     :param idle_timeout: timeout for socket read operations, another
         words: how long user can keep silence without sending commands
     :type idle_timeout: :py:class:`float`, :py:class:`int` or
@@ -968,8 +978,20 @@ class Server(BaseServer):
     :type wait_future_timeout: :py:class:`float`, :py:class:`int` or
         :py:class:`None`
 
+    :param path_timeout: timeout for path-related operations (make directory,
+        unlink file, etc.)
+    :type path_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
+
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
+
+    :param user_manager_timeout: timeout for user manager operations
+    :type user_manager_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
+
+    :param user_manager_factory: user manager factory
+    :type user_manager_factory: :py:class:`aioftp.AbstractUserManager`
 
     :param maximum_connections: Maximum command connections per server
     :type maximum_connections: :py:class:`int`
@@ -980,23 +1002,38 @@ class Server(BaseServer):
         ("st_ctime", "Create"),
     )
 
-    def __init__(self, users=None, *, loop=None,
-                 block_size=common.default_block_size, socket_timeout=None,
-                 path_timeout=None, idle_timeout=None, wait_future_timeout=1,
-                 path_io_factory=pathio.AsyncPathIO, maximum_connections=None):
-
-        if isinstance(users, UserManager):
-            self.user_manager = users
-        else:
-            self.user_manager = MemoryUserManager(users)
+    def __init__(self,
+                 users=None,
+                 *,
+                 loop=None,
+                 block_size=common.default_block_size,
+                 socket_timeout=None,
+                 idle_timeout=None,
+                 wait_future_timeout=1,
+                 path_timeout=None,
+                 path_io_factory=pathio.AsyncPathIO,
+                 user_manager_timeout=None,
+                 user_manager_factory=MemoryUserManager,
+                 maximum_connections=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
-        self.path_timeout = path_timeout
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
-        self.path_io = path_io_factory(self.loop)
+
+        self.path_timeout = path_timeout
+        self.path_io = path_io_factory(
+            timeout=self.path_timeout,
+            loop=self.loop
+        )
+
+        self.user_manager_timeout = user_manager_timeout
+        self.user_manager = user_manager_factory(
+            users,
+            timeout=self.user_manager_timeout,
+            loop=self.loop
+        )
 
         self.maximum_connections = maximum_connections
         self.available_connections = AvailableConnections(maximum_connections)
@@ -1127,11 +1164,7 @@ class Server(BaseServer):
     def mkd(self, connection, rest):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        yield from asyncio.wait_for(
-            connection.path_io.mkdir(real_path, parents=True),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        yield from connection.path_io.mkdir(real_path, parents=True)
         connection.response("257", "")
         return True
 
@@ -1144,11 +1177,7 @@ class Server(BaseServer):
     def rmd(self, connection, rest):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        yield from asyncio.wait_for(
-            connection.path_io.rmdir(real_path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        yield from connection.path_io.rmdir(real_path)
         connection.response("250", "")
         return True
 
@@ -1156,15 +1185,11 @@ class Server(BaseServer):
     def build_mlsx_string(self, connection, path):
 
         stats = {}
-        if (yield from asyncio.wait_for(connection.path_io.is_file(path),
-                                        connection.path_timeout,
-                                        loop=connection.loop)):
+        if (yield from connection.path_io.is_file(path)):
 
             stats["Type"] = "file"
 
-        elif (yield from asyncio.wait_for(connection.path_io.is_dir(path),
-                                          connection.path_timeout,
-                                          loop=connection.loop)):
+        elif (yield from connection.path_io.is_dir(path)):
 
             stats["Type"] = "dir"
 
@@ -1172,11 +1197,7 @@ class Server(BaseServer):
 
             raise errors.PathIsNotFileOrDir(path)
 
-        raw = yield from asyncio.wait_for(
-            connection.path_io.stat(path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        raw = yield from connection.path_io.stat(path)
         for attr, fact in Server.path_facts:
 
             stats[fact] = getattr(raw, attr)
@@ -1209,12 +1230,7 @@ class Server(BaseServer):
             del connection.data_connection
             with contextlib.closing(data_writer) as data_writer:
 
-                paths = yield from asyncio.wait_for(
-                    connection.path_io.list(real_path),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
-                for path in paths:
+                for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_mlsx_string(connection, path)
                     message = s + common.end_of_line
@@ -1237,18 +1253,10 @@ class Server(BaseServer):
     def build_list_string(self, connection, path):
 
         fields = []
-        is_dir = yield from asyncio.wait_for(
-            connection.path_io.is_dir(path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        is_dir = yield from connection.path_io.is_dir(path)
         dir_flag = "d" if is_dir else "-"
 
-        stats = yield from asyncio.wait_for(
-            connection.path_io.stat(path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        stats = yield from connection.path_io.stat(path)
         default = list("xwr") * 3
         for i in range(9):
 
@@ -1288,13 +1296,7 @@ class Server(BaseServer):
             del connection.data_connection
             with contextlib.closing(data_writer) as data_writer:
 
-                paths = yield from asyncio.wait_for(
-                    connection.path_io.list(real_path),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
-
-                for path in paths:
+                for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_list_string(connection, path)
                     message = s + common.end_of_line
@@ -1347,11 +1349,7 @@ class Server(BaseServer):
         rename_from = connection.rename_from
         del connection.rename_from
 
-        yield from asyncio.wait_for(
-            connection.path_io.rename(rename_from, real_path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        yield from connection.path_io.rename(rename_from, real_path)
         connection.response("250", "")
         return True
 
@@ -1364,11 +1362,7 @@ class Server(BaseServer):
     def dele(self, connection, rest):
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        yield from asyncio.wait_for(
-            connection.path_io.unlink(real_path),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
+        yield from connection.path_io.unlink(real_path)
         connection.response("250", "")
         return True
 
@@ -1391,18 +1385,10 @@ class Server(BaseServer):
             del connection.data_connection
             try:
 
-                fout = yield from asyncio.wait_for(
-                    connection.path_io.open(real_path, mode=mode),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
+                fout = yield from connection.path_io.open(real_path, mode=mode)
                 while True:
 
-                    data = yield from asyncio.wait_for(
-                        data_reader.read(connection.block_size),
-                        connection.socket_timeout,
-                        loop=connection.loop,
-                    )
+                    data = yield from data_reader.read(connection.block_size)
                     if not data:
 
                         info = "data transfer done"
@@ -1414,31 +1400,18 @@ class Server(BaseServer):
                         info = "data transfer aborted"
                         break
 
-                    yield from asyncio.wait_for(
-                        connection.path_io.write(fout, data),
-                        connection.path_timeout,
-                        loop=connection.loop,
-                    )
+                    yield from connection.path_io.write(fout, data)
 
             finally:
 
                 data_writer.close()
-                yield from asyncio.wait_for(
-                    connection.path_io.close(fout),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
+                yield from connection.path_io.close(fout)
 
             connection.response("226", info)
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        parent_is_dir = yield from asyncio.wait_for(
-            connection.path_io.is_dir(real_path.parent),
-            connection.path_timeout,
-            loop=connection.loop,
-        )
-        if parent_is_dir:
+        if (yield from connection.path_io.is_dir(real_path.parent)):
 
             connection.extra_workers.add(stor_worker(self, connection, rest))
             code, info = "150", "data transfer started"
@@ -1472,17 +1445,12 @@ class Server(BaseServer):
             del connection.data_connection
             try:
 
-                fin = yield from asyncio.wait_for(
-                    connection.path_io.open(real_path, mode="rb"),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
+                fin = yield from connection.path_io.open(real_path, mode="rb")
                 while True:
 
-                    data = yield from asyncio.wait_for(
-                        connection.path_io.read(fin, connection.block_size),
-                        connection.path_timeout,
-                        loop=connection.loop,
+                    data = yield from connection.path_io.read(
+                        fin,
+                        connection.block_size
                     )
                     if not data:
 
@@ -1505,11 +1473,7 @@ class Server(BaseServer):
             finally:
 
                 data_writer.close()
-                yield from asyncio.wait_for(
-                    connection.path_io.close(fin),
-                    connection.path_timeout,
-                    loop=connection.loop,
-                )
+                yield from connection.path_io.close(fin)
 
             connection.response("226", info)
             return True
