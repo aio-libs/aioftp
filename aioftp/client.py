@@ -899,12 +899,6 @@ class Client(BaseClient):
                         block_size=block_size
                     )
 
-                elif info["type"] == "dir":
-
-                    if not full.exists():
-
-                        full.mkdir(parents=True)
-
     @asyncio.coroutine
     def quit(self):
         """
