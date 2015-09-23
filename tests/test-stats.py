@@ -161,7 +161,7 @@ def test_not_a_file_or_dir(loop, client, server):
 
     yield from server.build_mlsx_string(
         aioftp.Connection(
-            path_io=NotFileOrDirPathIO(loop),
+            path_io=NotFileOrDirPathIO(loop=loop),
             path_timeout=None,
             loop=loop,
         ),

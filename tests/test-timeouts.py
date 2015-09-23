@@ -2,6 +2,7 @@ import nose
 import contextlib
 
 import aioftp.client
+import aioftp
 from common import *
 
 
@@ -19,6 +20,7 @@ def test_idle_timeout(loop, client, server):
 
 class SlowMemoryPathIO(aioftp.MemoryPathIO):
 
+    @aioftp.with_timeout
     @asyncio.coroutine
     def mkdir(self, path, parents=False):
 
