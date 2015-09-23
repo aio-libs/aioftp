@@ -158,8 +158,8 @@ class BaseClient:
         self.read_speed_limit = read_speed_limit
         self.write_speed_limit = write_speed_limit
 
-        self.read_memory = common.ThrottleMemory(loop)
-        self.write_memory = common.ThrottleMemory(loop)
+        self.read_memory = common.ThrottleMemory(loop=loop)
+        self.write_memory = common.ThrottleMemory(loop=loop)
 
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)

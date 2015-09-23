@@ -1,6 +1,5 @@
 import logging
 import collections
-import time
 import asyncio
 import functools
 
@@ -41,7 +40,7 @@ def with_timeout(f):
 
 class ThrottleMemory:
 
-    def __init__(self, loop):
+    def __init__(self, *, loop):
 
         self.end = 0
         self.loop = loop
@@ -71,6 +70,7 @@ class Throttle:
     def read(self, count=default_block_size):
 
         if self.throttle is not None:
+
             yield from self._lock
 
         data = yield from self.stream.read(count)
@@ -78,7 +78,7 @@ class Throttle:
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
-            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
+            self.loop.call_later(self.memory.timeout(), self._lock.release)
 
         return data
 
@@ -93,7 +93,7 @@ class Throttle:
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
-            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
+            self.loop.call_later(self.memory.timeout(), self._lock.release)
 
         return data
 
@@ -108,12 +108,14 @@ class Throttle:
     def drain(self):
 
         if self.throttle is not None:
+
             yield from self._lock
 
         yield from self.stream.drain()
 
         if self.throttle is not None:
-            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
+
+            self.loop.call_later(self.memory.timeout(), self._lock.release)
 
     def __getattr__(self, name):
 
