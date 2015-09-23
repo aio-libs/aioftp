@@ -23,19 +23,20 @@ def wrap_with_container(o):
 
 class ThrottleMemory:
 
-    def __init__(self):
+    def __init__(self, loop):
 
         self.end = 0
+        self.loop = loop
 
     def append(self, data, throttle):
 
         count = len(data)
-        now = time.perf_counter()
+        now = self.loop.time()
         self.end = max(now, self.end) + count / throttle
 
     def timeout(self):
 
-        return max(0, self.end - time.perf_counter())
+        return max(0, self.end - self.loop.time())
 
 
 class Throttle:
@@ -45,27 +46,36 @@ class Throttle:
         self.stream = stream
         self.loop = loop
         self.throttle = throttle
-        self.memory = memory or ThrottleMemory()
+        self.memory = memory or ThrottleMemory(loop)
+        self._lock = asyncio.Lock(loop=loop)
 
     @asyncio.coroutine
     def read(self, count=default_block_size):
 
+        if self.throttle is not None:
+            yield from self._lock
+
         data = yield from self.stream.read(count)
+
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
-            yield from asyncio.sleep(self.memory.timeout(), loop=self.loop)
+            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
 
         return data
 
     @asyncio.coroutine
     def readline(self):
 
+        if self.throttle is not None:
+            yield from self._lock
+
         data = yield from self.stream.readline()
+
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
-            yield from asyncio.sleep(self.memory.timeout(), loop=self.loop)
+            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
 
         return data
 
@@ -79,10 +89,13 @@ class Throttle:
     @asyncio.coroutine
     def drain(self):
 
-        yield from self.stream.drain()
         if self.throttle is not None:
+            yield from self._lock
 
-            yield from asyncio.sleep(self.memory.timeout(), loop=self.loop)
+        yield from self.stream.drain()
+
+        if self.throttle is not None:
+            self.loop.call_later(self.memory.timeout(), lambda: self._lock.release())
 
     def __getattr__(self, name):
 

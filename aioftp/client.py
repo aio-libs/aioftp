@@ -156,8 +156,8 @@ class BaseClient:
         self.read_speed_limit = read_speed_limit
         self.write_speed_limit = write_speed_limit
 
-        self.read_memory = common.ThrottleMemory()
-        self.write_memory = common.ThrottleMemory()
+        self.read_memory = common.ThrottleMemory(loop)
+        self.write_memory = common.ThrottleMemory(loop)
 
     @asyncio.coroutine
     def connect(self, host, port=21):
