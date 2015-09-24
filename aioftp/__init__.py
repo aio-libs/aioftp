@@ -1,10 +1,10 @@
 """ftp client/server for asyncio"""
 
-from .client import *
-from .server import *
-from .errors import *
-from .common import *
-from .pathio import *
+from .client import *  # noqa
+from .server import *  # noqa
+from .errors import *  # noqa
+from .common import *  # noqa
+from .pathio import *  # noqa
 
 __version__ = "0.2.0"
 version = tuple(map(int, str.split(__version__, ".")))
