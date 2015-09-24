@@ -30,15 +30,31 @@ def wrap_with_container(o):
     return o
 
 
-def with_timeout(f):
+def _with_timeout(name):
 
-    @functools.wraps(f)
-    def wrapper(cls, *args, **kwargs):
+    def decorator(f):
 
-        coro = f(cls, *args, **kwargs)
-        return asyncio.wait_for(coro, cls.timeout, loop=cls.loop)
+        @functools.wraps(f)
+        def wrapper(cls, *args, **kwargs):
 
-    return wrapper
+            coro = f(cls, *args, **kwargs)
+            timeout = getattr(cls, name)
+            return asyncio.wait_for(coro, timeout, loop=cls.loop)
+
+        return wrapper
+
+    return decorator
+
+
+def with_timeout(name):
+
+    if isinstance(name, str):
+
+        return _with_timeout(name)
+
+    else:
+
+        return _with_timeout("timeout")(name)
 
 
 class ThrottleMemory:
@@ -154,21 +170,31 @@ class StreamIO:
     :param writer: stream writer
     :type writer: :py:class:`asyncio.StreamWriter`
 
-    :param timeout: socket timeout for operations
+    :param timeout: socket timeout for read/write operations
     :type timeout: :py:class:`int`, :py:class:`float` or `None`
+
+    :param read_timeout: socket timeout for read operations, overrides
+        `timeout`
+    :type read_timeout: :py:class:`int`, :py:class:`float` or `None`
+
+    :param write_timeout: socket timeout for write operations, overrides
+        `timeout`
+    :type write_timeout: :py:class:`int`, :py:class:`float` or `None`
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
-    def __init__(self, reader, writer, *, timeout=None, loop):
+    def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
+                 write_timeout=None, loop):
 
         self.reader = reader
         self.writer = writer
-        self.timeout = timeout
+        self.read_timeout = read_timeout or timeout
+        self.write_timeout = write_timeout or timeout
         self.loop = loop
 
-    @with_timeout
+    @with_timeout("read_timeout")
     @asyncio.coroutine
     def readline(self):
         """
@@ -178,7 +204,7 @@ class StreamIO:
         """
         return (yield from self.reader.readline())
 
-    @with_timeout
+    @with_timeout("read_timeout")
     @asyncio.coroutine
     def read(self, count=default_block_size):
         """
@@ -191,7 +217,7 @@ class StreamIO:
         """
         return (yield from self.reader.read(count))
 
-    @with_timeout
+    @with_timeout("write_timeout")
     @asyncio.coroutine
     def write(self, data):
         """
