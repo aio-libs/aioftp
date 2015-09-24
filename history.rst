@@ -4,6 +4,8 @@ x.x.x (xx-xx-xxxx)
 - fixed throttle bug when slow path io (#20)
 - path io timeouts moved to pathio.py
 - with_timeout decorator for methods
+- StreamIO deals with timeouts
+- all socket streams are StreamIO since now
 Thanks to `rsichny <https://github.com/rsichny>`_
 
 0.2.0 (22-09-2015)
