@@ -1,5 +1,4 @@
 import logging
-import collections
 import asyncio
 import functools
 
@@ -63,7 +62,7 @@ class Throttle:
         self.stream = stream
         self.loop = loop
         self.throttle = throttle
-        self.memory = memory or ThrottleMemory(loop)
+        self.memory = memory or ThrottleMemory(loop=loop)
         self._lock = asyncio.Lock(loop=loop)
 
     @asyncio.coroutine

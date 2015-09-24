@@ -2,7 +2,6 @@ import asyncio
 import pathlib
 import functools
 import contextlib
-import inspect
 import datetime
 import socket
 import collections
@@ -355,7 +354,7 @@ class Connection(collections.defaultdict):
 
             if self[name].done():
 
-                self[name] = self.default_factory()
+                self[name] = super().default_factory()
 
             self[name].set_result(value)
 
