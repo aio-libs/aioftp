@@ -26,6 +26,12 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
 
         yield from asyncio.sleep(10, loop=self.loop)
 
+    @aioftp.with_timeout
+    @asyncio.coroutine
+    def open(self, path, mode):
+
+        yield from asyncio.sleep(10, loop=self.loop)
+
 
 @nose.tools.raises(ConnectionResetError)
 @aioftp_setup(
@@ -36,10 +42,40 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
             "path_io_factory": SlowMemoryPathIO,
         }))
 @with_connection
-def test_path_timeout(loop, client, server):
+def test_server_path_timeout(loop, client, server):
 
     yield from client.login()
     yield from client.make_directory("foo")
+
+
+@nose.tools.raises(asyncio.TimeoutError)
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path="tests/foo", home_path="/"),)],
+        {}),
+    client_args=(
+        [],
+        {
+            "path_timeout": 1,
+            "path_io_factory": SlowMemoryPathIO,
+        }))
+@with_connection
+@with_tmp_dir("foo")
+def test_client_path_timeout(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo.txt"
+    with f.open("wb") as fout:
+
+        fout.write(b"-" * 1024)
+
+    yield from client.login()
+    try:
+
+        yield from client.download("foo.txt", "/foo.txt", write_into=True)
+
+    finally:
+
+        f.unlink()
 
 
 @aioftp_setup(
@@ -202,6 +238,33 @@ def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
     f.unlink()
 
     nose.tools.eq_(b, rb)
+
+
+class SlowServer(aioftp.Server):
+
+    @asyncio.coroutine
+    def dispatcher(self, reader, writer):
+
+        yield from asyncio.sleep(10, loop=self.loop)
+
+
+@nose.tools.raises(asyncio.TimeoutError)
+def test_client_socket_timeout():
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(None)
+
+    server = SlowServer(loop=loop)
+    client = aioftp.Client(loop=loop, socket_timeout=1)
+
+    @asyncio.coroutine
+    def coro():
+
+        yield from server.start(None, 8888)
+        yield from client.connect("127.0.0.1", 8888)
+        yield from asyncio.sleep(10, loop=loop)
+
+    loop.run_until_complete(coro())
 
 
 if __name__ == "__main__":

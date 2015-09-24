@@ -8,7 +8,12 @@ from . import common
 from . import pathio
 
 
-__all__ = ("Client", "Code", "StreamIO")
+__all__ = (
+    "Client",
+    "Code",
+    "StreamIO",
+    "DataConnectionStreamIO",
+)
 
 
 def add_prefix(message):
@@ -66,22 +71,27 @@ class StreamIO:
     """
     Stream input/output wrapper.
 
-    :param client: aioftp client
-    :type client: :py:class:`aioftp.Client`
-
     :param reader: stream reader
     :type reader: :py:class:`asyncio.StreamReader`
 
     :param writer: stream writer
     :type writer: :py:class:`asyncio.StreamWriter`
+
+    :param timeout: socket timeout for operations
+    :type timeout: :py:class:`int`, :py:class:`float` or `None`
+
+    :param loop: loop to use for creating connection and binding with streams
+    :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
-    def __init__(self, client, reader, writer):
+    def __init__(self, reader, writer, *, timeout=None, loop):
 
-        self.client = client
         self.reader = reader
         self.writer = writer
+        self.timeout = timeout
+        self.loop = loop
 
+    @common.with_timeout
     @asyncio.coroutine
     def readline(self):
         """
@@ -91,6 +101,7 @@ class StreamIO:
         """
         return (yield from self.reader.readline())
 
+    @common.with_timeout
     @asyncio.coroutine
     def read(self, count=common.default_block_size):
         """
@@ -103,6 +114,7 @@ class StreamIO:
         """
         return (yield from self.reader.read(count))
 
+    @common.with_timeout
     @asyncio.coroutine
     def write(self, data):
         """
@@ -116,6 +128,31 @@ class StreamIO:
         """
         self.writer.write(data)
         yield from self.writer.drain()
+
+    def close(self):
+        """
+        Close connection.
+        """
+        self.writer.close()
+
+
+class DataConnectionStreamIO(StreamIO):
+    """
+    Add `finish` method to :py:class:`aioftp.StreamIO`, which is specific for
+        data connection. This requires `client`.
+
+    :param client: client class, which have :py:meth:`aioftp.Client.command`
+    :type client: :py:class:`aioftp.BaseClient`
+
+    :param *args: positional arguments passed to :py:class:`aioftp.StreamIO`
+
+    :param **kwargs: keyword arguments passed to :py:class:`aioftp.StreamIO`
+    """
+
+    def __init__(self, client, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.client = client
 
     @asyncio.coroutine
     def finish(self, expected_codes="2xx", wait_codes="1xx"):
@@ -136,23 +173,23 @@ class StreamIO:
         self.close()
         yield from self.client.command(None, expected_codes, wait_codes)
 
-    def close(self):
-        """
-        Close connection.
-        """
-        self.writer.close()
-
 
 class BaseClient:
 
-    def __init__(self, *, loop=None, create_connection=None, timeout=None,
-                 read_speed_limit=None, write_speed_limit=None,
-                 path_io_factory=pathio.AsyncPathIO, path_timeout=None):
+    def __init__(self,
+                 *,
+                 loop=None,
+                 create_connection=None,
+                 socket_timeout=None,
+                 read_speed_limit=None,
+                 write_speed_limit=None,
+                 path_io_factory=pathio.AsyncPathIO,
+                 path_timeout=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
-        self.timeout = timeout
+        self.socket_timeout = socket_timeout
 
         self.read_speed_limit = read_speed_limit
         self.write_speed_limit = write_speed_limit
@@ -166,7 +203,7 @@ class BaseClient:
     @asyncio.coroutine
     def connect(self, host, port=21):
 
-        self.reader, self.writer = yield from open_connection(
+        reader, writer = yield from open_connection(
             host,
             port,
             self.loop,
@@ -176,12 +213,18 @@ class BaseClient:
             write_speed_limit=self.write_speed_limit,
             write_memory=self.write_memory
         )
+        self.stream = StreamIO(
+            reader,
+            writer,
+            timeout=self.socket_timeout,
+            loop=self.loop
+        )
 
     def close(self):
         """
         Close connection.
         """
-        self.writer.close()
+        self.stream.close()
 
     @asyncio.coroutine
     def parse_line(self):
@@ -198,14 +241,10 @@ class BaseClient:
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
         """
-        line = yield from asyncio.wait_for(
-            self.reader.readline(),
-            self.timeout,
-            loop=self.loop,
-        )
+        line = yield from self.stream.readline()
         if not line:
 
-            self.writer.close()
+            self.stream.close()
             raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
@@ -293,8 +332,7 @@ class BaseClient:
 
             common.logger.info(add_prefix(command))
             message = command + common.end_of_line
-            self.writer.write(str.encode(message, encoding="utf-8"))
-            yield from self.writer.drain()
+            yield from self.stream.write(str.encode(message, encoding="utf-8"))
 
         if expected_codes or wait_codes:
 
@@ -952,7 +990,13 @@ class Client(BaseClient):
         """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
-        stream = StreamIO(self, reader, writer)
+        stream = DataConnectionStreamIO(
+            self,
+            reader,
+            writer,
+            timeout=self.socket_timeout,
+            loop=self.loop
+        )
         return stream
 
     @asyncio.coroutine
