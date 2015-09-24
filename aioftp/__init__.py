@@ -15,5 +15,5 @@ __all__ = (
     errors.__all__ +
     common.__all__ +
     pathio.__all__ +
-    ('version', '__version__')
+    ("version", "__version__")
 )
