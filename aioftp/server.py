@@ -412,7 +412,7 @@ class AvailableConnections:
                 raise ValueError("Too much releases")
 
 
-class BaseServer:
+class AbstractServer:
 
     @asyncio.coroutine
     def start(self, host=None, port=0, **kw):
@@ -540,7 +540,7 @@ class BaseServer:
         return str.lower(cmd), rest
 
     @asyncio.coroutine
-    def response_writer(self, connection, response_queue):
+    def response_writer(self, stream, response_queue):
         """
         :py:func:`asyncio.coroutine`
 
@@ -548,14 +548,11 @@ class BaseServer:
         from queue, this is for right order of responses. Exits if received
         `None`.
 
-        :param connection:
-        :type connection: :py:class:`aioftp.Connection`
+        :param stream: command connection stream
+        :type connection: :py:class:`aioftp.StreamIO`
 
         :param response_queue:
         :type response_queue: :py:class:`asyncio.Queue`
-
-        :return: :py:meth:`aioftp.Server.write_response` coroutine
-        :rtype: :py:func:`asyncio.coroutine`
         """
         while True:
 
@@ -564,145 +561,10 @@ class BaseServer:
 
                 break
 
-            stream = connection.command_connection
             yield from self.write_response(stream, *args)
-
-    def _generate_tasks(self, connection, pending):
-
-        for o in pending | connection.extra_workers:
-
-            if asyncio.iscoroutine(o):
-
-                yield connection.loop.create_task(o)
-
-            else:
-
-                yield o
-
-        connection.extra_workers.clear()
 
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
-
-        host, port = writer.transport.get_extra_info("peername", ("", ""))
-        message = str.format("new connection from {}:{}", host, port)
-        logger.info(add_prefix(message))
-
-        # throttle here
-        key = stream = StreamIO(
-            reader,
-            writer,
-            read_timeout=self.idle_timeout,
-            write_timeout=self.socket_timeout,
-            loop=self.loop
-        )
-        response_queue = asyncio.Queue(loop=self.loop)
-        connection = Connection(
-            client_host=host,
-            client_port=port,
-            server_host=self.server_host,
-            server_port=self.server_port,
-            command_connection=stream,
-            socket_timeout=self.socket_timeout,
-            idle_timeout=self.idle_timeout,
-            wait_future_timeout=self.wait_future_timeout,
-            block_size=self.block_size,
-            path_io=self.path_io,
-            loop=self.loop,
-            extra_workers=set(),
-            response=lambda *args: response_queue.put_nowait(args),
-            acquired=False,
-            _dispatcher=asyncio.Task.current_task(loop=self.loop),
-        )
-
-        pending = {
-            self.greeting(connection, ""),
-            self.response_writer(connection, response_queue),
-            self.parse_command(stream),
-        }
-        self.connections[key] = connection
-
-        try:
-
-            ok = True
-            while ok or not response_queue.empty():
-
-                pending = set(self._generate_tasks(connection, pending))
-                done, pending = yield from asyncio.wait(
-                    pending,
-                    return_when=concurrent.futures.FIRST_COMPLETED,
-                    loop=connection.loop
-                )
-                for task in done:
-
-                    result = task.result()
-
-                    # this is "command" result
-                    if isinstance(result, bool):
-
-                        ok = result
-                        if not ok:
-
-                            # bad solution, but have no better ideas right now
-                            connection.response(None)
-                            break
-
-                    # this is parse_command result
-                    else:
-
-                        pending.add(self.parse_command(stream))
-
-                        cmd, rest = result
-                        if cmd == "pass":
-
-                            # is there a better solution?
-                            cmd = "pass_"
-
-                        if hasattr(self, cmd):
-
-                            pending.add(getattr(self, cmd)(connection, rest))
-
-                        else:
-
-                            message = str.format("'{}' not implemented", cmd)
-                            connection.response("502", message)
-
-        finally:
-
-            message = str.format("closing connection from {}:{}", host, port)
-            logger.info(add_prefix(message))
-
-            if not connection.loop.is_closed():
-
-                for task in pending:
-
-                    if isinstance(task, asyncio.Task):
-
-                        task.cancel()
-
-                if connection.future.passive_server.done():
-
-                    connection.passive_server.close()
-
-                if connection.future.data_connection.done():
-
-                    r, w = connection.data_connection
-                    w.close()
-
-                stream.close()
-
-            if connection.acquired:
-
-                self.available_connections.release()
-
-            if connection.future.user.done():
-
-                yield from self.user_manager.notify_logout(connection.user)
-
-            self.connections.pop(key)
-
-    @asyncio.coroutine
-    def greeting(self, connection, rest):
 
         raise NotImplementedError
 
@@ -901,7 +763,7 @@ class PathPermissions:
         return wrapper
 
 
-class Server(BaseServer):
+class Server(AbstractServer):
     """
     FTP server.
 
@@ -987,6 +849,139 @@ class Server(BaseServer):
             )
 
         self.available_connections = AvailableConnections(maximum_connections)
+
+    def _generate_tasks(self, connection, pending):
+
+        for o in pending | connection.extra_workers:
+
+            if asyncio.iscoroutine(o):
+
+                yield connection.loop.create_task(o)
+
+            else:
+
+                yield o
+
+        connection.extra_workers.clear()
+
+    @asyncio.coroutine
+    def dispatcher(self, reader, writer):
+
+        host, port = writer.transport.get_extra_info("peername", ("", ""))
+        message = str.format("new connection from {}:{}", host, port)
+        logger.info(add_prefix(message))
+
+        # throttle here
+        key = stream = StreamIO(
+            reader,
+            writer,
+            read_timeout=self.idle_timeout,
+            write_timeout=self.socket_timeout,
+            loop=self.loop
+        )
+        response_queue = asyncio.Queue(loop=self.loop)
+        connection = Connection(
+            client_host=host,
+            client_port=port,
+            server_host=self.server_host,
+            server_port=self.server_port,
+            command_connection=stream,
+            socket_timeout=self.socket_timeout,
+            idle_timeout=self.idle_timeout,
+            wait_future_timeout=self.wait_future_timeout,
+            block_size=self.block_size,
+            path_io=self.path_io,
+            loop=self.loop,
+            extra_workers=set(),
+            response=lambda *args: response_queue.put_nowait(args),
+            acquired=False,
+            _dispatcher=asyncio.Task.current_task(loop=self.loop),
+        )
+
+        pending = {
+            self.greeting(connection, ""),
+            self.response_writer(stream, response_queue),
+            self.parse_command(stream),
+        }
+        self.connections[key] = connection
+
+        try:
+
+            ok = True
+            while ok or not response_queue.empty():
+
+                pending = set(self._generate_tasks(connection, pending))
+                done, pending = yield from asyncio.wait(
+                    pending,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                    loop=connection.loop
+                )
+                for task in done:
+
+                    result = task.result()
+
+                    # this is "command" result
+                    if isinstance(result, bool):
+
+                        ok = result
+                        if not ok:
+
+                            # bad solution, but have no better ideas right now
+                            connection.response(None)
+                            break
+
+                    # this is parse_command result
+                    else:
+
+                        pending.add(self.parse_command(stream))
+
+                        cmd, rest = result
+                        if cmd == "pass":
+
+                            # is there a better solution?
+                            cmd = "pass_"
+
+                        if hasattr(self, cmd):
+
+                            pending.add(getattr(self, cmd)(connection, rest))
+
+                        else:
+
+                            message = str.format("'{}' not implemented", cmd)
+                            connection.response("502", message)
+
+        finally:
+
+            message = str.format("closing connection from {}:{}", host, port)
+            logger.info(add_prefix(message))
+
+            if not connection.loop.is_closed():
+
+                for task in pending:
+
+                    if isinstance(task, asyncio.Task):
+
+                        task.cancel()
+
+                if connection.future.passive_server.done():
+
+                    connection.passive_server.close()
+
+                if connection.future.data_connection.done():
+
+                    connection.data_connection.close()
+
+                stream.close()
+
+            if connection.acquired:
+
+                self.available_connections.release()
+
+            if connection.future.user.done():
+
+                yield from self.user_manager.notify_logout(connection.user)
+
+            self.connections.pop(key)
 
     def get_paths(self, connection, path):
         """
