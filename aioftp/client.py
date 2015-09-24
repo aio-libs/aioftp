@@ -26,13 +26,13 @@ def open_connection(host, port, loop, create_connection, *,
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
 
-    throttle_reader = common.Throttle(
+    throttle_reader = common.ReadThrottle(
         reader,
         loop=loop,
         throttle=read_speed_limit,
         memory=read_memory
     )
-    throttle_writer = common.Throttle(
+    throttle_writer = common.WriteThrottle(
         writer,
         loop=loop,
         throttle=write_speed_limit,

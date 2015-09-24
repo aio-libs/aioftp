@@ -4,11 +4,13 @@ import functools
 
 
 __all__ = (
-    "Throttle",
+    "ReadThrottle",
+    "WriteThrottle",
     "ThrottleMemory",
+    "with_timeout",
     "end_of_line",
     "default_block_size",
-    "with_timeout"
+    "logger",
 )
 
 
@@ -55,7 +57,7 @@ class ThrottleMemory:
         return max(0, self.end - self.loop.time())
 
 
-class Throttle:
+class AbstractThrottle:
 
     def __init__(self, stream, *, loop, throttle=None, memory=None):
 
@@ -65,6 +67,13 @@ class Throttle:
         self.memory = memory or ThrottleMemory(loop=loop)
         self._lock = asyncio.Lock(loop=loop)
 
+    def __getattr__(self, name):
+
+        return getattr(self.stream, name)
+
+
+class ReadThrottle(AbstractThrottle):
+
     @asyncio.coroutine
     def read(self, count=default_block_size):
 
@@ -72,12 +81,16 @@ class Throttle:
 
             yield from self._lock
 
-        data = yield from self.stream.read(count)
+        try:
 
-        if self.throttle is not None:
+            data = yield from self.stream.read(count)
 
-            self.memory.append(data, self.throttle)
-            self.loop.call_later(self.memory.timeout(), self._lock.release)
+        finally:
+
+            if self.throttle is not None:
+
+                self.memory.append(data, self.throttle)
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
 
         return data
 
@@ -85,16 +98,24 @@ class Throttle:
     def readline(self):
 
         if self.throttle is not None:
+
             yield from self._lock
 
-        data = yield from self.stream.readline()
+        try:
 
-        if self.throttle is not None:
+            data = yield from self.stream.readline()
 
-            self.memory.append(data, self.throttle)
-            self.loop.call_later(self.memory.timeout(), self._lock.release)
+        finally:
+
+            if self.throttle is not None:
+
+                self.memory.append(data, self.throttle)
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
 
         return data
+
+
+class WriteThrottle(AbstractThrottle):
 
     def write(self, data):
 
@@ -110,12 +131,12 @@ class Throttle:
 
             yield from self._lock
 
-        yield from self.stream.drain()
+        try:
 
-        if self.throttle is not None:
+            yield from self.stream.drain()
 
-            self.loop.call_later(self.memory.timeout(), self._lock.release)
+        finally:
 
-    def __getattr__(self, name):
+            if self.throttle is not None:
 
-        return getattr(self.stream, name)
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
