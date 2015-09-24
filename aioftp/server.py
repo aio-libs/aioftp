@@ -8,9 +8,9 @@ import collections
 import concurrent
 
 
-from . import common
 from . import errors
 from . import pathio
+from .common import *
 
 
 __all__ = (
@@ -448,7 +448,7 @@ class BaseServer:
 
                 host, port = sock.getsockname()
                 message = str.format("serving on {}:{}", host, port)
-                common.logger.info(add_prefix(message))
+                logger.info(add_prefix(message))
 
     def close(self):
         """
@@ -473,8 +473,8 @@ class BaseServer:
     def write_line(self, reader, writer, line, encoding="utf-8", *,
                    loop, socket_timeout=None):
 
-        common.logger.info(add_prefix(line))
-        message = line + common.end_of_line
+        logger.info(add_prefix(line))
+        message = line + end_of_line
         writer.write(str.encode(message, encoding=encoding))
         yield from asyncio.wait_for(
             writer.drain(),
@@ -512,7 +512,7 @@ class BaseServer:
         :param socket_timeout: timeout for socket write operations
         :type socket_timeout: :py:class:`float` or :py:class:`int`
         """
-        lines = common.wrap_with_container(lines)
+        lines = wrap_with_container(lines)
         write = functools.partial(
             self.write_line,
             reader,
@@ -572,7 +572,7 @@ class BaseServer:
             raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        common.logger.info(add_prefix(s))
+        logger.info(add_prefix(s))
         cmd, _, rest = str.partition(s, " ")
         return str.lower(cmd), rest
 
@@ -642,7 +642,7 @@ class BaseServer:
 
         host, port = writer.transport.get_extra_info("peername", ("", ""))
         message = str.format("new connection from {}:{}", host, port)
-        common.logger.info(add_prefix(message))
+        logger.info(add_prefix(message))
 
         key = reader, writer
         response_queue = asyncio.Queue(loop=self.loop)
@@ -719,7 +719,7 @@ class BaseServer:
         finally:
 
             message = str.format("closing connection from {}:{}", host, port)
-            common.logger.info(add_prefix(message))
+            logger.info(add_prefix(message))
 
             if not connection.loop.is_closed():
 
@@ -1006,7 +1006,7 @@ class Server(BaseServer):
                  users=None,
                  *,
                  loop=None,
-                 block_size=common.default_block_size,
+                 block_size=default_block_size,
                  socket_timeout=None,
                  idle_timeout=None,
                  wait_future_timeout=1,
@@ -1232,7 +1232,7 @@ class Server(BaseServer):
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_mlsx_string(connection, path)
-                    message = s + common.end_of_line
+                    message = s + end_of_line
                     data_writer.write(str.encode(message, "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),
@@ -1298,7 +1298,7 @@ class Server(BaseServer):
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_list_string(connection, path)
-                    message = s + common.end_of_line
+                    message = s + end_of_line
                     data_writer.write(str.encode(message, "utf-8"))
                     yield from asyncio.wait_for(
                         data_writer.drain(),
