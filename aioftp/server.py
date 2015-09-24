@@ -470,31 +470,21 @@ class BaseServer:
         yield from self.server.wait_closed()
 
     @asyncio.coroutine
-    def write_line(self, reader, writer, line, encoding="utf-8", *,
-                   loop, socket_timeout=None):
+    def write_line(self, stream, line, encoding="utf-8"):
 
         logger.info(add_prefix(line))
         message = line + end_of_line
-        writer.write(str.encode(message, encoding=encoding))
-        yield from asyncio.wait_for(
-            writer.drain(),
-            socket_timeout,
-            loop=loop,
-        )
+        yield from stream.write(str.encode(message, encoding=encoding))
 
     @asyncio.coroutine
-    def write_response(self, reader, writer, code, lines="", list=False, *,
-                       loop, socket_timeout=None):
+    def write_response(self, stream, code, lines="", list=False):
         """
         :py:func:`asyncio.coroutine`
 
         Complex method for sending response.
 
-        :param reader: connection steram reader
-        :type reader: :py:class:`asyncio.StreamReader`
-
-        :param writer: connection stream writer
-        :type writer: :py:class:`asyncio.StreamWriter`
+        :param stream: command connection stream
+        :type stream: :py:class:`aioftp.StreamIO`
 
         :param code: server response code
         :type code: :py:class:`str`
@@ -505,21 +495,9 @@ class BaseServer:
         :param list: if true, then lines will be sended without code prefix.
             This is useful for **LIST** FTP command and some others.
         :type list: :py:class:`bool`
-
-        :param loop: event loop
-        :type loop: :py:class:`asyncio.BaseEventLoop`
-
-        :param socket_timeout: timeout for socket write operations
-        :type socket_timeout: :py:class:`float` or :py:class:`int`
         """
         lines = wrap_with_container(lines)
-        write = functools.partial(
-            self.write_line,
-            reader,
-            writer,
-            loop=loop,
-            socket_timeout=socket_timeout,
-        )
+        write = functools.partial(self.write_line, stream)
         if list:
 
             head, *body, tail = lines
@@ -540,33 +518,19 @@ class BaseServer:
             yield from write(code + " " + tail)
 
     @asyncio.coroutine
-    def parse_command(self, reader, writer, *, loop, idle_timeout=None):
+    def parse_command(self, stream):
         """
         :py:func:`asyncio.coroutine`
 
         Complex method for getting command.
 
-        :param reader: connection steram reader
-        :type reader: :py:class:`asyncio.StreamReader`
-
-        :param writer: connection stream writer
-        :type writer: :py:class:`asyncio.StreamWriter`
-
-        :param loop: event loop
-        :type loop: :py:class:`asyncio.BaseEventLoop`
-
-        :param idle_timeout: timeout for socket read operations, another
-            words: how long user can keep silence without sending commands
-        :type idle_timeout: :py:class:`float` or :py:class:`int`
+        :param stream: connection steram
+        :type stream: :py:class:`asyncio.StreamIO`
 
         :return: (code, rest)
         :rtype: (:py:class:`str`, :py:class:`str`)
         """
-        line = yield from asyncio.wait_for(
-            reader.readline(),
-            idle_timeout,
-            loop=loop,
-        )
+        line = yield from stream.readline()
         if not line:
 
             raise ConnectionResetError
@@ -575,22 +539,6 @@ class BaseServer:
         logger.info(add_prefix(s))
         cmd, _, rest = str.partition(s, " ")
         return str.lower(cmd), rest
-
-    def CommandParser(self, connection):
-        """
-        Shorthand for parse_command with current connection
-
-        :param connection:
-        :type connection: :py:class:`aioftp.Connection`
-
-        :return: :py:meth:`aioftp.Server.parse_command` coroutine
-        :rtype: :py:func:`asyncio.coroutine`
-        """
-        return self.parse_command(
-            *connection.command_connection,
-            loop=connection.loop,
-            idle_timeout=connection.idle_timeout
-        )
 
     @asyncio.coroutine
     def response_writer(self, connection, response_queue):
@@ -617,11 +565,8 @@ class BaseServer:
 
                 break
 
-            yield from self.write_response(
-                *(connection.command_connection + args),
-                loop=connection.loop,
-                socket_timeout=connection.socket_timeout
-            )
+            stream = connection.command_connection
+            yield from self.write_response(stream, *args)
 
     def _generate_tasks(self, connection, pending):
 
@@ -644,14 +589,21 @@ class BaseServer:
         message = str.format("new connection from {}:{}", host, port)
         logger.info(add_prefix(message))
 
-        key = reader, writer
+        # throttle here
+        key = stream = StreamIO(
+            reader,
+            writer,
+            read_timeout=self.idle_timeout,
+            write_timeout=self.socket_timeout,
+            loop=self.loop
+        )
         response_queue = asyncio.Queue(loop=self.loop)
         connection = Connection(
             client_host=host,
             client_port=port,
             server_host=self.server_host,
             server_port=self.server_port,
-            command_connection=(reader, writer),
+            command_connection=stream,
             socket_timeout=self.socket_timeout,
             idle_timeout=self.idle_timeout,
             wait_future_timeout=self.wait_future_timeout,
@@ -667,7 +619,7 @@ class BaseServer:
         pending = {
             self.greeting(connection, ""),
             self.response_writer(connection, response_queue),
-            self.CommandParser(connection),
+            self.parse_command(stream),
         }
         self.connections[key] = connection
 
@@ -699,7 +651,7 @@ class BaseServer:
                     # this is parse_command result
                     else:
 
-                        pending.add(self.CommandParser(connection))
+                        pending.add(self.parse_command(stream))
 
                         cmd, rest = result
                         if cmd == "pass":
@@ -738,7 +690,7 @@ class BaseServer:
                     r, w = connection.data_connection
                     w.close()
 
-                writer.close()
+                stream.close()
 
             if connection.acquired:
 
@@ -1225,20 +1177,19 @@ class Server(BaseServer):
         @asyncio.coroutine
         def mlsd_worker(self, connection, rest):
 
-            data_reader, data_writer = connection.data_connection
+            stream = connection.data_connection
             del connection.data_connection
-            with contextlib.closing(data_writer) as data_writer:
+            try:
 
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_mlsx_string(connection, path)
                     message = s + end_of_line
-                    data_writer.write(str.encode(message, "utf-8"))
-                    yield from asyncio.wait_for(
-                        data_writer.drain(),
-                        connection.socket_timeout,
-                        loop=connection.loop,
-                    )
+                    yield from stream.write(str.encode(message, "utf-8"))
+
+            finally:
+
+                stream.close()
 
             connection.response("200", "mlsd data transfer done")
             return True
@@ -1291,20 +1242,19 @@ class Server(BaseServer):
         @asyncio.coroutine
         def list_worker(self, connection, rest):
 
-            data_reader, data_writer = connection.data_connection
+            stream = connection.data_connection
             del connection.data_connection
-            with contextlib.closing(data_writer) as data_writer:
+            try:
 
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_list_string(connection, path)
                     message = s + end_of_line
-                    data_writer.write(str.encode(message, "utf-8"))
-                    yield from asyncio.wait_for(
-                        data_writer.drain(),
-                        connection.socket_timeout,
-                        loop=connection.loop,
-                    )
+                    yield from stream.write(str.encode(message, "utf-8"))
+
+            finally:
+
+                stream.close()
 
             connection.response("226", "list data transfer done")
             return True
@@ -1380,14 +1330,14 @@ class Server(BaseServer):
         @asyncio.coroutine
         def stor_worker(self, connection, rest):
 
-            data_reader, data_writer = connection.data_connection
+            stream = connection.data_connection
             del connection.data_connection
             try:
 
                 fout = yield from connection.path_io.open(real_path, mode=mode)
                 while True:
 
-                    data = yield from data_reader.read(connection.block_size)
+                    data = yield from stream.read(connection.block_size)
                     if not data:
 
                         info = "data transfer done"
@@ -1403,7 +1353,7 @@ class Server(BaseServer):
 
             finally:
 
-                data_writer.close()
+                stream.close()
                 yield from connection.path_io.close(fout)
 
             connection.response("226", info)
@@ -1440,7 +1390,7 @@ class Server(BaseServer):
         @asyncio.coroutine
         def retr_worker(self, connection, rest):
 
-            data_reader, data_writer = connection.data_connection
+            stream = connection.data_connection
             del connection.data_connection
             try:
 
@@ -1462,16 +1412,11 @@ class Server(BaseServer):
                         info = "data transfer aborted"
                         break
 
-                    data_writer.write(data)
-                    yield from asyncio.wait_for(
-                        data_writer.drain(),
-                        connection.socket_timeout,
-                        loop=connection.loop,
-                    )
+                    yield from stream.write(data)
 
             finally:
 
-                data_writer.close()
+                stream.close()
                 yield from connection.path_io.close(fin)
 
             connection.response("226", info)
@@ -1511,7 +1456,12 @@ class Server(BaseServer):
 
             else:
 
-                connection.data_connection = reader, writer
+                connection.data_connection = StreamIO(
+                    reader,
+                    writer,
+                    timeout=connection.socket_timeout,
+                    loop=connection.loop
+                )
 
         if not connection.future.passive_server.done():
 
