@@ -7,7 +7,7 @@ install:
     - travis_retry pip install coveralls flake8
 
 before_script:
-    - flake8 aioftp
+    - flake8 aioftp --ignore=F403
 
 script:
     - python setup.py test
