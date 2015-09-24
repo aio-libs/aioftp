@@ -472,7 +472,7 @@ class BaseServer:
     def write_line(self, stream, line, encoding="utf-8"):
 
         logger.info(add_prefix(line))
-        message = line + end_of_line
+        message = line + END_OF_LINE
         yield from stream.write(str.encode(message, encoding=encoding))
 
     @asyncio.coroutine
@@ -957,7 +957,7 @@ class Server(BaseServer):
                  users=None,
                  *,
                  loop=None,
-                 block_size=default_block_size,
+                 block_size=DEFAULT_BLOCK_SIZE,
                  socket_timeout=None,
                  idle_timeout=None,
                  wait_future_timeout=1,
@@ -1183,7 +1183,7 @@ class Server(BaseServer):
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_mlsx_string(connection, path)
-                    message = s + end_of_line
+                    message = s + END_OF_LINE
                     yield from stream.write(str.encode(message, "utf-8"))
 
             finally:
@@ -1248,7 +1248,7 @@ class Server(BaseServer):
                 for path in (yield from connection.path_io.list(real_path)):
 
                     s = yield from self.build_list_string(connection, path)
-                    message = s + end_of_line
+                    message = s + END_OF_LINE
                     yield from stream.write(str.encode(message, "utf-8"))
 
             finally:

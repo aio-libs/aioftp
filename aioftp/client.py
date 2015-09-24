@@ -262,7 +262,7 @@ class BaseClient:
         if command:
 
             logger.info(add_prefix(command))
-            message = command + end_of_line
+            message = command + END_OF_LINE
             yield from self.stream.write(str.encode(message, encoding="utf-8"))
 
         if expected_codes or wait_codes:
@@ -697,7 +697,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
-               block_size=default_block_size):
+               block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -792,7 +792,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def download(self, source, destination="", *, write_into=False,
-                 block_size=default_block_size):
+                 block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
