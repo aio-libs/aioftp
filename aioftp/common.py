@@ -9,16 +9,16 @@ __all__ = (
     "WriteThrottle",
     "ThrottleMemory",
     "with_timeout",
-    "end_of_line",
-    "default_block_size",
+    "END_OF_LINE",
+    "DEFAULT_BLOCK_SIZE",
     "logger",
     "wrap_with_container"
 )
 
 
 logger = logging.getLogger("aioftp")
-end_of_line = "\r\n"
-default_block_size = 8192
+END_OF_LINE = "\r\n"
+DEFAULT_BLOCK_SIZE = 8192
 
 
 def wrap_with_container(o):
@@ -93,7 +93,7 @@ class AbstractThrottle:
 class ReadThrottle(AbstractThrottle):
 
     @asyncio.coroutine
-    def read(self, count=default_block_size):
+    def read(self, count=DEFAULT_BLOCK_SIZE):
 
         if self.throttle is not None:
 
@@ -206,7 +206,7 @@ class StreamIO:
 
     @with_timeout("read_timeout")
     @asyncio.coroutine
-    def read(self, count=default_block_size):
+    def read(self, count=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
