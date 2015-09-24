@@ -9,7 +9,7 @@ import concurrent
 
 from . import errors
 from . import pathio
-from .common import *
+from .common import *  # noqa
 
 
 __all__ = (
