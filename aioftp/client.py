@@ -4,8 +4,8 @@ import collections
 import pathlib
 
 from . import errors
-from . import common
 from . import pathio
+from .common import *
 
 
 __all__ = (
@@ -31,13 +31,13 @@ def open_connection(host, port, loop, create_connection, *,
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
 
-    throttle_reader = common.ReadThrottle(
+    throttle_reader = ReadThrottle(
         reader,
         loop=loop,
         throttle=read_speed_limit,
         memory=read_memory
     )
-    throttle_writer = common.WriteThrottle(
+    throttle_writer = WriteThrottle(
         writer,
         loop=loop,
         throttle=write_speed_limit,
@@ -65,75 +65,6 @@ class Code(str):
             True
         """
         return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
-
-
-class StreamIO:
-    """
-    Stream input/output wrapper.
-
-    :param reader: stream reader
-    :type reader: :py:class:`asyncio.StreamReader`
-
-    :param writer: stream writer
-    :type writer: :py:class:`asyncio.StreamWriter`
-
-    :param timeout: socket timeout for operations
-    :type timeout: :py:class:`int`, :py:class:`float` or `None`
-
-    :param loop: loop to use for creating connection and binding with streams
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-    """
-
-    def __init__(self, reader, writer, *, timeout=None, loop):
-
-        self.reader = reader
-        self.writer = writer
-        self.timeout = timeout
-        self.loop = loop
-
-    @common.with_timeout
-    @asyncio.coroutine
-    def readline(self):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Proxy for :py:meth:`asyncio.StreamReader.readline`.
-        """
-        return (yield from self.reader.readline())
-
-    @common.with_timeout
-    @asyncio.coroutine
-    def read(self, count=common.default_block_size):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Proxy for :py:meth:`asyncio.StreamReader.read`.
-
-        :param count: block size for read operation
-        :type count: :py:class:`int`
-        """
-        return (yield from self.reader.read(count))
-
-    @common.with_timeout
-    @asyncio.coroutine
-    def write(self, data):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Combination of :py:meth:`asyncio.StreamWriter.write` and
-        :py:meth:`asyncio.StreamWriter.drain`.
-
-        :param data: data to write
-        :type data: :py:class:`bytes`
-        """
-        self.writer.write(data)
-        yield from self.writer.drain()
-
-    def close(self):
-        """
-        Close connection.
-        """
-        self.writer.close()
 
 
 class DataConnectionStreamIO(StreamIO):
@@ -194,8 +125,8 @@ class BaseClient:
         self.read_speed_limit = read_speed_limit
         self.write_speed_limit = write_speed_limit
 
-        self.read_memory = common.ThrottleMemory(loop=loop)
-        self.write_memory = common.ThrottleMemory(loop=loop)
+        self.read_memory = ThrottleMemory(loop=loop)
+        self.write_memory = ThrottleMemory(loop=loop)
 
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
@@ -248,7 +179,7 @@ class BaseClient:
             raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        common.logger.info(add_prefix(s))
+        logger.info(add_prefix(s))
         return Code(s[:3]), s[3:]
 
     @asyncio.coroutine
@@ -325,13 +256,13 @@ class BaseClient:
         :type wait_codes: :py:class:`tuple` of :py:class:`str` or
             :py:class:`str`
         """
-        expected_codes = common.wrap_with_container(expected_codes)
-        wait_codes = common.wrap_with_container(wait_codes)
+        expected_codes = wrap_with_container(expected_codes)
+        wait_codes = wrap_with_container(wait_codes)
 
         if command:
 
-            common.logger.info(add_prefix(command))
-            message = command + common.end_of_line
+            logger.info(add_prefix(command))
+            message = command + end_of_line
             yield from self.stream.write(str.encode(message, encoding="utf-8"))
 
         if expected_codes or wait_codes:
@@ -766,7 +697,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def upload(self, source, destination="", *, write_into=False,
-               block_size=common.default_block_size):
+               block_size=default_block_size):
         """
         :py:func:`asyncio.coroutine`
 
@@ -861,7 +792,7 @@ class Client(BaseClient):
 
     @asyncio.coroutine
     def download(self, source, destination="", *, write_into=False,
-                 block_size=common.default_block_size):
+                 block_size=default_block_size):
         """
         :py:func:`asyncio.coroutine`
 

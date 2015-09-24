@@ -4,6 +4,7 @@ import functools
 
 
 __all__ = (
+    "StreamIO",
     "ReadThrottle",
     "WriteThrottle",
     "ThrottleMemory",
@@ -11,6 +12,7 @@ __all__ = (
     "end_of_line",
     "default_block_size",
     "logger",
+    "wrap_with_container"
 )
 
 
@@ -140,3 +142,72 @@ class WriteThrottle(AbstractThrottle):
             if self.throttle is not None:
 
                 self.loop.call_later(self.memory.timeout(), self._lock.release)
+
+
+class StreamIO:
+    """
+    Stream input/output wrapper with timeout.
+
+    :param reader: stream reader
+    :type reader: :py:class:`asyncio.StreamReader`
+
+    :param writer: stream writer
+    :type writer: :py:class:`asyncio.StreamWriter`
+
+    :param timeout: socket timeout for operations
+    :type timeout: :py:class:`int`, :py:class:`float` or `None`
+
+    :param loop: loop to use for creating connection and binding with streams
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+    """
+
+    def __init__(self, reader, writer, *, timeout=None, loop):
+
+        self.reader = reader
+        self.writer = writer
+        self.timeout = timeout
+        self.loop = loop
+
+    @with_timeout
+    @asyncio.coroutine
+    def readline(self):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Proxy for :py:meth:`asyncio.StreamReader.readline`.
+        """
+        return (yield from self.reader.readline())
+
+    @with_timeout
+    @asyncio.coroutine
+    def read(self, count=default_block_size):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Proxy for :py:meth:`asyncio.StreamReader.read`.
+
+        :param count: block size for read operation
+        :type count: :py:class:`int`
+        """
+        return (yield from self.reader.read(count))
+
+    @with_timeout
+    @asyncio.coroutine
+    def write(self, data):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Combination of :py:meth:`asyncio.StreamWriter.write` and
+        :py:meth:`asyncio.StreamWriter.drain`.
+
+        :param data: data to write
+        :type data: :py:class:`bytes`
+        """
+        self.writer.write(data)
+        yield from self.writer.drain()
+
+    def close(self):
+        """
+        Close connection.
+        """
+        self.writer.close()
