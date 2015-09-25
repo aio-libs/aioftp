@@ -12,8 +12,6 @@ from .common import logger
 __all__ = (
     "Client",
     "Code",
-    "StreamIO",
-    "DataConnectionStreamIO",
 )
 
 
@@ -23,28 +21,13 @@ def add_prefix(message):
 
 
 @asyncio.coroutine
-def open_connection(host, port, loop, create_connection, *,
-                    read_speed_limit, read_memory,
-                    write_speed_limit, write_memory):
+def open_connection(host, port, loop, create_connection):
 
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
     transport, _ = yield from create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
-
-    throttle_reader = ReadThrottle(
-        reader,
-        loop=loop,
-        throttle=read_speed_limit,
-        memory=read_memory
-    )
-    throttle_writer = WriteThrottle(
-        writer,
-        loop=loop,
-        throttle=write_speed_limit,
-        memory=write_memory
-    )
-    return throttle_reader, throttle_writer
+    return reader, writer
 
 
 class Code(str):
@@ -68,10 +51,10 @@ class Code(str):
         return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
 
 
-class DataConnectionStreamIO(StreamIO):
+class DataConnectionThrottleStreamIO(ThrottleStreamIO):
     """
-    Add `finish` method to :py:class:`aioftp.StreamIO`, which is specific for
-        data connection. This requires `client`.
+    Add `finish` method to :py:class:`aioftp.ThrottleStreamIO`, which is
+        specific for data connection. This requires `client`.
 
     :param client: client class, which have :py:meth:`aioftp.Client.command`
     :type client: :py:class:`aioftp.BaseClient`
@@ -113,21 +96,24 @@ class BaseClient:
                  loop=None,
                  create_connection=None,
                  socket_timeout=None,
-                 read_speed_limit=None,
-                 write_speed_limit=None,
-                 path_io_factory=pathio.AsyncPathIO,
-                 path_timeout=None):
+                 download_speed_limit=None,
+                 upload_speed_limit=None,
+                 path_timeout=None,
+                 path_io_factory=pathio.AsyncPathIO):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
         self.socket_timeout = socket_timeout
 
-        self.read_speed_limit = read_speed_limit
-        self.write_speed_limit = write_speed_limit
-
-        self.read_memory = ThrottleMemory(loop=loop)
-        self.write_memory = ThrottleMemory(loop=loop)
+        self.download_throttle = Throttle(
+            loop=self.loop,
+            limit=download_speed_limit
+        )
+        self.upload_throttle = Throttle(
+            loop=self.loop,
+            limit=upload_speed_limit
+        )
 
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
@@ -139,15 +125,17 @@ class BaseClient:
             host,
             port,
             self.loop,
-            self.create_connection,
-            read_speed_limit=self.read_speed_limit,
-            read_memory=self.read_memory,
-            write_speed_limit=self.write_speed_limit,
-            write_memory=self.write_memory
+            self.create_connection
         )
-        self.stream = StreamIO(
+        self.stream = ThrottleStreamIO(
             reader,
             writer,
+            throttles={
+                "main": StreamThrottle(
+                    read=self.download_throttle,
+                    write=self.upload_throttle
+                )
+            },
             timeout=self.socket_timeout,
             loop=self.loop
         )
@@ -378,8 +366,22 @@ class Client(BaseClient):
         if omitted.
     :type create_connection: :py:func:`callable`
 
-    :param timeout: timeout for read operations
-    :type timeout: :py:class:`float` or :py:class:`int`
+    :param socket_timeout: timeout for read operations
+    :type socket_timeout: :py:class:`float`, :py:class:`int` or `None`
+
+    :param download_speed_limit: download speed limit in bytes per second
+    :type download_speed_limit: :py:class:`int` or `None`
+
+    :param upload_speed_limit: upload speed limit in bytes per second
+    :type upload_speed_limit: :py:class:`int` or `None`
+
+    :param path_timeout: timeout for path-related operations (make directory,
+        unlink file, etc.)
+    :type path_timeout: :py:class:`float`, :py:class:`int` or
+        :py:class:`None`
+
+    :param path_io_factory: factory of «path abstract layer»
+    :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
 
     @asyncio.coroutine
@@ -678,7 +680,7 @@ class Client(BaseClient):
         :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :rtype: :py:class:`aioftp.StreamIO`
+        :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
         return (yield from self.get_stream("STOR " + str(destination), "1xx"))
 
@@ -692,7 +694,7 @@ class Client(BaseClient):
         :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :rtype: :py:class:`aioftp.StreamIO`
+        :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
         return (yield from self.get_stream("APPE " + str(destination), "1xx"))
 
@@ -787,7 +789,7 @@ class Client(BaseClient):
         :param source: source path of file on server side
         :type source: :py:class:`str` or :py:class:`pathlib.Path`
 
-        :rtype: :py:class:`aioftp.StreamIO`
+        :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
         return (yield from self.get_stream("RETR " + str(source), "1xx"))
 
@@ -899,10 +901,6 @@ class Client(BaseClient):
             port,
             self.loop,
             self.create_connection,
-            read_speed_limit=self.read_speed_limit,
-            read_memory=self.read_memory,
-            write_speed_limit=self.write_speed_limit,
-            write_memory=self.write_memory
         )
         return reader, writer
 
@@ -922,10 +920,16 @@ class Client(BaseClient):
         """
         reader, writer = yield from self.get_passive_connection(conn_type)
         yield from self.command(*command_args)
-        stream = DataConnectionStreamIO(
+        stream = DataConnectionThrottleStreamIO(
             self,
             reader,
             writer,
+            throttles={
+                "main": StreamThrottle(
+                    read=self.download_throttle,
+                    write=self.upload_throttle
+                )
+            },
             timeout=self.socket_timeout,
             loop=self.loop
         )
