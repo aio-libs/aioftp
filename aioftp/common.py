@@ -82,7 +82,7 @@ class AbstractThrottle:
         self.loop = loop or asyncio.get_event_loop()
         self.throttle = throttle
         self.memory = memory or ThrottleMemory(loop=loop)
-        self._lock = asyncio.Lock(loop=loop)
+        self._lock = asyncio.Lock(loop=self.loop)
 
     def __getattr__(self, name):
 
@@ -136,7 +136,7 @@ class WriteThrottle(AbstractThrottle):
 
     def write(self, data):
 
-        self.stream.write(data)
+        yield from self.stream.write(data)
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
@@ -236,3 +236,133 @@ class StreamIO:
         Close connection.
         """
         self.writer.close()
+
+
+class Throttle:
+
+    def __init__(self, *, loop=None, limit=None):
+
+        self.loop = loop or asyncio.get_event_loop()
+        self._limit = limit
+        self._lock = asyncio.Lock(loop=self.loop)
+        self.end = 0
+
+    @asyncio.coroutine
+    def acquire(self):
+
+        if self.limit is not None and self.limit > 0:
+
+            yield from self._lock
+
+    def append(self, data):
+
+        if self.limit is not None and self.limit > 0:
+
+            self.end = max(self.loop.time(), self.end) + len(data) / self.limit
+
+    def release_later(self):
+
+        if self._lock.locked():
+
+            self.loop.call_later(self.timeout, self._lock.release)
+
+    @property
+    def timeout(self):
+
+        return max(0, self.end - self.loop.time())
+
+    @property
+    def limit(self):
+
+        return self._limit
+
+    @limit.setter
+    def limit(self, value):
+
+        self._limit = value
+        self.end = 0
+
+
+StreamThrottle = collections.namedtuple("StreamThrottle", "read write")
+
+
+class ThrottleStreamIO(StreamIO, dict):
+
+    def __init__(self, *args, throttles={}, **kwargs):
+
+        StreamIO.__init__(self, *args, **kwargs)
+        dict.__init__(self, throttles)
+
+    @asyncio.coroutine
+    def acquire(self):
+
+        for throttle in self.values():
+
+            yield from throttle.acquire()
+
+    def release(self):
+
+        for throttle in self.values():
+
+            throttle.release_later()
+
+    @asyncio.coroutine
+    def read(self, count=DEFAULT_BLOCK_SIZE):
+
+        yield from self.acquire()
+        try:
+
+            data = yield from self.read(count)
+
+        finally:
+
+            if self.throttle is not None:
+
+                self.memory.append(data, self.throttle)
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
+
+        return data
+
+    @asyncio.coroutine
+    def readline(self):
+
+        if self.throttle is not None:
+
+            yield from self._lock
+
+        try:
+
+            data = yield from self.stream.readline()
+
+        finally:
+
+            if self.throttle is not None:
+
+                self.memory.append(data, self.throttle)
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
+
+        return data
+
+    def write(self, data):
+
+        yield from self.stream.write(data)
+        if self.throttle is not None:
+
+            self.memory.append(data, self.throttle)
+
+    @asyncio.coroutine
+    def drain(self):
+
+        if self.throttle is not None:
+
+            yield from self._lock
+
+        try:
+
+            yield from self.stream.drain()
+
+        finally:
+
+            if self.throttle is not None:
+
+                self.loop.call_later(self.memory.timeout(), self._lock.release)
