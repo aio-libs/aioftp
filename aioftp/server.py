@@ -799,13 +799,6 @@ class Server(AbstractServer):
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
 
-    :param user_manager_timeout: timeout for user manager operations
-    :type user_manager_timeout: :py:class:`float`, :py:class:`int` or
-        :py:class:`None`
-
-    :param user_manager_factory: user manager factory
-    :type user_manager_factory: :py:class:`aioftp.AbstractUserManager`
-
     :param maximum_connections: Maximum command connections per server
     :type maximum_connections: :py:class:`int`
     """
@@ -825,8 +818,6 @@ class Server(AbstractServer):
                  wait_future_timeout=1,
                  path_timeout=None,
                  path_io_factory=pathio.AsyncPathIO,
-                 user_manager_timeout=None,
-                 user_manager_factory=MemoryUserManager,
                  maximum_connections=None):
 
         self.loop = loop or asyncio.get_event_loop()
@@ -842,11 +833,7 @@ class Server(AbstractServer):
 
         else:
 
-            self.user_manager = MemoryUserManager(
-                users,
-                timeout=user_manager_timeout,
-                loop=self.loop
-            )
+            self.user_manager = MemoryUserManager(users, loop=self.loop)
 
         self.available_connections = AvailableConnections(maximum_connections)
 
