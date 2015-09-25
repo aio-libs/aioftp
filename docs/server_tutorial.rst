@@ -1,5 +1,7 @@
 .. server_tutorial:
 
+Tutorial is deprecated!
+
 Server tutorial
 ===============
 

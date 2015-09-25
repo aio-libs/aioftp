@@ -1,5 +1,7 @@
 .. client_tutorial:
 
+Tutorial is deprecated!
+
 Client tutorial
 ===============
 

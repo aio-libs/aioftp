@@ -13,7 +13,4 @@ Client API
     :members:
     :show-inheritance:
 
-.. autoclass:: aioftp.StreamIO
-    :members:
-
 .. autoclass:: aioftp.StatusCodeError

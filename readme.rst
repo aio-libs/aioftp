@@ -107,7 +107,7 @@ Server example
 
     loop = asyncio.get_event_loop()
     ftp = aioftp.Server()
-    asyncio.async(ftp.start(None, 8021), loop=loop)
+    loop.run_until_complete(ftp.start(None, 8021))
     try:
 
         loop.run_forever()

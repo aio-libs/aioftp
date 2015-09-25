@@ -1,5 +1,7 @@
 .. developer_tutorial:
 
+Tutorial is deprecated!
+
 Developer tutorial
 ==================
 
