@@ -21,8 +21,6 @@ __all__ = (
     "PathConditions",
     "PathPermissions",
     "Server",
-    "AbstractUserManager",
-    "MemoryUserManager",
 )
 
 
@@ -285,6 +283,8 @@ class Connection(collections.defaultdict):
     :param loop: event loop
     :type loop: :py:class:`asyncio.BaseEventLoop`
 
+    :param kwargs: initialization parameters
+
     Container based on :py:class:`collections.defaultdict`, which holds
     :py:class:`asyncio.Future` as default factory. There is two layers of
     abstraction:
@@ -416,7 +416,7 @@ class AvailableConnections:
 class AbstractServer:
 
     @asyncio.coroutine
-    def start(self, host=None, port=0, **kw):
+    def start(self, host=None, port=0, **kwargs):
         """
         :py:func:`asyncio.coroutine`
 
@@ -428,7 +428,7 @@ class AbstractServer:
         :param port: port number to bind for listening.
         :type port: :py:class:`int`
 
-        :param kw: keyword arguments, they passed to
+        :param kwargs: keyword arguments, they passed to
             :py:func:`asyncio.start_server`
         """
         self.connections = {}
@@ -439,7 +439,7 @@ class AbstractServer:
             host,
             port,
             loop=self.loop,
-            **kw
+            **kwargs
         )
 
         for sock in self.server.sockets:
