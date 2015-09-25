@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import functools
+import collections
 
 
 __all__ = (
