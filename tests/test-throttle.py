@@ -10,7 +10,7 @@ from common import *
     client_args=(
         [],
         {
-            "read_speed_limit": 100 * 1024  # 100 Kib
+            "download_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -45,7 +45,7 @@ def test_client_read_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "read_speed_limit": 100 * 1024  # 100 Kib
+            "download_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -76,7 +76,7 @@ def test_client_write_with_read_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "write_speed_limit": 100 * 1024  # 100 Kib
+            "upload_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -111,7 +111,7 @@ def test_client_read_with_write_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "write_speed_limit": 100 * 1024  # 100 Kib
+            "upload_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -154,7 +154,7 @@ class SlowPathIO(aioftp.PathIO):
     client_args=(
         [],
         {
-            "write_speed_limit": 100 * 1024,  # 100 Kib per second
+            "upload_speed_limit": 100 * 1024,  # 100 Kib per second
             "path_io_factory": SlowPathIO,
         },
     ))
@@ -185,7 +185,7 @@ def test_client_write_throttle_with_slow_io(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "read_speed_limit": 200 * 1024,  # 200 Kib per second
+            "download_speed_limit": 200 * 1024,  # 200 Kib per second
             "path_io_factory": SlowPathIO,
         },
     ))

@@ -4,6 +4,7 @@ import contextlib
 import aioftp.client
 import aioftp
 from common import *
+from aioftp.server import MemoryUserManager
 
 
 @nose.tools.raises(ConnectionResetError)
@@ -169,10 +170,6 @@ def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
         port,
         loop,
         client.create_connection,
-        read_speed_limit=client.read_speed_limit,
-        read_memory=client.read_memory,
-        write_speed_limit=client.write_speed_limit,
-        write_memory=client.write_memory
     )
 
     with contextlib.closing(writer) as writer:
@@ -217,10 +214,6 @@ def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
         port,
         loop,
         client.create_connection,
-        read_speed_limit=client.read_speed_limit,
-        read_memory=client.read_memory,
-        write_speed_limit=client.write_speed_limit,
-        write_memory=client.write_memory
     )
 
     with contextlib.closing(writer) as writer:
@@ -274,7 +267,7 @@ def test_client_socket_timeout():
     loop.run_until_complete(coro())
 
 
-class SlowUserManager(aioftp.MemoryUserManager):
+class SlowUserManager(MemoryUserManager):
 
     @aioftp.with_timeout
     @asyncio.coroutine
