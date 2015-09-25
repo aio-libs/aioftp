@@ -10,6 +10,7 @@ import concurrent
 from . import errors
 from . import pathio
 from .common import *  # noqa
+from .common import logger
 
 
 __all__ = (

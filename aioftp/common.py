@@ -11,7 +11,6 @@ __all__ = (
     "with_timeout",
     "END_OF_LINE",
     "DEFAULT_BLOCK_SIZE",
-    "logger",
     "wrap_with_container"
 )
 
