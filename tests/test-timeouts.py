@@ -260,9 +260,53 @@ def test_client_socket_timeout():
     @asyncio.coroutine
     def coro():
 
-        yield from server.start(None, 8888)
-        yield from client.connect("127.0.0.1", 8888)
-        yield from asyncio.sleep(10, loop=loop)
+        try:
+
+            yield from server.start(None, 8888)
+            yield from client.connect("127.0.0.1", 8888)
+            yield from asyncio.sleep(10, loop=loop)
+
+        finally:
+
+            server.close()
+            yield from server.wait_closed()
+
+    loop.run_until_complete(coro())
+
+
+class SlowUserManager(aioftp.MemoryUserManager):
+
+    @aioftp.with_timeout
+    @asyncio.coroutine
+    def get_user(self, login):
+
+        yield from asyncio.sleep(10, loop=self.loop)
+
+
+@nose.tools.raises(ConnectionResetError)
+def test_user_manager_timeout():
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(None)
+
+    server = aioftp.Server(
+        SlowUserManager(None, timeout=1, loop=loop),
+        loop=loop)
+    client = aioftp.Client(loop=loop)
+
+    @asyncio.coroutine
+    def coro():
+
+        try:
+
+            yield from server.start(None, 8888)
+            yield from client.connect("127.0.0.1", 8888)
+            yield from client.login()
+
+        finally:
+
+            server.close()
+            yield from server.wait_closed()
 
     loop.run_until_complete(coro())
 
