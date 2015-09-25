@@ -59,10 +59,10 @@ def with_timeout(name):
 
 class ThrottleMemory:
 
-    def __init__(self, *, loop):
+    def __init__(self, *, loop=None):
 
         self.end = 0
-        self.loop = loop
+        self.loop = loop or asyncio.get_event_loop()
 
     def append(self, data, throttle):
 
@@ -77,10 +77,10 @@ class ThrottleMemory:
 
 class AbstractThrottle:
 
-    def __init__(self, stream, *, loop, throttle=None, memory=None):
+    def __init__(self, stream, *, loop=None, throttle=None, memory=None):
 
         self.stream = stream
-        self.loop = loop
+        self.loop = loop or asyncio.get_event_loop()
         self.throttle = throttle
         self.memory = memory or ThrottleMemory(loop=loop)
         self._lock = asyncio.Lock(loop=loop)
@@ -186,13 +186,13 @@ class StreamIO:
     """
 
     def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
-                 write_timeout=None, loop):
+                 write_timeout=None, loop=None):
 
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
         self.write_timeout = write_timeout or timeout
-        self.loop = loop
+        self.loop = loop or asyncio.get_event_loop()
 
     @with_timeout("read_timeout")
     @asyncio.coroutine
