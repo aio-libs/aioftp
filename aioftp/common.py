@@ -6,13 +6,13 @@ import collections
 
 __all__ = (
     "StreamIO",
-    "ReadThrottle",
-    "WriteThrottle",
-    "ThrottleMemory",
+    "ThrottleStreamIO",
+    "StreamThrottle",
+    "Throttle",
     "with_timeout",
     "END_OF_LINE",
     "DEFAULT_BLOCK_SIZE",
-    "wrap_with_container"
+    "wrap_with_container",
 )
 
 
@@ -47,6 +47,42 @@ def _with_timeout(name):
 
 
 def with_timeout(name):
+    """
+    Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
+        argument takes from `name` decorator argument or "timeout".
+
+    :param name: name of timeout attribute
+    :type name: :py:class:`str`
+
+    :raises asyncio.TimeoutError: if coroutine does not finished in timeout
+
+    Wait for `self.timeout`
+    ::
+
+        def __init__(self, ...):
+
+            self.timeout = 1
+
+        @with_timeout
+        @asyncio.coroutine
+        def foo(self, ...):
+
+            pass
+
+    Wait for custom timeout
+    ::
+
+        def __init__(self, ...):
+
+            self.foo_timeout = 1
+
+        @with_timeout("foo_timeout")
+        @asyncio.coroutine
+        def foo(self, ...):
+
+            pass
+
+    """
 
     if isinstance(name, str):
 
@@ -55,109 +91,6 @@ def with_timeout(name):
     else:
 
         return _with_timeout("timeout")(name)
-
-
-class ThrottleMemory:
-
-    def __init__(self, *, loop=None):
-
-        self.end = 0
-        self.loop = loop or asyncio.get_event_loop()
-
-    def append(self, data, throttle):
-
-        count = len(data)
-        now = self.loop.time()
-        self.end = max(now, self.end) + count / throttle
-
-    def timeout(self):
-
-        return max(0, self.end - self.loop.time())
-
-
-class AbstractThrottle:
-
-    def __init__(self, stream, *, loop=None, throttle=None, memory=None):
-
-        self.stream = stream
-        self.loop = loop or asyncio.get_event_loop()
-        self.throttle = throttle
-        self.memory = memory or ThrottleMemory(loop=loop)
-        self._lock = asyncio.Lock(loop=self.loop)
-
-    def __getattr__(self, name):
-
-        return getattr(self.stream, name)
-
-
-class ReadThrottle(AbstractThrottle):
-
-    @asyncio.coroutine
-    def read(self, count=DEFAULT_BLOCK_SIZE):
-
-        if self.throttle is not None:
-
-            yield from self._lock
-
-        try:
-
-            data = yield from self.stream.read(count)
-
-        finally:
-
-            if self.throttle is not None:
-
-                self.memory.append(data, self.throttle)
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
-
-        return data
-
-    @asyncio.coroutine
-    def readline(self):
-
-        if self.throttle is not None:
-
-            yield from self._lock
-
-        try:
-
-            data = yield from self.stream.readline()
-
-        finally:
-
-            if self.throttle is not None:
-
-                self.memory.append(data, self.throttle)
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
-
-        return data
-
-
-class WriteThrottle(AbstractThrottle):
-
-    def write(self, data):
-
-        self.stream.write(data)
-        if self.throttle is not None:
-
-            self.memory.append(data, self.throttle)
-
-    @asyncio.coroutine
-    def drain(self):
-
-        if self.throttle is not None:
-
-            yield from self._lock
-
-        try:
-
-            yield from self.stream.drain()
-
-        finally:
-
-            if self.throttle is not None:
-
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
 
 
 class StreamIO:
@@ -240,6 +173,15 @@ class StreamIO:
 
 
 class Throttle:
+    """
+    Throttle for streams.
+
+    :param loop: loop to use
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    :param limit: speed limit in bytes or `None` for unlimited
+    :type limit: :py:class:`int` or `None`
+    """
 
     def __init__(self, *, loop=None, limit=None):
 
@@ -250,19 +192,27 @@ class Throttle:
 
     @asyncio.coroutine
     def acquire(self):
+        """
+        :py:func:`asyncio.coroutine`
 
+        Acquire internal lock
+        """
         if self.limit is not None and self.limit > 0:
 
             yield from self._lock
 
     def append(self, data):
-
+        """
+        Count `data` for throttle
+        """
         if self.limit is not None and self.limit > 0:
 
             self.end = max(self.loop.time(), self.end) + len(data) / self.limit
 
     def release_later(self):
-
+        """
+        Release internal lock after timeout
+        """
         if self._lock.locked():
 
             self.loop.call_later(self.timeout, self._lock.release)
@@ -288,6 +238,33 @@ StreamThrottle = collections.namedtuple("StreamThrottle", "read write")
 
 
 class ThrottleStreamIO(StreamIO, dict):
+    """
+    Throttled :py:class:`aioftp.StreamIO`. `ThrottleStreamIO` is mix of
+    :py:class:`aioftp.StreamIO` and :py:class:`dict`. Dictionary values are
+    :py:class:`aioftp.StreamThrottle` objects: `read` and `write`
+    :py:class:`aioftp.Throttle`
+
+    :param *args: positional arguments for StreamIO
+    :param **kwargs: keyword arguments for StreamIO
+
+    :param throttles: dictionary of throttles
+    :type throttles: :py:class:`dict` with :py:class:`aioftp.Throttle` values
+
+    ::
+
+        self.stream = ThrottleStreamIO(
+            reader,
+            writer,
+            throttles={
+                "main": StreamThrottle(
+                    read=Throttle(...),
+                    write=Throttle(...)
+                )
+            },
+            timeout=timeout,
+            loop=loop
+        )
+    """
 
     def __init__(self, *args, throttles={}, **kwargs):
 
@@ -295,75 +272,75 @@ class ThrottleStreamIO(StreamIO, dict):
         dict.__init__(self, throttles)
 
     @asyncio.coroutine
-    def acquire(self):
-
+    def acquire(self, name):
+        """
+        Acquire all throttles
+        """
         for throttle in self.values():
 
-            yield from throttle.acquire()
+            yield from getattr(throttle, name).acquire()
 
-    def release(self):
-
+    def append(self, name, data):
+        """
+        Update timeout for all throttles
+        """
         for throttle in self.values():
 
-            throttle.release_later()
+            getattr(throttle, name).append(data)
+
+    def release_later(self, name):
+        """
+        Trigger :py:meth:`aioftp.Throttle.release_later` for all throttles
+        """
+        for throttle in self.values():
+
+            getattr(throttle, name).release_later()
 
     @asyncio.coroutine
     def read(self, count=DEFAULT_BLOCK_SIZE):
-
-        yield from self.acquire()
+        """
+        :py:meth:`aioftp.StreamIO.read` proxy
+        """
+        yield from self.acquire("read")
         try:
 
-            data = yield from self.read(count)
+            data = yield from super().read(count)
+            self.append("read", data)
 
         finally:
 
-            if self.throttle is not None:
-
-                self.memory.append(data, self.throttle)
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
+            self.release_later("read")
 
         return data
 
     @asyncio.coroutine
     def readline(self):
-
-        if self.throttle is not None:
-
-            yield from self._lock
-
+        """
+        :py:meth:`aioftp.StreamIO.readline` proxy
+        """
+        yield from self.acquire("read")
         try:
 
-            data = yield from self.stream.readline()
+            data = yield from super().readline()
+            self.append("read", data)
 
         finally:
 
-            if self.throttle is not None:
-
-                self.memory.append(data, self.throttle)
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
+            self.release_later("read")
 
         return data
 
-    def write(self, data):
-
-        yield from self.stream.write(data)
-        if self.throttle is not None:
-
-            self.memory.append(data, self.throttle)
-
     @asyncio.coroutine
-    def drain(self):
-
-        if self.throttle is not None:
-
-            yield from self._lock
-
+    def write(self, data):
+        """
+        :py:meth:`aioftp.StreamIO.write` proxy
+        """
+        yield from self.acquire("write")
         try:
 
-            yield from self.stream.drain()
+            yield from super().write(data)
+            self.append("write", data)
 
         finally:
 
-            if self.throttle is not None:
-
-                self.loop.call_later(self.memory.timeout(), self._lock.release)
+            self.release_later("write")
