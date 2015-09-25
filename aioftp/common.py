@@ -137,7 +137,7 @@ class WriteThrottle(AbstractThrottle):
 
     def write(self, data):
 
-        yield from self.stream.write(data)
+        self.stream.write(data)
         if self.throttle is not None:
 
             self.memory.append(data, self.throttle)
