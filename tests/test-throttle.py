@@ -138,6 +138,40 @@ def test_client_write_throttle(loop, client, server, *, tmp_dir):
     big_file.unlink()
 
 
+@aioftp_setup(
+    client_args=(
+        [],
+        {
+            "client_to_server_speed_limit": 100 * 1024  # 100 Kib
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_client_write_throttle_changed_after_creation(loop, client, server, *,
+                                                      tmp_dir):
+
+    client.client_to_server_throttle.limit = 200 * 1024  # 200 Kib
+
+    start = time.perf_counter()
+    big_file = tmp_dir / "foo.txt"
+    yield from client.login()
+    stream = yield from client.upload_stream("tests/foo/foo.txt")
+    count = 0
+    for _ in range(3 * 100):  # 300 Kib
+
+        yield from stream.write(b"-" * 1024)
+
+    yield from stream.finish()
+
+    with big_file.open() as fin:
+
+        data = fin.read()
+
+    nose.tools.eq_(len(data), 3 * 100 * 1024)
+    nose.tools.ok_(1 < (time.perf_counter() - start) < 2)
+    big_file.unlink()
+
+
 class SlowPathIO(aioftp.PathIO):
 
     @aioftp.with_timeout
