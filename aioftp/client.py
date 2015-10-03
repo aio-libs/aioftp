@@ -96,8 +96,8 @@ class BaseClient:
                  loop=None,
                  create_connection=None,
                  socket_timeout=None,
-                 download_speed_limit=None,
-                 upload_speed_limit=None,
+                 server_to_client_speed_limit=None,
+                 client_to_server_speed_limit=None,
                  path_timeout=None,
                  path_io_factory=pathio.AsyncPathIO):
 
@@ -106,13 +106,13 @@ class BaseClient:
             self.loop.create_connection
         self.socket_timeout = socket_timeout
 
-        self.download_throttle = Throttle(
+        self.server_to_client_throttle = Throttle(
             loop=self.loop,
-            limit=download_speed_limit
+            limit=server_to_client_speed_limit
         )
-        self.upload_throttle = Throttle(
+        self.client_to_server_throttle = Throttle(
             loop=self.loop,
-            limit=upload_speed_limit
+            limit=client_to_server_speed_limit
         )
 
         self.path_timeout = path_timeout
@@ -132,8 +132,8 @@ class BaseClient:
             writer,
             throttles={
                 "main": StreamThrottle(
-                    read=self.download_throttle,
-                    write=self.upload_throttle
+                    read=self.server_to_client_throttle,
+                    write=self.client_to_server_throttle
                 )
             },
             timeout=self.socket_timeout,
@@ -369,11 +369,12 @@ class Client(BaseClient):
     :param socket_timeout: timeout for read operations
     :type socket_timeout: :py:class:`float`, :py:class:`int` or `None`
 
-    :param download_speed_limit: download speed limit in bytes per second
-    :type download_speed_limit: :py:class:`int` or `None`
+    :param server_to_client_speed_limit: download speed limit in bytes per
+        second
+    :type server_to_client_speed_limit: :py:class:`int` or `None`
 
-    :param upload_speed_limit: upload speed limit in bytes per second
-    :type upload_speed_limit: :py:class:`int` or `None`
+    :param client_to_server_speed_limit: upload speed limit in bytes per second
+    :type client_to_server_speed_limit: :py:class:`int` or `None`
 
     :param path_timeout: timeout for path-related operations (make directory,
         unlink file, etc.)
@@ -926,8 +927,8 @@ class Client(BaseClient):
             writer,
             throttles={
                 "main": StreamThrottle(
-                    read=self.download_throttle,
-                    write=self.upload_throttle
+                    read=self.server_to_client_throttle,
+                    write=self.client_to_server_throttle
                 )
             },
             timeout=self.socket_timeout,
