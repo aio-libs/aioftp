@@ -14,7 +14,7 @@ from common import *
 def test_remove_single_file(loop, client, server, *, tmp_dir):
 
     tmp_file = tmp_dir / "foo.txt"
-    nose.tools.ok_(tmp_file.exists() == False)
+    nose.tools.ok_(tmp_file.exists() is False)
     tmp_file.touch()
     nose.tools.ok_(tmp_file.exists())
 
@@ -22,7 +22,7 @@ def test_remove_single_file(loop, client, server, *, tmp_dir):
     yield from client.remove_file("foo.txt")
     yield from client.quit()
 
-    nose.tools.ok_(tmp_file.exists() == False)
+    nose.tools.ok_(tmp_file.exists() is False)
 
 
 @aioftp_setup(
