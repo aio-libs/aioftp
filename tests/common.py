@@ -68,7 +68,7 @@ def with_connection(f):
 
         try:
 
-            yield from server.start(None, PORT)
+            yield from server.start("127.0.0.1", PORT)
             yield from client.connect("127.0.0.1", PORT)
             yield from asyncio.coroutine(f)(loop, client, server)
 
