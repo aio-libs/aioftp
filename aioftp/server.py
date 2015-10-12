@@ -103,7 +103,14 @@ class User:
 
         self.login = login
         self.password = password
-        self.base_path = pathlib.Path(base_path)
+        if isinstance(base_path, str):
+
+            self.base_path = pathlib.Path(base_path)
+
+        else:
+
+            self.base_path = base_path
+
         self.home_path = pathlib.PurePosixPath(home_path)
         if not self.home_path.is_absolute():
 
