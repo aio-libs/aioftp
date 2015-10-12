@@ -122,6 +122,7 @@ class BaseClient:
     def connect(self, host, port=21):
 
         self.server_host = host
+        self.server_port = port
         reader, writer = yield from open_connection(
             host,
             port,
@@ -291,7 +292,7 @@ class BaseClient:
         :param s: response line
         :type s: :py:class:`str`
 
-        :rtype: :py:class:`pathlib.Path`
+        :rtype: :py:class:`pathlib.PurePosixPath`
         """
         seq_quotes = 0
         start = False
@@ -323,7 +324,7 @@ class BaseClient:
 
                     directory += ch
 
-        return pathlib.Path(directory)
+        return pathlib.PurePosixPath(directory)
 
     def parse_mlsx_line(self, b):
         """
@@ -333,7 +334,7 @@ class BaseClient:
         :type b: :py:class:`bytes` or :py:class:`str`
 
         :return: (path, info)
-        :rtype: (:py:class:`pathlib.Path`, :py:class:`dict`)
+        :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
 
@@ -351,7 +352,7 @@ class BaseClient:
             key, _, value = str.partition(fact, "=")
             entry[key.lower()] = value
 
-        return pathlib.Path(name), entry
+        return pathlib.PurePosixPath(name), entry
 
 
 class Client(BaseClient):
@@ -445,7 +446,7 @@ class Client(BaseClient):
 
         Getting current working directory.
 
-        :rtype: :py:class:`pathlib.Path`
+        :rtype: :py:class:`pathlib.PurePosixPath`
         """
         code, info = yield from self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
@@ -458,10 +459,10 @@ class Client(BaseClient):
 
         Change current directory. Goes «up» if no parameters passed.
 
-        :param pathlib.Path path: new directory, goes «up» if omitted
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :param path: new directory, goes «up» if omitted
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        if path in ("..", pathlib.Path("..")):
+        if path in ("..", pathlib.PurePosixPath("..")):
 
             cmd = "CDUP"
 
@@ -479,12 +480,12 @@ class Client(BaseClient):
         Make directory.
 
         :param path: path to directory to create
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param parents: create parents if does not exists
         :type parents: :py:class:`bool`
         """
-        path = pathlib.Path(path)
+        path = pathlib.PurePosixPath(path)
         need_create = []
         while path.name and not (yield from self.exists(path)):
 
@@ -507,7 +508,7 @@ class Client(BaseClient):
         Low level remove method for removing empty directory.
 
         :param path: empty directory to remove
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
         yield from self.command("RMD " + str(path), "250")
 
@@ -519,7 +520,7 @@ class Client(BaseClient):
         List all files and directories in "path".
 
         :param path: directory or file path
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
@@ -564,7 +565,7 @@ class Client(BaseClient):
         Getting path stats.
 
         :param path: path for getting info
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :return: path info
         :rtype: :py:class:`dict`
@@ -580,6 +581,9 @@ class Client(BaseClient):
 
         Checks if path is file.
 
+        :param path: path to check
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
+
         :rtype: :py:class:`bool`
         """
         info = yield from self.stat(path)
@@ -591,6 +595,9 @@ class Client(BaseClient):
         :py:func:`asyncio.coroutine`
 
         Checks if path is dir.
+
+        :param path: path to check
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`bool`
         """
@@ -604,8 +611,8 @@ class Client(BaseClient):
 
         Check path for existence.
 
-        :param path: path for checking on server side
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :param path: path to check
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`bool`
         """
@@ -624,10 +631,10 @@ class Client(BaseClient):
         Rename (move) file or directory.
 
         :param source: path to rename
-        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+        :type source: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param destination: path new name
-        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+        :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
         yield from self.command("RNFR " + str(source), "350")
         yield from self.command("RNTO " + str(destination), "2xx")
@@ -640,7 +647,7 @@ class Client(BaseClient):
         Low level remove method for removing file.
 
         :param path: file to remove
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
         yield from self.command("DELE " + str(path), "2xx")
 
@@ -653,7 +660,7 @@ class Client(BaseClient):
         directory).
 
         :param path: path to remove
-        :type path: :py:class:`str` or :py:class:`pathlib.Path`
+        :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
         if (yield from self.exists(path)):
 
@@ -680,7 +687,7 @@ class Client(BaseClient):
         Create stream for write data to `destination` file.
 
         :param destination: destination path of file on server side
-        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+        :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
@@ -694,7 +701,7 @@ class Client(BaseClient):
         Create stream for append (write) data to `destination` file.
 
         :param destination: destination path of file on server side
-        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+        :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
@@ -714,7 +721,7 @@ class Client(BaseClient):
 
         :param destination: destination path of file or directory on server
             side
-        :type destination: :py:class:`str` or :py:class:`pathlib.Path`
+        :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param write_into: write source into destination (if you want upload
             file and change it name, as well with directories)
@@ -724,7 +731,7 @@ class Client(BaseClient):
         :type block_size: :py:class:`int`
         """
         source = pathlib.Path(source)
-        destination = pathlib.Path(destination)
+        destination = pathlib.PurePosixPath(destination)
         if not write_into:
 
             destination = destination / source.name
@@ -789,7 +796,7 @@ class Client(BaseClient):
         Create stream for read data from `source` file.
 
         :param source: source path of file on server side
-        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+        :type source: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
@@ -805,7 +812,7 @@ class Client(BaseClient):
         recursively and save them to the file system.
 
         :param source: source path of file or directory on server side
-        :type source: :py:class:`str` or :py:class:`pathlib.Path`
+        :type source: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param destination: destination path of file or directory on client
             side
@@ -818,7 +825,7 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source = pathlib.Path(source)
+        source = pathlib.PurePosixPath(source)
         destination = pathlib.Path(destination)
         if not write_into:
 
