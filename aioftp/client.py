@@ -121,6 +121,7 @@ class BaseClient:
     @asyncio.coroutine
     def connect(self, host, port=21):
 
+        self.server_host = host
         reader, writer = yield from open_connection(
             host,
             port,
@@ -897,6 +898,10 @@ class Client(BaseClient):
         yield from self.command("TYPE " + conn_type, "200")
         code, info = yield from self.command("PASV", "227")
         ip, port = self.parse_address_response(info[-1])
+        if ip == "0.0.0.0":
+
+            ip = self.server_host
+
         reader, writer = yield from open_connection(
             ip,
             port,
