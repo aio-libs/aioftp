@@ -1,8 +1,6 @@
 import asyncio
 import functools
-import sys
 import pathlib
-import os
 import aioftp
 
 import nose

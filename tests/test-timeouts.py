@@ -3,7 +3,7 @@ import contextlib
 
 import aioftp.client
 import aioftp
-from common import *
+from common import *  # noqa
 from aioftp.server import MemoryUserManager
 
 

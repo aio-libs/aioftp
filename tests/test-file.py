@@ -1,10 +1,8 @@
-import pathlib
-import io
 import contextlib
 
 import nose
 
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup(
@@ -110,7 +108,6 @@ def test_file_append(loop, client, server, *, tmp_dir):
         fout.write("foobar")
 
     ab = b"foobar"
-    file_like = io.BytesIO(ab)
     yield from client.login()
     stream = yield from client.append_stream("foo")
     yield from stream.write(ab)

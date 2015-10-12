@@ -1,8 +1,6 @@
-import pathlib
-
 import nose
 
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup(
@@ -86,7 +84,6 @@ def test_abort_retr(loop, client, server, *, tmp_dir):
         yield from client.abort()
         future.set_result(True)
 
-    abort_requested = False
     future = asyncio.Future(loop=loop)
     yield from client.login()
     stream = yield from client.download_stream("/test.txt")

@@ -2,7 +2,7 @@ import pathlib
 
 import nose
 
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup(
@@ -15,7 +15,7 @@ def test_create_and_remove_directory(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("bar"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar"))
     nose.tools.eq_(stat["type"], "dir")
 
     yield from client.remove_directory("bar")
@@ -33,12 +33,12 @@ def test_create_and_remove_directory_long(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar/baz")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("bar"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar"))
     nose.tools.eq_(stat["type"], "dir")
 
     (path, stat), *_ = files = yield from client.list("bar")
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("bar/baz"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar/baz"))
     nose.tools.eq_(stat["type"], "dir")
 
     yield from client.remove_directory("bar/baz")
@@ -69,11 +69,11 @@ def test_change_directory(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar")
     yield from client.change_directory("bar")
     cwd = yield from client.get_current_directory()
-    nose.tools.eq_(cwd, pathlib.Path("/bar"))
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/bar"))
 
     yield from client.change_directory()
     cwd = yield from client.get_current_directory()
-    nose.tools.eq_(cwd, pathlib.Path("/"))
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
 
     yield from client.remove_directory("bar")
     files = yield from client.list()
@@ -101,13 +101,13 @@ def test_rename_empty_directory(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("bar"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar"))
     nose.tools.eq_(stat["type"], "dir")
 
     yield from client.rename("bar", "baz")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("baz"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("baz"))
     nose.tools.eq_(stat["type"], "dir")
 
     yield from client.remove_directory("baz")
@@ -125,7 +125,7 @@ def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     yield from client.make_directory("bar")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("bar"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar"))
     nose.tools.eq_(stat["type"], "dir")
 
     tmp_file = tmp_dir / "bar" / "foo.txt"
@@ -135,17 +135,17 @@ def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     yield from client.rename("bar", "hurr/baz")
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("hurr"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("hurr"))
     nose.tools.eq_(stat["type"], "dir")
 
     (path, stat), *_ = files = yield from client.list("hurr")
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("hurr/baz"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("hurr/baz"))
     nose.tools.eq_(stat["type"], "dir")
 
     (path, stat), *_ = files = yield from client.list("/hurr/baz")
     nose.tools.eq_(len(files), 1)
-    nose.tools.eq_(path, pathlib.Path("/hurr/baz/foo.txt"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("/hurr/baz/foo.txt"))
     nose.tools.eq_(stat["type"], "file")
 
     tmp_file = tmp_dir / "hurr" / "baz" / "foo.txt"

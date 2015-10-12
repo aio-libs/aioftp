@@ -2,7 +2,7 @@ import pathlib
 
 import nose
 
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup()
@@ -11,7 +11,7 @@ def test_current_directory_simple(loop, client, server):
 
     yield from client.login()
     cwd = yield from client.get_current_directory()
-    nose.tools.eq_(cwd, pathlib.Path("/"))
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
 
 
 @aioftp_setup(
@@ -21,7 +21,7 @@ def test_current_directory_not_default(loop, client, server):
 
     yield from client.login()
     cwd = yield from client.get_current_directory()
-    nose.tools.eq_(cwd, pathlib.Path("/foo"))
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/foo"))
 
 
 @aioftp_setup(
@@ -35,12 +35,12 @@ def test_mlsd(loop, client, server, *, tmp_dir):
 
     yield from client.login()
     cwd = yield from client.get_current_directory()
-    nose.tools.eq_(cwd, pathlib.Path("/"))
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
 
     (path, stat), *_ = files = yield from client.list()
     nose.tools.eq_(len(files), 1)
 
-    nose.tools.eq_(path, pathlib.Path("test.txt"))
+    nose.tools.eq_(path, pathlib.PurePosixPath("test.txt"))
     nose.tools.eq_(stat["type"], "file")
 
     tmp_file.unlink()
@@ -61,12 +61,12 @@ def test_resolving_double_dots(loop, client, server, *, tmp_dir):
     def f():
 
         cwd = yield from client.get_current_directory()
-        nose.tools.eq_(cwd, pathlib.Path("/"))
+        nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
 
         (path, stat), *_ = files = yield from client.list()
         nose.tools.eq_(len(files), 1)
 
-        nose.tools.eq_(path, pathlib.Path("test.txt"))
+        nose.tools.eq_(path, pathlib.PurePosixPath("test.txt"))
         nose.tools.eq_(stat["type"], "file")
 
     yield from f()

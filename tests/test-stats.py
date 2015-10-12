@@ -2,7 +2,7 @@ import pathlib
 
 import nose
 
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup(
@@ -138,7 +138,7 @@ def test_recursive_list(loop, client, server, *, tmp_dir):
     (tmp_dir / "bar.txt").unlink()
     d.rmdir()
     names = "bar.txt", "foo", "foo/baz.foo"
-    nose.tools.ok_(paths == set(map(pathlib.Path, names)))
+    nose.tools.ok_(paths == set(map(pathlib.PurePosixPath, names)))
 
     yield from client.quit()
 
@@ -165,7 +165,7 @@ def test_not_a_file_or_dir(loop, client, server):
             path_timeout=None,
             loop=loop,
         ),
-        pathlib.Path("/foo")
+        pathlib.PurePosixPath("/foo")
     )
 
 

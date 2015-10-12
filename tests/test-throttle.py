@@ -3,7 +3,7 @@ import time
 import nose
 
 import aioftp
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup(
@@ -56,7 +56,6 @@ def test_client_write_with_read_throttle(loop, client, server, *, tmp_dir):
     big_file = tmp_dir / "foo.txt"
     yield from client.login()
     stream = yield from client.upload_stream("tests/foo/foo.txt")
-    count = 0
     for _ in range(3 * 100):  # 300 Kib
 
         yield from stream.write(b"-" * 1024)
@@ -122,7 +121,6 @@ def test_client_write_throttle(loop, client, server, *, tmp_dir):
     big_file = tmp_dir / "foo.txt"
     yield from client.login()
     stream = yield from client.upload_stream("tests/foo/foo.txt")
-    count = 0
     for _ in range(3 * 100):  # 300 Kib
 
         yield from stream.write(b"-" * 1024)
@@ -153,17 +151,17 @@ def test_client_write_throttle_changed_after_creation(loop, client, server, *,
     client.client_to_server_throttle.limit = 200 * 1024  # 200 Kib
 
     start = time.perf_counter()
+    lstart = loop.time()
     big_file = tmp_dir / "foo.txt"
     yield from client.login()
     stream = yield from client.upload_stream("tests/foo/foo.txt")
-    count = 0
     for _ in range(3 * 100):  # 300 Kib
 
         yield from stream.write(b"-" * 1024)
 
     yield from stream.finish()
 
-    with big_file.open() as fin:
+    with big_file.open(mode="rb") as fin:
 
         data = fin.read()
 
@@ -179,7 +177,6 @@ class SlowPathIO(aioftp.PathIO):
     def write(self, fout, data):
 
         timeout = len(data) / (100 * 1024)  # sleep as 100 Kib per second write
-        print("sleep for", timeout)
         yield from asyncio.sleep(timeout, loop=self.loop)
         yield from super().write(fout, data)
 

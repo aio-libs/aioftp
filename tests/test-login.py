@@ -1,4 +1,4 @@
-from common import *
+from common import *  # noqa
 
 
 @aioftp_setup()
@@ -6,7 +6,7 @@ from common import *
 @expect_codes_in_exception("503")
 def test_not_logged_in(loop, client, server):
 
-    cwd = yield from client.get_current_directory()
+    yield from client.get_current_directory()
 
 
 @aioftp_setup()

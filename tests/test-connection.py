@@ -1,4 +1,4 @@
-from common import *
+from common import *  # noqa
 
 
 @nose.tools.raises(OSError)
@@ -67,7 +67,7 @@ def test_extra_pasv_connection(loop, client, server):
 
 
 @nose.tools.timed(2)
-@nose.tools.raises(ConnectionRefusedError)
+@nose.tools.raises(ConnectionError)
 @aioftp_setup()
 @with_connection
 def test_closing_pasv_connection(loop, client, server):
@@ -75,8 +75,11 @@ def test_closing_pasv_connection(loop, client, server):
     yield from client.login()
     r, w = yield from client.get_passive_connection()
     host, port = w.transport.get_extra_info("peername")
+    nr, nw = yield from asyncio.open_connection(host, port, loop=loop)
+    yield from asyncio.sleep(1, loop=loop)
+    nw.write(b"-" * 100)
+    yield from nw.drain()
     yield from client.quit()
-    yield from asyncio.open_connection(host, port, loop=loop)
 
 
 @nose.tools.timed(2)
