@@ -3,7 +3,7 @@ x.x.x (xx-xx-xxxx)
 
 - throttle: memory added for «macro» stability of flow
 - fixed client usage WindowsPath instead of PurePosixPath on windows for virtual paths
-- client protected of "0.0.0.0" ip address in PASV
+- client protected from "0.0.0.0" ip address in PASV
 - client use pathio
 - fixed throttle bug when slow path io (#20)
 - path io timeouts moved to pathio.py
