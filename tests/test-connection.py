@@ -103,6 +103,20 @@ def test_server_shutdown(loop, client, server):
         yield from asyncio.sleep(0.5, loop=loop)
 
 
+@aioftp_setup()
+def test_client_zeros_passiv_ip(loop, client, server):
+
+    yield from server.start(None, PORT)
+    yield from client.connect("127.0.0.1", PORT)
+
+    yield from client.login()
+    r, w = yield from client.get_passive_connection()
+    w.close()
+
+    client.close()
+    server.close()
+    yield from server.wait_closed()
+
 if __name__ == "__main__":
 
     import logging
