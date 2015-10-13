@@ -148,10 +148,10 @@ def test_client_write_throttle(loop, client, server, *, tmp_dir):
 def test_client_write_throttle_changed_after_creation(loop, client, server, *,
                                                       tmp_dir):
 
+    nose.tools.eq_(client.client_to_server_throttle.limit, 100 * 1024)
     client.client_to_server_throttle.limit = 200 * 1024  # 200 Kib
 
     start = time.perf_counter()
-    lstart = loop.time()
     big_file = tmp_dir / "foo.txt"
     yield from client.login()
     stream = yield from client.upload_stream("tests/foo/foo.txt")
