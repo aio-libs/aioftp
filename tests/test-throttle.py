@@ -10,7 +10,7 @@ from common import *  # noqa
     client_args=(
         [],
         {
-            "server_to_client_speed_limit": 100 * 1024  # 100 Kib
+            "read_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -45,7 +45,7 @@ def test_client_read_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "server_to_client_speed_limit": 100 * 1024  # 100 Kib
+            "read_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -75,7 +75,7 @@ def test_client_write_with_read_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "client_to_server_speed_limit": 100 * 1024  # 100 Kib
+            "write_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -110,7 +110,7 @@ def test_client_read_with_write_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "client_to_server_speed_limit": 100 * 1024  # 100 Kib
+            "write_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -140,7 +140,7 @@ def test_client_write_throttle(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "client_to_server_speed_limit": 100 * 1024  # 100 Kib
+            "write_speed_limit": 100 * 1024  # 100 Kib
         },
     ))
 @with_connection
@@ -148,8 +148,8 @@ def test_client_write_throttle(loop, client, server, *, tmp_dir):
 def test_client_write_throttle_changed_after_creation(loop, client, server, *,
                                                       tmp_dir):
 
-    nose.tools.eq_(client.client_to_server_throttle.limit, 100 * 1024)
-    client.client_to_server_throttle.limit = 200 * 1024  # 200 Kib
+    nose.tools.eq_(client.throttle.write.limit, 100 * 1024)
+    client.throttle.write.limit = 200 * 1024  # 200 Kib
 
     start = time.perf_counter()
     big_file = tmp_dir / "foo.txt"
@@ -185,7 +185,7 @@ class SlowPathIO(aioftp.PathIO):
     client_args=(
         [],
         {
-            "client_to_server_speed_limit": 100 * 1024,  # 100 Kib per second
+            "write_speed_limit": 100 * 1024,  # 100 Kib per second
             "path_io_factory": SlowPathIO,
         },
     ))
@@ -216,7 +216,7 @@ def test_client_write_throttle_with_slow_io(loop, client, server, *, tmp_dir):
     client_args=(
         [],
         {
-            "server_to_client_speed_limit": 200 * 1024,  # 200 Kib per second
+            "read_speed_limit": 200 * 1024,  # 200 Kib per second
             "path_io_factory": SlowPathIO,
         },
     ))
