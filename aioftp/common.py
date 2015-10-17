@@ -220,7 +220,7 @@ class Throttle:
         self.loop = loop or asyncio.get_event_loop()
         self._limit = limit
         self._lock = asyncio.Lock(loop=self.loop)
-        self.end = 0
+        self._end = 0
         self.memory = ThrottleMemory(maxlen=maxlen)
 
     @asyncio.coroutine
@@ -248,7 +248,7 @@ class Throttle:
         if self._limit is not None and self._limit > 0:
 
             self.memory.put(data, time)
-            self.end = self.memory.get_release_time(self._limit)
+            self._end = self.memory.get_release_time(self._limit)
 
     def release_later(self):
         """
@@ -256,7 +256,7 @@ class Throttle:
         """
         if self._lock.locked():
 
-            self.loop.call_at(self.end, self._lock.release)
+            self.loop.call_at(self._end, self._lock.release)
 
     @property
     def limit(self):
@@ -267,7 +267,7 @@ class Throttle:
     def limit(self, value):
 
         self._limit = value
-        self.end = 0
+        self._end = 0
         self.memory.clear()
 
 
