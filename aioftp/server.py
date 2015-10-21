@@ -5,6 +5,7 @@ import datetime
 import socket
 import collections
 import concurrent
+import enum
 
 
 from . import errors
@@ -196,6 +197,11 @@ class AbstractUserManager:
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
+    GetUserResponse = enum.Enum(
+        "UserManagerResponse",
+        "OK PASSWORD_REQUIRED ERROR"
+    )
+
     def __init__(self, *, timeout=None, loop=None):
 
         self.timeout = timeout
@@ -281,28 +287,35 @@ class MemoryUserManager(AbstractUserManager):
 
         if user is None:
 
-            raise IndexError("530", "no such username")
+            state = AbstractUserManager.GetUserResponse.ERROR
+            info = "no such username"
 
         elif self.available_connections[user].locked():
 
+            state = AbstractUserManager.GetUserResponse.ERROR
             template = "too much connections for '{}'"
-            message = str.format(template, user.login or "anonymous")
-            raise IndexError("530", message)
+            info = str.format(template, user.login or "anonymous")
 
         elif user.login is None:
 
-            logged, code, info = True, "230", "anonymous login"
+            state = AbstractUserManager.GetUserResponse.OK
+            info = "anonymous login"
 
         elif user.password is None:
 
-            logged, code, info = True, "230", "login without password"
+            state = AbstractUserManager.GetUserResponse.OK
+            info = "login without password"
 
         else:
 
-            logged, code, info = False, "331", "require password"
+            state = AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED
+            info = "password required"
 
-        self.available_connections[user].acquire()
-        return user, logged, code, info
+        if state != AbstractUserManager.GetUserResponse.ERROR:
+
+            self.available_connections[user].acquire()
+
+        return state, user, info
 
     @asyncio.coroutine
     def authenticate(self, user, password):
@@ -1103,10 +1116,32 @@ class Server(AbstractServer):
 
             yield from self.user_manager.notify_logout(connection.user)
 
-        try:
+        state, user, info = yield from self.user_manager.get_user(rest)
+        if state == AbstractUserManager.GetUserResponse.OK:
 
-            args = yield from self.user_manager.get_user(rest)
-            connection.user, connection.logged, code, info = args
+            code = "230"
+            connection.logged = True
+            connection.user = user
+
+        elif state == AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED:
+
+            code = "331"
+            connection.logged = False
+            connection.user = user
+
+        elif state == AbstractUserManager.GetUserResponse.ERROR:
+
+            code = "530"
+            connection.logged = False
+            del connection.user
+
+        else:
+
+            message = str.format("Unknown response {}", state)
+            raise NotImplementedError(message)
+
+        if connection.future.user.done():
+
             connection.current_directory = connection.user.home_path
 
             if connection.user not in self.throttle_per_user:
@@ -1126,15 +1161,9 @@ class Server(AbstractServer):
                     loop=connection.loop
                 )
             )
-            ok = True
-
-        except IndexError as e:
-
-            code, info = e.args
-            ok = False
 
         connection.response(code, info)
-        return ok
+        return True
 
     @ConnectionConditions(ConnectionConditions.user_required)
     @asyncio.coroutine
