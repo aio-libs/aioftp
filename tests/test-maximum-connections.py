@@ -35,6 +35,18 @@ def test_multiply_connections_limited_error(loop, client, server):
 
 
 @aioftp_setup(
+    server_args=([(aioftp.User(maximum_connections=1),)], {}))
+@with_connection
+def test_multiply_user_commands(loop, client, server):
+
+    for _ in range(10):
+
+        yield from client.login()
+
+    yield from client.quit()
+
+
+@aioftp_setup(
     server_args=([(aioftp.User("foo", maximum_connections=4),)], {}))
 @expect_codes_in_exception("530")
 @with_connection
