@@ -1,6 +1,8 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+- handling PASS after login
+- handling miltiply USER commands
 - user manager for dealing with user accounts
 - fixed client usage WindowsPath instead of PurePosixPath on windows for virtual paths
 - client protected from "0.0.0.0" ip address in PASV
