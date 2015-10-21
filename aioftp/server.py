@@ -382,7 +382,7 @@ class Connection(collections.defaultdict):
         super().__init__(functools.partial(asyncio.Future, loop=loop))
         self.future = Connection.Container(self)
 
-        self["loop"].set_result(loop)
+        self["loop"].set_result(loop or asyncio.get_event_loop())
         for k, v in kwargs.items():
 
             self[k].set_result(v)
