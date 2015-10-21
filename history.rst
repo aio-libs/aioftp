@@ -1,15 +1,16 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
-- throttle: memory added for «macro» stability of flow
+- user manager for dealing with user accounts
 - fixed client usage WindowsPath instead of PurePosixPath on windows for virtual paths
 - client protected from "0.0.0.0" ip address in PASV
 - client use pathio
+- throttle deal with multiply connections
 - fixed throttle bug when slow path io (#20)
 - path io timeouts moved to pathio.py
 - with_timeout decorator for methods
 - StreamIO deals with timeouts
-- all socket streams are StreamIO since now
+- all socket streams are ThrottleStreamIO since now
 Thanks to `rsichny <https://github.com/rsichny>`_
 
 0.2.0 (22-09-2015)
