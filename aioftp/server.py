@@ -1099,6 +1099,10 @@ class Server(AbstractServer):
     @asyncio.coroutine
     def user(self, connection, rest):
 
+        if connection.future.user.done():
+
+            yield from self.user_manager.notify_logout(connection.user)
+
         try:
 
             args = yield from self.user_manager.get_user(rest)
