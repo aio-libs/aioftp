@@ -565,7 +565,7 @@ class AbstractServer:
         while True:
 
             args = yield from response_queue.get()
-            if args is None:
+            if args == (None,):
 
                 break
 
