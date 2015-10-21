@@ -17,7 +17,9 @@ from .common import logger
 __all__ = (
     "Permission",
     "User",
+    "AbstractUserManager",
     "Connection",
+    "AvailableConnections",
     "ConnectionConditions",
     "PathConditions",
     "PathPermissions",
@@ -97,18 +99,18 @@ class User:
     :type maximum_connections: :py:class:`int`
 
     :param read_speed_limit: read speed limit per user in bytes per second
-    :type read_speed_limit: :py:class:`int` or `None`
+    :type read_speed_limit: :py:class:`int` or :py:class:`None`
 
     :param write_speed_limit: write speed limit per user in bytes per second
-    :type write_speed_limit: :py:class:`int` or `None`
+    :type write_speed_limit: :py:class:`int` or :py:class:`None`
 
     :param read_speed_limit_per_connection: read speed limit per user
         connection in bytes per second
-    :type read_speed_limit_per_connection: :py:class:`int` or `None`
+    :type read_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
 
     :param write_speed_limit_per_connection: write speed limit per user
         connection in bytes per second
-    :type write_speed_limit_per_connection: :py:class:`int` or `None`
+    :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
     """
 
     def __init__(self,
@@ -191,7 +193,7 @@ class AbstractUserManager:
     Abstract user manager.
 
     :param timeout: timeout used by `with_timeout` decorator
-    :type timeout: :py:class:`float`, :py:class:`int` or `None`
+    :type timeout: :py:class:`float`, :py:class:`int` or :py:class:`None`
 
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -208,7 +210,7 @@ class AbstractUserManager:
         self.loop = loop or asyncio.get_event_loop()
 
     @asyncio.coroutine
-    def get_user(self, login, *, timeout=None, loop=None):
+    def get_user(self, login):
         """
         :py:func:`asyncio.coroutine`
 
@@ -216,10 +218,6 @@ class AbstractUserManager:
 
         :param login: user's login
         :type login: :py:class:`str`
-
-        :return: (user, logged, code, info)
-        :rtype: (:py:class:`aioftp.User`, :py:class:`bool`, :py:class:`str`,
-            :py:class:`str`)
         """
         raise NotImplementedError
 
@@ -421,10 +419,10 @@ class Connection(collections.defaultdict):
 class AvailableConnections:
     """
     Semaphore-like object. Have no blocks, only raises ValueError on bounds
-        crossing. If value is `None` have no limits (bounds checks).
+    crossing. If value is :py:class:`None` have no limits (bounds checks).
 
     :param value:
-    :type value: :py:class:`int` or `None`
+    :type value: :py:class:`int` or :py:class:`None`
     """
 
     def __init__(self, value=None):
@@ -596,7 +594,7 @@ class AbstractServer:
 
         Worker for write_response with current connection. Get data to response
         from queue, this is for right order of responses. Exits if received
-        `None`.
+        :py:class:`None`.
 
         :param stream: command connection stream
         :type connection: :py:class:`aioftp.StreamIO`
@@ -643,8 +641,8 @@ class ConnectionConditions:
     :param fail_code: return code if failure
     :type fail_code: :py:class:`str`
 
-    :param fail_info: return information string if failure. If `None`, then
-        use default string
+    :param fail_info: return information string if failure. If
+        :py:class:`None`, then use default string
     :type fail_info: :py:class:`str`
 
     ::
@@ -853,18 +851,18 @@ class Server(AbstractServer):
     :type maximum_connections: :py:class:`int`
 
     :param read_speed_limit: server read speed limit in bytes per second
-    :type read_speed_limit: :py:class:`int` or `None`
+    :type read_speed_limit: :py:class:`int` or :py:class:`None`
 
     :param write_speed_limit: server write speed limit in bytes per second
-    :type write_speed_limit: :py:class:`int` or `None`
+    :type write_speed_limit: :py:class:`int` or :py:class:`None`
 
     :param read_speed_limit_per_connection: server read speed limit per
         connection in bytes per second
-    :type read_speed_limit_per_connection: :py:class:`int` or `None`
+    :type read_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
 
     :param write_speed_limit_per_connection: server write speed limit per
         connection in bytes per second
-    :type write_speed_limit_per_connection: :py:class:`int` or `None`
+    :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
     """
     path_facts = (
         ("st_size", "Size"),

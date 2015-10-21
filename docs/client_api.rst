@@ -9,6 +9,9 @@ Client API
     :show-inheritance:
     :inherited-members:
 
+.. autoclass:: aioftp.DataConnectionThrottleStreamIO
+    :members:
+
 .. autoclass:: aioftp.Code
     :members:
     :show-inheritance:

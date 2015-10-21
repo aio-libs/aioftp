@@ -78,9 +78,9 @@ Client example
 
     loop = asyncio.get_event_loop()
     tasks = (
-        asyncio.async(get_mp3("server1.com", "login", "password")),
-        asyncio.async(get_mp3("server2.com", "login", "password")),
-        asyncio.async(get_mp3("server3.com", "login", "password")),
+        get_mp3("server1.com", "login", "password")),
+        get_mp3("server2.com", "login", "password")),
+        get_mp3("server3.com", "login", "password")),
     )
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()
@@ -123,6 +123,7 @@ Further reading
     developer_tutorial
     client_api
     server_api
+    common_api
     path_io_api
 
 Indices and tables

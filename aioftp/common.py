@@ -5,11 +5,11 @@ import collections
 
 
 __all__ = (
-    "StreamIO",
-    "ThrottleStreamIO",
-    "StreamThrottle",
-    "Throttle",
     "with_timeout",
+    "StreamIO",
+    "Throttle",
+    "StreamThrottle",
+    "ThrottleStreamIO",
     "END_OF_LINE",
     "DEFAULT_BLOCK_SIZE",
     "wrap_with_container",
@@ -49,7 +49,7 @@ def _with_timeout(name):
 def with_timeout(name):
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
-        argument takes from `name` decorator argument or "timeout".
+    argument takes from `name` decorator argument or "timeout".
 
     :param name: name of timeout attribute
     :type name: :py:class:`str`
@@ -104,15 +104,15 @@ class StreamIO:
     :type writer: :py:class:`asyncio.StreamWriter`
 
     :param timeout: socket timeout for read/write operations
-    :type timeout: :py:class:`int`, :py:class:`float` or `None`
+    :type timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
 
     :param read_timeout: socket timeout for read operations, overrides
         `timeout`
-    :type read_timeout: :py:class:`int`, :py:class:`float` or `None`
+    :type read_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
 
     :param write_timeout: socket timeout for write operations, overrides
         `timeout`
-    :type write_timeout: :py:class:`int`, :py:class:`float` or `None`
+    :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -179,8 +179,8 @@ class Throttle:
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
 
-    :param limit: speed limit in bytes or `None` for unlimited
-    :type limit: :py:class:`int` or `None`
+    :param limit: speed limit in bytes or :py:class:`None` for unlimited
+    :type limit: :py:class:`int` or :py:class:`None`
 
     :param reset_rate: time in seconds for «round» throttle memory (to deal
         with float precision when divide)
@@ -236,7 +236,7 @@ class Throttle:
     @property
     def limit(self):
         """
-        Get throttle limit
+        Throttle limit
         """
         return self._limit
 
@@ -246,7 +246,7 @@ class Throttle:
         Set throttle limit
 
         :param value: bytes per second
-        :type value: :py:class:`int` or `None`
+        :type value: :py:class:`int` or :py:class:`None`
         """
         self._limit = value
         self._start = None
@@ -299,13 +299,13 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
-        :param read_speed_limit: stream read speed limit in bytes or `None`
-            for unlimited
-        :type read_speed_limit: :py:class:`int` or `None`
+        :param read_speed_limit: stream read speed limit in bytes or
+            :py:class:`None` for unlimited
+        :type read_speed_limit: :py:class:`int` or :py:class:`None`
 
-        :param write_speed_limit: stream write speed limit in bytes or `None`
-            for unlimited
-        :type write_speed_limit: :py:class:`int` or `None`
+        :param write_speed_limit: stream write speed limit in bytes or
+            :py:class:`None` for unlimited
+        :type write_speed_limit: :py:class:`int` or :py:class:`None`
 
         :param loop: loop to use
         :type loop: :py:class:`asyncio.BaseEventLoop`
@@ -326,7 +326,7 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
 class ThrottleStreamIO(StreamIO):
     """
     Throttled :py:class:`aioftp.StreamIO`. `ThrottleStreamIO` is subclass of
-    :py:class:`aioftp.StreamIO`. `throttles` attribute is dictionary of `name`,
+    :py:class:`aioftp.StreamIO`. `throttles` attribute is dictionary of `name`:
     :py:class:`aioftp.StreamThrottle` pairs
 
     :param *args: positional arguments for :py:class:`aioftp.StreamIO`

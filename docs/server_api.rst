@@ -13,9 +13,15 @@ Server API
 .. autoclass :: aioftp.Permission
     :members:
 
+.. autoclass :: aioftp.AbstractUserManager
+    :members:
+
 .. autoclass :: aioftp.Connection
     :members:
     :show-inheritance:
+
+.. autoclass :: aioftp.AvailableConnections
+    :members:
 
 .. autoclass :: aioftp.ConnectionConditions
     :members:

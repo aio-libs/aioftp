@@ -11,6 +11,7 @@ from .common import logger
 
 __all__ = (
     "Client",
+    "DataConnectionThrottleStreamIO",
     "Code",
 )
 
