@@ -926,7 +926,7 @@ class Server(AbstractServer):
                             break
 
                     # this is parse_command result
-                    else:
+                    elif isinstance(result, tuple):
 
                         pending.add(self.parse_command(stream))
 
