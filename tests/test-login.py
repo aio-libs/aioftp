@@ -63,6 +63,17 @@ def test_login_with_login_and_password_bad_password(loop, client, server):
     yield from client.quit()
 
 
+@aioftp_setup(
+    server_args=([(aioftp.User("foo", "bar"),)], {}))
+@with_connection
+@expect_codes_in_exception("503")
+def test_pasv_after_login(loop, client, server):
+
+    yield from client.login("foo", "bar")
+    yield from client.command("PASS baz", ("230", "33x"))
+    yield from client.quit()
+
+
 if __name__ == "__main__":
 
     import logging
