@@ -1112,6 +1112,9 @@ class Server(AbstractServer):
 
             yield from self.user_manager.notify_logout(connection.user)
 
+        del connection.user
+        del connection.logged
+
         state, user, info = yield from self.user_manager.get_user(rest)
         if state == AbstractUserManager.GetUserResponse.OK:
 
@@ -1122,14 +1125,11 @@ class Server(AbstractServer):
         elif state == AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED:
 
             code = "331"
-            connection.logged = False
             connection.user = user
 
         elif state == AbstractUserManager.GetUserResponse.ERROR:
 
             code = "530"
-            connection.logged = False
-            del connection.user
 
         else:
 
@@ -1165,7 +1165,12 @@ class Server(AbstractServer):
     @asyncio.coroutine
     def pass_(self, connection, rest):
 
-        if (yield from self.user_manager.authenticate(connection.user, rest)):
+        auth = self.user_manager.authenticate(connection.user, rest)
+        if connection.future.logged.done():
+
+            code, info = "503", "already logged in"
+
+        elif (yield from auth):
 
             connection.logged = True
             code, info = "230", "normal login"
