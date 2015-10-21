@@ -106,15 +106,10 @@ class BaseClient:
             self.loop.create_connection
         self.socket_timeout = socket_timeout
 
-        self.throttle = StreamThrottle(
-            read=Throttle(
-                loop=self.loop,
-                limit=read_speed_limit
-            ),
-            write=Throttle(
-                loop=self.loop,
-                limit=write_speed_limit
-            )
+        self.throttle = StreamThrottle.from_limits(
+            read_speed_limit,
+            write_speed_limit,
+            loop=self.loop
         )
 
         self.path_timeout = path_timeout
