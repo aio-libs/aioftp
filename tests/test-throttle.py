@@ -244,6 +244,375 @@ def test_client_read_throttle_with_too_slow_io(loop, client, server, *,
     received.unlink()
 
 
+@aioftp_setup(
+    server_args=(
+        [],
+        {
+            "write_speed_limit": 200 * 1024,  # 200 Kib per second
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_global_write_throttle_one_user(loop, client, server, *,
+                                               tmp_dir):
+
+    start = time.perf_counter()
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 3 * 100 * 1024)
+
+    yield from client.login()
+    yield from client.download(
+        "tests/foo/foo.txt",
+        "tests/foo/bar.txt",
+        write_into=True
+    )
+
+    nose.tools.ok_(1 < (time.perf_counter() - start) < 2)
+    big_file.unlink()
+    received = tmp_dir / "bar.txt"
+    received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [],
+        {
+            "write_speed_limit": 200 * 1024,  # 200 Kib per second
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_global_write_throttle_multi_users(loop, client, server, *,
+                                                  tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.download(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 3 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [],
+        {
+            "read_speed_limit": 200 * 1024,  # 200 Kib per second
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_global_read_throttle_multi_users(loop, client, server, *,
+                                                 tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.upload(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 10 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(14.5 < (time.perf_counter() - start) < 15.5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [],
+        {
+            "write_speed_limit_per_connection": 200 * 1024,  # 200 Kib/s
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_per_connection_write_throttle_multi_users(loop, client, server,
+                                                          *, tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.download(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 9 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [],
+        {
+            "read_speed_limit_per_connection": 200 * 1024,  # 200 Kib/s
+        },
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_per_connection_read_throttle_multi_users(loop, client, server,
+                                                         *, tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.upload(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 9 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [[aioftp.User(write_speed_limit_per_connection=200 * 1024)]],
+        {},
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_user_per_connection_write_throttle_multi_users(loop, client,
+                                                               server, *,
+                                                               tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.download(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 9 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [[aioftp.User(read_speed_limit_per_connection=200 * 1024)]],
+        {},
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_user_per_connection_read_throttle_multi_users(loop, client,
+                                                              server, *,
+                                                              tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.upload(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 9 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [[aioftp.User(write_speed_limit=200 * 1024)]],
+        {},
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_user_global_write_throttle_multi_users(loop, client, server, *,
+                                                       tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.download(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 3 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
+@aioftp_setup(
+    server_args=(
+        [[aioftp.User(read_speed_limit=200 * 1024)]],
+        {},
+    ))
+@with_connection
+@with_tmp_dir("foo")
+def test_server_user_global_read_throttle_multi_users(loop, client, server, *,
+                                                      tmp_dir):
+
+    @asyncio.coroutine
+    def worker(fname):
+
+        client = aioftp.Client(loop=loop)
+        yield from client.connect("127.0.0.1", PORT)
+        yield from client.login()
+        yield from client.upload(
+            "tests/foo/foo.txt",
+            str.format("tests/foo/{}", fname),
+            write_into=True
+        )
+        yield from client.quit()
+
+    fnames = ("bar.txt", "baz.txt", "hurr.txt")
+    big_file = tmp_dir / "foo.txt"
+    with big_file.open("wb") as fout:
+
+        fout.write(b"-" * 3 * 100 * 1024)
+
+    start = time.perf_counter()
+    yield from asyncio.wait(map(worker, fnames), loop=loop)
+
+    nose.tools.ok_(4 < (time.perf_counter() - start) < 5)
+
+    big_file.unlink()
+    for fname in fnames:
+
+        received = tmp_dir / fname
+        received.unlink()
+
+
 if __name__ == "__main__":
 
     import logging
