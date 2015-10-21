@@ -94,12 +94,33 @@ class User:
 
     :param maximum_connections: Maximum connections per user
     :type maximum_connections: :py:class:`int`
+
+    :param read_speed_limit: read speed limit per user in bytes per second
+    :type read_speed_limit: :py:class:`int` or `None`
+
+    :param write_speed_limit: write speed limit per user in bytes per second
+    :type write_speed_limit: :py:class:`int` or `None`
+
+    :param read_speed_limit_per_connection: read speed limit per user
+        connection in bytes per second
+    :type read_speed_limit_per_connection: :py:class:`int` or `None`
+
+    :param write_speed_limit_per_connection: write speed limit per user
+        connection in bytes per second
+    :type write_speed_limit_per_connection: :py:class:`int` or `None`
     """
 
-    def __init__(self, login=None, password=None, *,
+    def __init__(self,
+                 login=None,
+                 password=None, *,
                  base_path=pathlib.Path("."),
-                 home_path=pathlib.PurePosixPath("/"), permissions=None,
-                 maximum_connections=None):
+                 home_path=pathlib.PurePosixPath("/"),
+                 permissions=None,
+                 maximum_connections=None,
+                 read_speed_limit=None,
+                 write_speed_limit=None,
+                 read_speed_limit_per_connection=None,
+                 write_speed_limit_per_connection=None):
 
         self.login = login
         self.password = password
@@ -118,6 +139,12 @@ class User:
 
         self.permissions = permissions or [Permission()]
         self.maximum_connections = maximum_connections
+
+        self.read_speed_limit = read_speed_limit
+        self.write_speed_limit = write_speed_limit
+        self.read_speed_limit_per_connection = read_speed_limit_per_connection
+        self.write_speed_limit_per_connection = \
+            write_speed_limit_per_connection
 
     def get_permissions(self, path):
         """
@@ -141,7 +168,9 @@ class User:
 
         return str.format(
             "{}({!r}, {!r}, base_path={!r}, home_path={!r}, permissions={!r}, "
-            "maximum_connections={!r})",
+            "maximum_connections={!r}, read_speed_limit={!r}, "
+            "write_speed_limit={!r}, read_speed_limit_per_connection={!r}, "
+            "write_speed_limit_per_connection={!r})",
             self.__class__.__name__,
             self.login,
             self.password,
@@ -149,6 +178,10 @@ class User:
             self.home_path,
             self.permissions,
             self.maximum_connections,
+            self.read_speed_limit,
+            self.write_speed_limit,
+            self.read_speed_limit_per_connection,
+            self.write_speed_limit_per_connection
         )
 
 
@@ -809,6 +842,20 @@ class Server(AbstractServer):
 
     :param maximum_connections: Maximum command connections per server
     :type maximum_connections: :py:class:`int`
+
+    :param read_speed_limit: server read speed limit in bytes per second
+    :type read_speed_limit: :py:class:`int` or `None`
+
+    :param write_speed_limit: server write speed limit in bytes per second
+    :type write_speed_limit: :py:class:`int` or `None`
+
+    :param read_speed_limit_per_connection: server read speed limit per
+        connection in bytes per second
+    :type read_speed_limit_per_connection: :py:class:`int` or `None`
+
+    :param write_speed_limit_per_connection: server write speed limit per
+        connection in bytes per second
+    :type write_speed_limit_per_connection: :py:class:`int` or `None`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -826,7 +873,11 @@ class Server(AbstractServer):
                  wait_future_timeout=1,
                  path_timeout=None,
                  path_io_factory=pathio.AsyncPathIO,
-                 maximum_connections=None):
+                 maximum_connections=None,
+                 read_speed_limit=None,
+                 write_speed_limit=None,
+                 read_speed_limit_per_connection=None,
+                 write_speed_limit_per_connection=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
@@ -844,6 +895,18 @@ class Server(AbstractServer):
             self.user_manager = MemoryUserManager(users, loop=self.loop)
 
         self.available_connections = AvailableConnections(maximum_connections)
+
+        self.throttle = StreamThrottle.from_limits(
+            read_speed_limit,
+            write_speed_limit,
+            loop=self.loop
+        )
+        self.throttle_per_connection = StreamThrottle.from_limits(
+            read_speed_limit_per_connection,
+            write_speed_limit_per_connection,
+            loop=self.loop
+        )
+        self.throttle_per_user = {}
 
     def _generate_tasks(self, connection, pending):
 
@@ -867,9 +930,13 @@ class Server(AbstractServer):
         logger.info(add_prefix(message))
 
         # throttle here
-        key = stream = StreamIO(
+        key = stream = ThrottleStreamIO(
             reader,
             writer,
+            throttles=dict(
+                server_global=self.throttle,
+                server_per_connection=self.throttle_per_connection.clone()
+            ),
             read_timeout=self.idle_timeout,
             write_timeout=self.socket_timeout,
             loop=self.loop
@@ -1032,17 +1099,35 @@ class Server(AbstractServer):
     @asyncio.coroutine
     def user(self, connection, rest):
 
-        ok = False
         try:
 
             args = yield from self.user_manager.get_user(rest)
             connection.user, connection.logged, code, info = args
             connection.current_directory = connection.user.home_path
+
+            if connection.user not in self.throttle_per_user:
+
+                throttle = StreamThrottle.from_limits(
+                    connection.user.read_speed_limit,
+                    connection.user.write_speed_limit,
+                    loop=connection.loop
+                )
+                self.throttle_per_user[connection.user] = throttle
+
+            connection.command_connection.throttles.update(
+                user_global=self.throttle_per_user[connection.user],
+                user_per_connection=StreamThrottle.from_limits(
+                    connection.user.read_speed_limit_per_connection,
+                    connection.user.write_speed_limit_per_connection,
+                    loop=connection.loop
+                )
+            )
             ok = True
 
         except IndexError as e:
 
             code, info = e.args
+            ok = False
 
         connection.response(code, info)
         return ok
@@ -1445,9 +1530,10 @@ class Server(AbstractServer):
 
             else:
 
-                connection.data_connection = StreamIO(
+                connection.data_connection = ThrottleStreamIO(
                     reader,
                     writer,
+                    throttles=connection.command_connection.throttles,
                     timeout=connection.socket_timeout,
                     loop=connection.loop
                 )
