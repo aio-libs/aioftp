@@ -417,10 +417,6 @@ class Connection(collections.defaultdict):
 
             self.pop(name)
 
-        else:
-
-            super().__delattr__(name)
-
 
 class AvailableConnections:
     """
