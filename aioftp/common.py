@@ -353,7 +353,7 @@ class ThrottleStreamIO(StreamIO):
 
     def __init__(self, *args, throttles={}, **kwargs):
 
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.throttles = throttles
 
     @asyncio.coroutine
