@@ -66,8 +66,9 @@ def test_client_write_with_read_throttle(loop, client, server, *, tmp_dir):
 
         data = fin.read()
 
+    print(len(data), (time.perf_counter() - start))
     nose.tools.eq_(len(data), 3 * 100 * 1024)
-    nose.tools.ok_((time.perf_counter() - start) < 0.2)
+    nose.tools.ok_((time.perf_counter() - start) < 0.5)
     big_file.unlink()
 
 
@@ -102,7 +103,7 @@ def test_client_read_with_write_throttle(loop, client, server, *, tmp_dir):
         count += len(data)
 
     nose.tools.eq_(count, 3 * 100 * 1024)
-    nose.tools.ok_((time.perf_counter() - start) < 0.2)
+    nose.tools.ok_((time.perf_counter() - start) < 0.5)
     big_file.unlink()
 
 
