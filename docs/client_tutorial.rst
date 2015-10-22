@@ -93,9 +93,9 @@ When you need get some path stats you should use :py:meth:`aioftp.Client.stat`
 ::
 
     >>> yield from client.stat("tmp2.py")
-    {'size': '909', 'create': '1445437246.4320722', 'type': 'file', 'modify': '1445437246.4320722'}
+    {'size': '909', 'create': '1445437246.4320722', 'type': 'file', ...
     >>> yield from client.stat(".git")
-    {'create': '1445435702.6441028', 'type': 'dir', 'size': '4096', 'modify': '1445435702.6441028'}
+    {'create': '1445435702.6441028', 'type': 'dir', 'size': '4096', ...
 
 If you need just to check path for is it file, directory or exists you can use
 
@@ -117,10 +117,6 @@ If you need just to check path for is it file, directory or exists you can use
     True
     >>> yield from client.exists("naked-guido.png")
     False
-
-Take a look on the last example. You can pass relative paths in any path
-oriented methods, but in this case you should know the current working
-directory.
 
 Remove path
 -----------
@@ -183,8 +179,8 @@ connection.
 
     >>> yield from client.quit()
 
-Advanced download and upload
-----------------------------
+Advanced download and upload, abort
+-----------------------------------
 
 File read/write operations are blocking and slow. So if you want just
 parse/calculate something on the fly when receiving file, or generate data
@@ -208,14 +204,70 @@ work with streams is:
             break
 
         # do something with data
+        if something_not_interesting:
 
-The code above is similar to aioftp source code of
-:py:meth:`aioftp.Client.download`, so this pattern is pretty straight.
+            yield from client.abort()
+            stream.close()
+            break
+
+It is important not to `finish` stream after abort, cause there is no «return»
+from worker.
 
 Throttle
 --------
 
-Coming soon
+Client have two types of speed limit: `read_speed_limit` and
+`write_speed_limit`. Throttle can be set at initialization time:
+
+::
+
+    >>> client = aioftp.Client(read_speed_limit=100 * 1024)  # 100 Kib/s
+
+And can be changed after creation:
+
+::
+
+    >>> client.throttle.write.limit = 250 * 1024
+
+Path abstraction layer
+----------------------
+
+aioftp provides abstraction of file system operations. You can use on of
+existence:
+
+* :py:class:`aioftp.PathIO` — blocking path operations
+* :py:class:`aioftp.AsyncPathIO` — non-blocking path operations, this one is
+  blocking ones just wrapped with
+  :py:meth:`asyncio.BaseEventLoop.run_in_executor`
+* :py:class:`aioftp.MemoryPathIO` — in-memory realization of file system, this
+  one is just proof of concept and probably not too fast (as it can be).
+
+You can specify `path_io_factory` when creating :py:class:`aioftp.Client`
+instance. Default factory is :py:class:`aioftp.AsyncPathIO`.
+
+::
+
+    >>> client = aioftp.Client(path_io_factory=pathio.MemoryPathIO)
+
+Timeouts
+--------
+
+:py:class:`aioftp.Client` have `socket_timeout` argument, which you can use
+to specify global timeout for socket io operations.
+
+::
+
+    >>> client = aioftp.Client(socket_timeout=1)  # 1 second socket timeout
+
+:py:class:`aioftp.Client` also have `path_timeout`, which is applied
+**only for non-blocking path io layers**.
+
+::
+
+    >>> client = aioftp.Client(
+        path_timeout=1,
+        path_io_factory=pathio.AsyncPathIO
+    )
 
 Using proxy
 -----------
@@ -239,4 +291,8 @@ with this library in mind.
         ]
     }
     tunnel = twunnel3.proxy_server.create_tunnel(configuration)
-    client = aioftp.Client(tunnel.create_connection)
+    client = aioftp.Client(create_connection=tunnel.create_connection)
+
+Futher reading
+--------------
+:doc:`client_api`
