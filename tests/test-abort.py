@@ -29,11 +29,13 @@ def test_abort_stor(loop, client, server, *, tmp_dir):
                 yield from stream.write(b"-" * 8192)
                 yield from asyncio.sleep(0.1, loop=loop)
 
+            yield from stream.finish()
+            raise Exception("Not aborted")
+
         except (ConnectionResetError, BrokenPipeError):
 
             break
 
-    yield from stream.finish()
     yield from future
     yield from client.quit()
     file = (tmp_dir / "test.txt")
@@ -66,7 +68,7 @@ class FakeSlowPathIO(aioftp.PathIO):
     @asyncio.coroutine
     def read(self, *args, **kwargs):
 
-        yield from asyncio.sleep(1, loop=self.loop)
+        yield from asyncio.sleep(0.05, loop=self.loop)
         return b"-" * 8192
 
 
@@ -90,18 +92,11 @@ def test_abort_retr(loop, client, server, *, tmp_dir):
     asyncio.async(request_abort(), loop=loop)
     while True:
 
-        try:
-
-            data = yield from stream.read(8192)
-            if not data:
-
-                break
-
-        except (ConnectionResetError, BrokenPipeError):
+        data = yield from stream.read(8192)
+        if not data:
 
             break
 
-    yield from stream.finish()
     yield from future
     yield from client.quit()
 
