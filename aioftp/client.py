@@ -943,4 +943,4 @@ class Client(BaseClient):
 
         Request data transfer abort.
         """
-        yield from self.command("ABOR")
+        yield from self.command("ABOR", "226", "426")

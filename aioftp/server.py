@@ -811,6 +811,24 @@ class PathPermissions:
         return wrapper
 
 
+def worker(f):
+
+    @asyncio.coroutine
+    @functools.wraps(f)
+    def wrapper(cls, connection, rest):
+
+        try:
+
+            yield from f(cls, connection, rest)
+
+        except asyncio.CancelledError:
+
+            connection.response("426", "transfer aborted")
+            connection.response("226", "abort successful")
+
+    return wrapper
+
+
 class Server(AbstractServer):
     """
     FTP server.
@@ -915,20 +933,6 @@ class Server(AbstractServer):
         )
         self.throttle_per_user = {}
 
-    def _generate_tasks(self, connection, pending):
-
-        for o in pending | connection.extra_workers:
-
-            if asyncio.iscoroutine(o):
-
-                yield connection.loop.create_task(o)
-
-            else:
-
-                yield o
-
-        connection.extra_workers.clear()
-
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
 
@@ -979,12 +983,13 @@ class Server(AbstractServer):
             ok = True
             while ok or not response_queue.empty():
 
-                pending = set(self._generate_tasks(connection, pending))
                 done, pending = yield from asyncio.wait(
-                    pending,
+                    pending | connection.extra_workers,
                     return_when=concurrent.futures.FIRST_COMPLETED,
                     loop=connection.loop
                 )
+                connection.extra_workers -= done
+
                 for task in done:
 
                     result = task.result()
@@ -1026,7 +1031,7 @@ class Server(AbstractServer):
 
             if not connection.loop.is_closed():
 
-                for task in pending:
+                for task in pending | connection.extra_workers:
 
                     if isinstance(task, asyncio.Task):
 
@@ -1280,6 +1285,7 @@ class Server(AbstractServer):
             wait=True,
             fail_code="425",
             fail_info="Can't open data connection")
+        @worker
         @asyncio.coroutine
         def mlsd_worker(self, connection, rest):
 
@@ -1297,11 +1303,13 @@ class Server(AbstractServer):
 
                 stream.close()
 
-            connection.response("200", "mlsd data transfer done")
+            connection.response("200", "mlsd transfer done")
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(mlsd_worker(self, connection, rest))
+        coro = mlsd_worker(self, connection, rest)
+        task = connection.loop.create_task(coro)
+        connection.extra_workers.add(task)
         connection.response("150", "mlsd transfer started")
         return True
 
@@ -1345,6 +1353,7 @@ class Server(AbstractServer):
             wait=True,
             fail_code="425",
             fail_info="Can't open data connection")
+        @worker
         @asyncio.coroutine
         def list_worker(self, connection, rest):
 
@@ -1362,11 +1371,13 @@ class Server(AbstractServer):
 
                 stream.close()
 
-            connection.response("226", "list data transfer done")
+            connection.response("226", "list transfer done")
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(list_worker(self, connection, rest))
+        coro = list_worker(self, connection, rest)
+        task = connection.loop.create_task(coro)
+        connection.extra_workers.add(task)
         connection.response("150", "list transfer started")
         return True
 
@@ -1433,6 +1444,7 @@ class Server(AbstractServer):
             wait=True,
             fail_code="425",
             fail_info="Can't open data connection")
+        @worker
         @asyncio.coroutine
         def stor_worker(self, connection, rest):
 
@@ -1446,13 +1458,6 @@ class Server(AbstractServer):
                     data = yield from stream.read(connection.block_size)
                     if not data:
 
-                        info = "data transfer done"
-                        break
-
-                    if connection.future.abort.done() and connection.abort:
-
-                        connection.abort = False
-                        info = "data transfer aborted"
                         break
 
                     yield from connection.path_io.write(fout, data)
@@ -1462,13 +1467,15 @@ class Server(AbstractServer):
                 stream.close()
                 yield from connection.path_io.close(fout)
 
-            connection.response("226", info)
+            connection.response("226", "data transfer done")
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
         if (yield from connection.path_io.is_dir(real_path.parent)):
 
-            connection.extra_workers.add(stor_worker(self, connection, rest))
+            coro = stor_worker(self, connection, rest)
+            task = connection.loop.create_task(coro)
+            connection.extra_workers.add(task)
             code, info = "150", "data transfer started"
 
         else:
@@ -1493,6 +1500,7 @@ class Server(AbstractServer):
             wait=True,
             fail_code="425",
             fail_info="Can't open data connection")
+        @worker
         @asyncio.coroutine
         def retr_worker(self, connection, rest):
 
@@ -1509,13 +1517,6 @@ class Server(AbstractServer):
                     )
                     if not data:
 
-                        info = "data transfer done"
-                        break
-
-                    if connection.future.abort.done() and connection.abort:
-
-                        connection.abort = False
-                        info = "data transfer aborted"
                         break
 
                     yield from stream.write(data)
@@ -1525,11 +1526,13 @@ class Server(AbstractServer):
                 stream.close()
                 yield from connection.path_io.close(fin)
 
-            connection.response("226", info)
+            connection.response("226", "data transfer done")
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
-        connection.extra_workers.add(retr_worker(self, connection, rest))
+        coro = retr_worker(self, connection, rest)
+        task = connection.loop.create_task(coro)
+        connection.extra_workers.add(task)
         connection.response("150", "data transfer started")
         return True
 
@@ -1601,8 +1604,16 @@ class Server(AbstractServer):
     @asyncio.coroutine
     def abor(self, connection, rest):
 
-        connection.abort = True
-        connection.response("150", "abort requested")
+        if connection.extra_workers:
+
+            for worker in connection.extra_workers:
+
+                worker.cancel()
+
+        else:
+
+            connection.response("226", "nothing to abort")
+
         return True
 
     @asyncio.coroutine
