@@ -49,7 +49,7 @@ can easily extend current set of commands.
 Dependencies
 ------------
 
-- Python 3.4+
+- Python 3.4.2+
 - docopt (for execution module as script only)
 
 License
