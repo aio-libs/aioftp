@@ -79,6 +79,7 @@ def test_closing_pasv_connection(loop, client, server):
     while True:
 
         nw.write(b"-" * 100)
+        yield from asyncio.sleep(0.1, loop=loop)
         yield from nw.drain()
 
     yield from client.quit()
