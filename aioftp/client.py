@@ -937,10 +937,19 @@ class Client(BaseClient):
         return stream
 
     @asyncio.coroutine
-    def abort(self):
+    def abort(self, *, wait=True):
         """
         :py:func:`asyncio.coroutine`
 
         Request data transfer abort.
+
+        :param wait: wait for abort response [426]→226 if `True`
+        :type wait: :py:class:`bool`
         """
-        yield from self.command("ABOR", "226", "426")
+        if wait:
+
+            yield from self.command("ABOR", "226", "426")
+
+        else:
+
+            yield from self.command("ABOR")
