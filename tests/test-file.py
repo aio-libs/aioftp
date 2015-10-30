@@ -67,6 +67,61 @@ def test_file_download(loop, client, server, *, tmp_dir):
     nose.tools.eq_(data, b"foobar")
 
 
+class FakeOpenFilePathIO(aioftp.PathIO):
+
+    @asyncio.coroutine
+    def open(self, path, *args, **kwargs):
+        path = path / 'not_exists'
+        yield from super(FakeOpenFilePathIO, self).open(path, *args, **kwargs)
+
+
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path="tests/foo"),)],
+        {"path_io_factory": FakeOpenFilePathIO}))
+@with_connection
+@expect_codes_in_exception("451")
+@with_tmp_dir("foo")
+def test_file_upload_os_error(loop, client, server, *, tmp_dir):
+
+    b = b"foobar"
+
+    yield from client.login()
+
+    stream = yield from client.upload_stream("foo")
+    yield from stream.write(b)
+    yield from stream.finish()
+    yield from client.quit()
+
+
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path="tests/foo"),)],
+        {
+            "path_io_factory": FakeOpenFilePathIO,
+        }))
+@with_connection
+@expect_codes_in_exception("451")
+@with_tmp_dir("foo")
+def test_file_download_os_error(loop, client, server, *, tmp_dir):
+
+    f = tmp_dir / "foo"
+    b = b"foobar"
+
+    yield from client.login()
+
+    stream = yield from client.upload_stream("foo")
+    yield from stream.write(b)
+    yield from stream.finish()
+    yield from client.quit()
+
+    with f.open("rb") as fin:
+
+        rb = fin.read()
+
+    f.unlink()
+
+
 @aioftp_setup(
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
@@ -475,4 +530,6 @@ if __name__ == "__main__":
     test_upload_file_into_another()
     test_download_file()
     test_download_file_write_into()
+    test_file_upload_os_error()
+    test_file_download_os_error()
     print("done")

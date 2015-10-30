@@ -1450,24 +1450,31 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
+
             try:
 
                 fout = yield from connection.path_io.open(real_path, mode=mode)
-                while True:
 
-                    data = yield from stream.read(connection.block_size)
-                    if not data:
+                try:
 
-                        break
+                    while True:
 
-                    yield from connection.path_io.write(fout, data)
+                        data = yield from stream.read(connection.block_size)
+                        if not data:
 
-            finally:
+                            break
 
-                stream.close()
-                yield from connection.path_io.close(fout)
+                        yield from connection.path_io.write(fout, data)
 
-            connection.response("226", "data transfer done")
+                finally:
+
+                    stream.close()
+                    yield from connection.path_io.close(fout)
+            except OSError:
+                connection.response("451", "operation aborted")
+            else:
+                connection.response("226", "data transfer done")
+
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1506,27 +1513,33 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
+
             try:
-
                 fin = yield from connection.path_io.open(real_path, mode="rb")
-                while True:
 
-                    data = yield from connection.path_io.read(
-                        fin,
-                        connection.block_size
-                    )
-                    if not data:
+                try:
 
-                        break
+                    while True:
 
-                    yield from stream.write(data)
+                        data = yield from connection.path_io.read(
+                            fin,
+                            connection.block_size
+                        )
+                        if not data:
 
-            finally:
+                            break
 
-                stream.close()
-                yield from connection.path_io.close(fin)
+                        yield from stream.write(data)
 
-            connection.response("226", "data transfer done")
+                finally:
+
+                    stream.close()
+                    yield from connection.path_io.close(fin)
+            except OSError:
+                connection.response("451", "operation aborted")
+            else:
+                connection.response("226", "data transfer done")
+
             return True
 
         real_path, virtual_path = self.get_paths(connection, rest)
