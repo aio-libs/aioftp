@@ -4,7 +4,6 @@ import functools
 import datetime
 import socket
 import collections
-import concurrent
 import enum
 
 
@@ -940,7 +939,6 @@ class Server(AbstractServer):
         message = str.format("new connection from {}:{}", host, port)
         logger.info(add_prefix(message))
 
-        # throttle here
         key = stream = ThrottleStreamIO(
             reader,
             writer,
@@ -985,7 +983,7 @@ class Server(AbstractServer):
 
                 done, pending = yield from asyncio.wait(
                     pending | connection.extra_workers,
-                    return_when=concurrent.futures.FIRST_COMPLETED,
+                    return_when=asyncio.FIRST_COMPLETED,
                     loop=connection.loop
                 )
                 connection.extra_workers -= done
@@ -1450,6 +1448,8 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
+
+            fout = None
             try:
 
                 fout = yield from connection.path_io.open(real_path, mode=mode)
@@ -1465,7 +1465,9 @@ class Server(AbstractServer):
             finally:
 
                 stream.close()
-                yield from connection.path_io.close(fout)
+                if fout is not None:
+
+                    yield from connection.path_io.close(fout)
 
             connection.response("226", "data transfer done")
             return True
@@ -1506,6 +1508,8 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
+
+            fin = None
             try:
 
                 fin = yield from connection.path_io.open(real_path, mode="rb")
@@ -1524,7 +1528,9 @@ class Server(AbstractServer):
             finally:
 
                 stream.close()
-                yield from connection.path_io.close(fin)
+                if fin is not None:
+
+                    yield from connection.path_io.close(fin)
 
             connection.response("226", "data transfer done")
             return True

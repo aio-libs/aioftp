@@ -60,9 +60,11 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
     :param client: client class, which have :py:meth:`aioftp.Client.command`
     :type client: :py:class:`aioftp.BaseClient`
 
-    :param *args: positional arguments passed to :py:class:`aioftp.StreamIO`
+    :param *args: positional arguments passed to
+        :py:class:`aioftp.ThrottleStreamIO`
 
-    :param **kwargs: keyword arguments passed to :py:class:`aioftp.StreamIO`
+    :param **kwargs: keyword arguments passed to
+        :py:class:`aioftp.ThrottleStreamIO`
     """
 
     def __init__(self, client, *args, **kwargs):
@@ -731,9 +733,9 @@ class Client(BaseClient):
         if (yield from self.path_io.is_file(source)):
 
             yield from self.make_directory(destination.parent)
+            fin = yield from self.path_io.open(source, mode="rb")
             try:
 
-                fin = yield from self.path_io.open(source, mode="rb")
                 stream = yield from self.upload_stream(destination)
                 while True:
 
