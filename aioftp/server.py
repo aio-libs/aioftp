@@ -5,6 +5,7 @@ import datetime
 import socket
 import collections
 import enum
+import io
 
 
 from . import errors
@@ -989,6 +990,15 @@ class Server(AbstractServer):
                 connection.extra_workers -= done
 
                 for task in done:
+
+                    if task.exception() is not None:
+
+                        file_like = io.StringIO()
+                        task.print_stack(file=file_like)
+                        task.cancel()
+                        message = file_like.getvalue()
+                        template = "dispatcher caught error:\n{}"
+                        logger.error(add_prefix(str.format(template, message)))
 
                     result = task.result()
 
