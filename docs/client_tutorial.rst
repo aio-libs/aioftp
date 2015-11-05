@@ -204,6 +204,7 @@ work with streams is:
             break
 
         # do something with data
+
         if something_not_interesting:
 
             yield from client.abort()
@@ -211,7 +212,16 @@ work with streams is:
             break
 
 It is important not to `finish` stream after abort, cause there is no «return»
-from worker.
+from worker, but abort return.
+
+**Abort is tricky part of aioftp client, and you definitely should not use it
+with high-level api**, cause abort sended and received as plain command, not as
+«out-of-bound». This will break command flow if you will abort at the point of
+command transactions of upload/download (between real file transactions).
+Anyway you can try `abort(wait=False)` this is just "say abort and run away".
+But this also will break command flow if there is nothing to abort and server
+tell us about this. The simplest way to abort transaction is to cancel task
+and reconnect to server, but this functionality is on user shoulders.
 
 Throttle
 --------
@@ -232,7 +242,7 @@ And can be changed after creation:
 Path abstraction layer
 ----------------------
 
-aioftp provides abstraction of file system operations. You can use on of
+aioftp provides abstraction of file system operations. You can use one of
 existence:
 
 * :py:class:`aioftp.PathIO` — blocking path operations
