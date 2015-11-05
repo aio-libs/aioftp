@@ -1,5 +1,7 @@
 import nose
 
+import aioftp
+
 from common import *  # noqa
 
 

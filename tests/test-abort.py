@@ -101,6 +101,46 @@ def test_abort_retr(loop, client, server, *, tmp_dir):
     yield from client.quit()
 
 
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)],
+                 {"path_io_factory": FakeSlowPathIO}))
+@expect_codes_in_exception("426")
+@with_connection
+@with_tmp_dir("foo")
+def test_abort_retr_no_wait(loop, client, server, *, tmp_dir):
+
+    @asyncio.coroutine
+    def request_abort():
+
+        yield from asyncio.sleep(0.1, loop=loop)
+        yield from client.abort(wait=False)
+        future.set_result(True)
+
+    future = asyncio.Future(loop=loop)
+    yield from client.login()
+    stream = yield from client.download_stream("/test.txt")
+    asyncio.async(request_abort(), loop=loop)
+    while True:
+
+        data = yield from stream.read(8192)
+        if not data:
+
+            yield from stream.finish()
+            break
+
+    yield from future
+    yield from client.quit()
+
+
+@aioftp_setup()
+@with_connection
+def test_nothing_to_abort(loop, client, server):
+
+    yield from client.login()
+    yield from client.abort()
+    yield from client.quit()
+
+
 if __name__ == "__main__":
 
     import logging
