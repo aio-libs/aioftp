@@ -78,14 +78,14 @@ Client example
     @asyncio.coroutine
     def get_mp3(host, login, password):
 
-        ftp = aioftp.Client()
-        yield from ftp.connect(host)
-        yield from ftp.login(login, password)
-        for path, info in (yield from ftp.list(recursive=True)):
+        client = aioftp.Client()
+        yield from client.connect(host)
+        yield from client.login(login, password)
+        for path, info in (yield from client.list(recursive=True)):
 
             if info["type"] == "file" and path.suffix == ".mp3":
 
-                yield from ftp.download(path)
+                yield from client.download(path)
 
 
     loop = asyncio.get_event_loop()
@@ -106,16 +106,16 @@ Server example
 
 
     loop = asyncio.get_event_loop()
-    ftp = aioftp.Server()
-    loop.run_until_complete(ftp.start(None, 8021))
+    server = aioftp.Server()
+    loop.run_until_complete(server.start(None, 8021))
     try:
 
         loop.run_forever()
 
     except KeyboardInterrupt:
 
-        ftp.close()
-        loop.run_until_complete(ftp.wait_closed())
+        server.close()
+        loop.run_until_complete(server.wait_closed())
         loop.close()
 
 Or just use simple server
