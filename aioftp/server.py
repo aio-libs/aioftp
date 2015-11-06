@@ -23,6 +23,7 @@ __all__ = (
     "ConnectionConditions",
     "PathConditions",
     "PathPermissions",
+    "worker",
     "Server",
 )
 
@@ -812,6 +813,19 @@ class PathPermissions:
 
 
 def worker(f):
+    """
+    Decorator. Abortable worker. If wrapped task will be cancelled by
+    dispatcher, decorator will send ftp codes of successful interrupt.
+
+    ::
+
+        @worker
+        @asyncio.coroutine
+        def worker(self, connection, rest):
+
+            ...
+
+    """
 
     @asyncio.coroutine
     @functools.wraps(f)
