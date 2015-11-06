@@ -1,7 +1,5 @@
 .. server_tutorial:
 
-Tutorial is deprecated!
-
 Server tutorial
 ===============
 
@@ -11,14 +9,14 @@ it.
 Configuring server
 ------------------
 
-Firstly you should create :class:`aioftp.Server` instance and start it
+At first you should create :class:`aioftp.Server` instance and start it
 
 :py:meth:`aioftp.Server.start`
 
 ::
 
-    >>> ftp = aioftp.Server()
-    >>> yield from ftp.start()
+    >>> server = aioftp.Server()
+    >>> yield from server.start()
 
 Default arguments allow anonymous login and read/write current directory. So,
 there is one user with anonymous login and read/write permissions on "/"
@@ -54,8 +52,8 @@ You can specify as much users as you want, just pass list of them when creating
     ...         )
     ...     ),
     ... )
-    >>> ftp = aioftp.Server(users)
-    >>> yield from ftp.start()
+    >>> server = aioftp.Server(users)
+    >>> yield from server.start()
 
 This will create two users: "Guido", who can read and write to "/Guido" folder,
 which is home folder, but can't read/write the root and other directories and
@@ -80,8 +78,8 @@ instance. Default factory is :py:class:`aioftp.AsyncPathIO`.
 
 ::
 
-    >>> ftp = aioftp.Server(path_io_factory=aioftp.MemoryPathIO)
-    >>> yield from ftp.start()
+    >>> server = aioftp.Server(path_io_factory=aioftp.MemoryPathIO)
+    >>> yield from server.start()
 
 Dealing with timeouts
 ---------------------
@@ -96,8 +94,64 @@ There is three different timeouts you can specify:
 * `path_timeout` — timeout for file system operations
 * `idle_timeout` — timeout for socket read operation when awaiting command,
   another words: how long user can keep silence without sending commands
+* `wait_future_timeout` — timeout for waiting connection states (the main
+  purpose is wait for passive connection)
 
-Default values for timeouts is :py:class:`None`
+Maximum connections
+-------------------
+
+Connections count can be specified:
+
+* per server
+* per user
+
+First one via server constructor
+
+::
+
+    >>> server = aioftp.Server(maximum_connections=3)
+
+Second one via user class
+
+::
+
+    >>> users = (aioftp.User(maximum_connections=3),)
+    >>> server = aioftp.Server(users)
+
+Throttle
+--------
+
+Server have many options for read/write speed throttle:
+
+* global per server
+* per connection
+* global per user
+* per user connection
+
+"Global per server" and "per connection" can be provided by constructor
+
+::
+
+    >>> server = aioftp.Server(
+            read_speed_limit=1024 * 1024,
+            write_speed_limit=1024 * 1024,
+            read_speed_limit_per_connection=100 * 1024,
+            write_speed_limit_per_connection=100 * 1024
+        )
+
+User throttles can be provided by user constructor
+
+::
+
+    >>> users = (
+            aioftp.User(
+                read_speed_limit=1024 * 1024,
+                write_speed_limit=1024 * 1024,
+                read_speed_limit_per_connection=100 * 1024,
+                write_speed_limit_per_connection=100 * 1024
+            ),
+        )
+    >>> server = aioftp.Server(users)
 
 Stopping the server
 -------------------
@@ -108,5 +162,9 @@ for server to stop use :py:meth:`aioftp.Server.wait_closed`
 
 ::
 
-    >>> ftp.close()
-    >>> yield from ftp.wait_closed()
+    >>> server.close()
+    >>> yield from server.wait_closed()
+
+Futher reading
+--------------
+:doc:`server_api`

@@ -836,7 +836,7 @@ class Server(AbstractServer):
     :param users: list of users or user manager object
     :type users: :py:class:`tuple` or :py:class:`list` of
         :py:class:`aioftp.User` or instance of
-        :py:class:`aioftp.server.AbstractUserManager` subclass
+        :py:class:`aioftp.AbstractUserManager` subclass
 
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
