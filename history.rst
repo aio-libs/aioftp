@@ -1,6 +1,7 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+- fixed client/server close not opened file in finally
 - handling PASS after login
 - handling miltiply USER commands
 - user manager for dealing with user accounts
@@ -14,6 +15,7 @@ x.x.x (xx-xx-xxxx)
 - StreamIO deals with timeouts
 - all socket streams are ThrottleStreamIO since now
 Thanks to `rsichny <https://github.com/rsichny>`_
+`tier2003 <https://github.com/tier2003>`_
 
 0.2.0 (22-09-2015)
 ------------------
