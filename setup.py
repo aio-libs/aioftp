@@ -44,7 +44,7 @@ setup(
     name=config.defaults().get('module'),
     version=version,
     description=('ftp client/server for asyncio'),
-    long_description='\n\n'.join(read('readme.rst')),
+    long_description=read('readme.rst'),
     classifiers=config.defaults().get('classifiers').splitlines(),
     author=config.defaults().get('author'),
     author_email=config.defaults().get('author-email'),
