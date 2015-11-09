@@ -30,7 +30,7 @@ def test_connection_not_in_storage():
 
     loop = asyncio.new_event_loop()
     c = aioftp.Connection(loop=loop)
-    x = c.foo
+    getattr(c, "foo")
 
 
 @nose.tools.raises(ValueError)
