@@ -1,6 +1,7 @@
-x.x.x (xx-xx-xxxx)
+0.3.0 (09-11-2015)
 ------------------
 
+- added handling of OSError in dispatcher
 - fixed client/server close not opened file in finally
 - handling PASS after login
 - handling miltiply USER commands
