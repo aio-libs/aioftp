@@ -5,7 +5,7 @@ import datetime
 import socket
 import collections
 import enum
-import io
+import traceback
 
 
 from . import errors
@@ -1005,16 +1005,23 @@ class Server(AbstractServer):
 
                 for task in done:
 
-                    if task.exception() is not None:
+                    try:
 
-                        file_like = io.StringIO()
-                        task.print_stack(file=file_like)
-                        task.cancel()
-                        message = file_like.getvalue()
-                        template = "dispatcher caught error:\n{}"
-                        logger.error(add_prefix(str.format(template, message)))
+                        try:
 
-                    result = task.result()
+                            result = task.result()
+
+                        except:
+
+                            exc = traceback.format_exc()
+                            template = "dispatcher caught error:\n{}"
+                            logger.error(add_prefix(str.format(template, exc)))
+                            raise
+
+                    except OSError:
+
+                        connection.response("451", "os error")
+                        continue
 
                     # this is "command" result
                     if isinstance(result, bool):
