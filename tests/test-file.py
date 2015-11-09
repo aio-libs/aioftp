@@ -452,6 +452,38 @@ def test_download_file_write_into(loop, client, server, *, tmp_dir):
     nose.tools.eq_("foobar", data)
 
 
+class OsErrorPathIO(aioftp.PathIO):
+
+    @aioftp.with_timeout
+    @asyncio.coroutine
+    def write(self, fout, data):
+
+        raise OSError("test os error")
+
+
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path="tests/foo"),)],
+        {
+            "path_io_factory": OsErrorPathIO
+        }))
+@with_connection
+@expect_codes_in_exception("451")
+@with_tmp_dir("foo")
+def test_upload_file_os_error(loop, client, server, *, tmp_dir):
+
+    yield from client.login()
+    stream = yield from client.upload_stream("file.txt")
+    try:
+
+        yield from stream.write(b"-" * 1024)
+        yield from stream.finish()
+
+    finally:
+
+        (tmp_dir / "file.txt").unlink()
+
+
 if __name__ == "__main__":
 
     import logging
