@@ -242,7 +242,10 @@ need some abstraction layer for filesystem operations. That is why pathio
 exists. If you want to create your own pathio, then you should inherit
 :py:class:`aioftp.AbstractPathIO` and override it methods.
 
-AbstractUserManager
--------------------
+User Manager
+------------
 
-Soon.
+User manager purpose is to split retrieving user information from network or
+database and server logic. You can create your own user manager by inherit
+:py:class:`aioftp.AbstractUserManager` and override it methods. The new user
+manager should be passed to server as `users` argument when initialize server.
