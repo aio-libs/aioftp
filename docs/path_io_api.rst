@@ -14,3 +14,5 @@ Path abstraction layer API
 
 .. autoclass :: aioftp.MemoryPathIO
     :show-inheritance:
+
+.. autoclass :: aioftp.PathIOError

@@ -4,8 +4,10 @@ import collections
 import operator
 import io
 import time
+import sys
 
 from .common import with_timeout
+from . import errors
 
 
 __all__ = (
@@ -25,12 +27,58 @@ class AbstractPathIO:
 
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    :param universal_exception: decorate base path io methods to handle all
+        exceptions and reraise with universal path io exception
+        :py:class:`aioftp.PathIOError`
+    :type universal_exception: :py:class:`bool`
     """
 
-    def __init__(self, *, timeout=None, loop=None):
+    def __init__(self, *, timeout=None, loop=None, universal_exception=True):
 
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
+
+        def decorator(f):
+
+            @functools.wraps(f)
+            @asyncio.coroutine
+            def wrapper(*args, **kwargs):
+
+                try:
+
+                    return (yield from f(*args, **kwargs))
+
+                except asyncio.CancelledError:
+
+                    raise
+
+                except:
+
+                    raise errors.PathIOError(reason=sys.exc_info())
+
+            return wrapper
+
+        coroutine_names = (
+            "exists",
+            "is_dir",
+            "is_file",
+            "mkdir",
+            "rmdir",
+            "unlink",
+            "list",
+            "stat",
+            "open",
+            "read",
+            "write",
+            "close",
+            "rename"
+        )
+        if universal_exception:
+
+            for name in coroutine_names:
+
+                setattr(self, name, decorator(getattr(self, name)))
 
     @asyncio.coroutine
     def exists(self, path):
@@ -419,9 +467,9 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, *, timeout=None, loop=None):
+    def __init__(self, *, timeout=None, loop=None, **kwargs):
 
-        super().__init__(timeout=timeout, loop=loop)
+        super().__init__(timeout=timeout, loop=loop, **kwargs)
         self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):

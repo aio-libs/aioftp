@@ -58,7 +58,7 @@ class FakeSlowPathIO(aioftp.PathIO):
     @asyncio.coroutine
     def open(self, path, *args, **kwargs):
 
-        return
+        return path
 
     @asyncio.coroutine
     def close(self, *args, **kwargs):

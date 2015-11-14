@@ -1,3 +1,9 @@
+x.x.x (14-11-2015)
+------------------
+
+- all path errors are now reraised as PathIOError
+- server does not drop connection on path io errors since now, but return "451" code
+
 0.3.1 (09-11-2015)
 ------------------
 

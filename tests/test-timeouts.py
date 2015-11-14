@@ -34,7 +34,7 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
         yield from asyncio.sleep(10, loop=self.loop)
 
 
-@nose.tools.raises(ConnectionResetError)
+@expect_codes_in_exception("451")
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path="tests/foo", home_path="/"),)],
@@ -73,6 +73,11 @@ def test_client_path_timeout(loop, client, server, *, tmp_dir):
     try:
 
         yield from client.download("foo.txt", "/foo.txt", write_into=True)
+
+    except aioftp.PathIOError as e:
+
+        _, value, _ = e.reason
+        raise value
 
     finally:
 

@@ -1018,9 +1018,9 @@ class Server(AbstractServer):
                             logger.error(add_prefix(str.format(template, exc)))
                             raise
 
-                    except OSError:
+                    except errors.PathIOError:
 
-                        connection.response("451", "os error")
+                        connection.response("451", "file system error")
                         continue
 
                     # this is "command" result

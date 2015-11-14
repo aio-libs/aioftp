@@ -5,6 +5,7 @@ __all__ = (
     "StatusCodeError",
     "PathIsNotFileOrDir",
     "PathIsNotAbsolute",
+    "PathIOError",
 )
 
 
@@ -64,3 +65,25 @@ class PathIsNotAbsolute(Exception):
     """
 
     pass
+
+
+class PathIOError(Exception):
+    """
+    Universal exception for any path io errors.
+
+    ::
+
+        >>> try:
+        ...     # some client/server path operation
+        ... except PathIOError as exc:
+        ...     type, value, traceback = exc.reason
+        ...     if isinstance(value, SomeException):
+        ...         # handle
+        ...     elif ...
+        ...         # handle
+    """
+
+    def __init__(self, *args, reason=None, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.reason = reason
