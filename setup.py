@@ -53,7 +53,7 @@ setup(
     long_description=read("readme.rst"),
     classifiers=[
         "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: Apache Software License",
+        "License :: WTFPL",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
