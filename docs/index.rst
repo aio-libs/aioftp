@@ -43,7 +43,7 @@ Dependencies
 License
 -------
 
-aioftp is offered under the Apache 2 license.
+aioftp is offered under the WTFPL license.
 
 Library Installation
 --------------------
