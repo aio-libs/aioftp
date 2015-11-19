@@ -606,11 +606,13 @@ class AbstractServer:
         while True:
 
             args = yield from response_queue.get()
-            if args == (None,):
+            try:
 
-                break
+                yield from self.write_response(stream, *args)
 
-            yield from self.write_response(stream, *args)
+            finally:
+
+                response_queue.task_done()
 
     @asyncio.coroutine
     def dispatcher(self, reader, writer):
@@ -993,8 +995,7 @@ class Server(AbstractServer):
 
         try:
 
-            ok = True
-            while ok or not response_queue.empty():
+            while True:
 
                 done, pending = yield from asyncio.wait(
                     pending | connection.extra_workers,
@@ -1026,12 +1027,10 @@ class Server(AbstractServer):
                     # this is "command" result
                     if isinstance(result, bool):
 
-                        ok = result
-                        if not ok:
+                        if not result:
 
-                            # bad solution, but have no better ideas right now
-                            connection.response(None)
-                            break
+                            yield from response_queue.join()
+                            return
 
                     # this is parse_command result
                     elif isinstance(result, tuple):
