@@ -1,4 +1,3 @@
-import logging
 import asyncio
 import functools
 import collections
@@ -16,7 +15,6 @@ __all__ = (
 )
 
 
-logger = logging.getLogger("aioftp")
 END_OF_LINE = "\r\n"
 DEFAULT_BLOCK_SIZE = 8192
 

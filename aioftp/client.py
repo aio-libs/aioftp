@@ -2,11 +2,11 @@ import asyncio
 import re
 import collections
 import pathlib
+import logging
 
 from . import errors
 from . import pathio
 from .common import *  # noqa
-from .common import logger
 
 
 __all__ = (
@@ -14,11 +14,7 @@ __all__ = (
     "DataConnectionThrottleStreamIO",
     "Code",
 )
-
-
-def add_prefix(message):
-
-    return str.format("aioftp client: {}", message)
+logger = logging.getLogger("aioftp.client")
 
 
 @asyncio.coroutine
@@ -165,7 +161,7 @@ class BaseClient:
             raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        logger.info(add_prefix(s))
+        logger.info(s)
         return Code(s[:3]), s[3:]
 
     @asyncio.coroutine
@@ -247,7 +243,7 @@ class BaseClient:
 
         if command:
 
-            logger.info(add_prefix(command))
+            logger.info(command)
             message = command + END_OF_LINE
             yield from self.stream.write(str.encode(message, encoding="utf-8"))
 

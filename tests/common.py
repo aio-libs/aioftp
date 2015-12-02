@@ -1,9 +1,11 @@
 import asyncio
 import functools
 import pathlib
-import aioftp
+import logging
 
 import nose
+
+import aioftp
 
 
 PORT = 8888
@@ -21,6 +23,12 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
             c_args, c_kwargs = client_args
 
             def run_in_loop(s_args, s_kwargs, c_args, c_kwargs):
+
+                logging.basicConfig(
+                    level=logging.INFO,
+                    format="%(asctime)s [%(name)s] %(message)s",
+                    datefmt="[%H:%M:%S]:",
+                )
 
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(None)

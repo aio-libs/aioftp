@@ -1,6 +1,7 @@
-x.x.x (14-11-2015)
+x.x.x (xx-xx-xxxx)
 ------------------
 
+- logging provided by "aioftp.client" and "aioftp.server"
 - all path errors are now reraised as PathIOError
 - server does not drop connection on path io errors since now, but return "451" code
 

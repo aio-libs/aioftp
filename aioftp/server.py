@@ -5,13 +5,12 @@ import datetime
 import socket
 import collections
 import enum
-import traceback
+import logging
 
 
 from . import errors
 from . import pathio
 from .common import *  # noqa
-from .common import logger
 
 
 __all__ = (
@@ -26,11 +25,7 @@ __all__ = (
     "worker",
     "Server",
 )
-
-
-def add_prefix(message):
-
-    return str.format("aioftp server: {}", message)
+logger = logging.getLogger("aioftp.server")
 
 
 class Permission:
@@ -496,7 +491,7 @@ class AbstractServer:
 
                 host, port = sock.getsockname()
                 message = str.format("serving on {}:{}", host, port)
-                logger.info(add_prefix(message))
+                logger.info(message)
 
     def close(self):
         """
@@ -520,7 +515,7 @@ class AbstractServer:
     @asyncio.coroutine
     def write_line(self, stream, line, encoding="utf-8"):
 
-        logger.info(add_prefix(line))
+        logger.info(line)
         message = line + END_OF_LINE
         yield from stream.write(str.encode(message, encoding=encoding))
 
@@ -584,7 +579,7 @@ class AbstractServer:
             raise ConnectionResetError
 
         s = str.rstrip(bytes.decode(line, encoding="utf-8"))
-        logger.info(add_prefix(s))
+        logger.info(s)
         cmd, _, rest = str.partition(s, " ")
         return str.lower(cmd), rest
 
@@ -954,7 +949,7 @@ class Server(AbstractServer):
 
         host, port = writer.transport.get_extra_info("peername", ("", ""))
         message = str.format("new connection from {}:{}", host, port)
-        logger.info(add_prefix(message))
+        logger.info(message)
 
         key = stream = ThrottleStreamIO(
             reader,
@@ -1014,9 +1009,7 @@ class Server(AbstractServer):
 
                         except:
 
-                            exc = traceback.format_exc()
-                            template = "dispatcher caught error:\n{}"
-                            logger.error(add_prefix(str.format(template, exc)))
+                            logger.exception("dispatcher caught exception")
                             raise
 
                     except errors.PathIOError:
@@ -1055,7 +1048,7 @@ class Server(AbstractServer):
         finally:
 
             message = str.format("closing connection from {}:{}", host, port)
-            logger.info(add_prefix(message))
+            logger.info(message)
 
             if not connection.loop.is_closed():
 
