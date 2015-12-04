@@ -18,10 +18,9 @@ nothing:
 
     class MyClient(aioftp.Client):
 
-        @asyncio.coroutine
-        def noop(self):
+        async def noop(self):
 
-            yield from self.command("NOOP", "2xx")
+            await self.command("NOOP", "2xx")
 
 Lets take a look to a more complex example. Say, we want to collect some data
 via extra connection. For this one you need one of «extra connection» methods:
@@ -35,22 +34,16 @@ retrieve some data via extra connection. And the size of data is equal to «x».
 
     class MyClient(aioftp.Client):
 
-        @asyncio.coroutine
-        def collect(self, count):
+        async def collect(self, count):
 
-            stream = yield from self.get_stream("COLL " + str(count), "1xx")
             collected = []
-            while True:
+            async with self.get_stream("COLL " + str(count), "1xx") as stream:
 
-                block = yield from stream.read(8)
-                if not block:
+                async for block in stream.iter_by_block(8):
 
-                    yield from stream.finish()
-                    break
-
-                i = int.from_bytes(block, "big")
-                print("received:", block, i)
-                collected.append(i)
+                    i = int.from_bytes(block, "big")
+                    print("received:", block, i)
+                    collected.append(i)
 
             return collected
 
@@ -74,8 +67,7 @@ Lets say we want implement «NOOP» command for server again:
 
     class MyServer(aioftp.Server):
 
-        @asyncio.coroutine
-        def noop(self, connection, rest):
+        async def noop(self, connection, rest):
 
             connection.response("200", "boring")
             return True
@@ -105,8 +97,7 @@ For more complex example lets try same client «COLL x» command.
         @aioftp.ConnectionConditions(
             aioftp.ConnectionConditions.login_required,
             aioftp.ConnectionConditions.passive_server_started)
-        @asyncio.coroutine
-        def coll(self, connection, rest):
+        async def coll(self, connection, rest):
 
             @aioftp.ConnectionConditions(
                 aioftp.ConnectionConditions.data_connection_made,
@@ -114,21 +105,17 @@ For more complex example lets try same client «COLL x» command.
                 fail_code="425",
                 fail_info="Can't open data connection")
             @aioftp.worker
-            @asyncio.coroutine
-            def coll_worker(self, connection, rest):
+            async def coll_worker(self, connection, rest):
 
                 stream = connection.data_connection
                 del connection.data_connection
-                try:
+
+                async with stream:
 
                     for i in range(count):
 
                         binary = i.to_bytes(8, "big")
-                        yield from stream.write(binary)
-
-                finally:
-
-                    stream.close()
+                        await stream.write(binary)
 
                 connection.response("200", "coll transfer done")
                 return True
@@ -149,27 +136,30 @@ Lets see what we have.
 
 ::
 
-    @asyncio.coroutine
-    def test():
+    async def test():
 
         server = MyServer()
         client = MyClient()
 
-        yield from server.start("127.0.0.1", 8021)
-        yield from client.connect("127.0.0.1", 8021)
-        yield from client.login()
+        await server.start("127.0.0.1", 8021)
+        await client.connect("127.0.0.1", 8021)
+        await client.login()
 
-        collected = yield from client.collect(20)
+        collected = await client.collect(20)
         print(collected)
 
-        yield from client.quit()
+        await client.quit()
         server.close()
-        yield from server.wait_closed()
+        await server.wait_closed()
 
 
     if __name__ == "__main__":
 
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(name)s] %(message)s",
+            datefmt="[%H:%M:%S]:",
+        )
         loop = asyncio.get_event_loop()
         loop.run_until_complete(test())
         print("done")
@@ -179,28 +169,28 @@ And the output for this is:
 
 ::
 
-    INFO:aioftp:aioftp server: serving on 127.0.0.1:8021
-    INFO:aioftp:aioftp server: new connection from 127.0.0.1:54476
-    INFO:aioftp:aioftp server: 220 welcome
-    INFO:aioftp:aioftp client: 220 welcome
-    INFO:aioftp:aioftp client: USER anonymous
-    INFO:aioftp:aioftp server: USER anonymous
-    INFO:aioftp:aioftp server: 230 anonymous login
-    INFO:aioftp:aioftp client: 230 anonymous login
-    INFO:aioftp:aioftp client: TYPE I
-    INFO:aioftp:aioftp server: TYPE I
-    INFO:aioftp:aioftp server: 200
-    INFO:aioftp:aioftp client: 200
-    INFO:aioftp:aioftp client: PASV
-    INFO:aioftp:aioftp server: PASV
-    INFO:aioftp:aioftp server: 227-listen socket created
-    INFO:aioftp:aioftp server: 227 (127,0,0,1,177,173)
-    INFO:aioftp:aioftp client: 227-listen socket created
-    INFO:aioftp:aioftp client: 227 (127,0,0,1,177,173)
-    INFO:aioftp:aioftp client: COLL 20
-    INFO:aioftp:aioftp server: COLL 20
-    INFO:aioftp:aioftp server: 150 coll transfer started
-    INFO:aioftp:aioftp client: 150 coll transfer started
+    [01:18:54]: [aioftp.server] serving on 127.0.0.1:8021
+    [01:18:54]: [aioftp.server] new connection from 127.0.0.1:48883
+    [01:18:54]: [aioftp.server] 220 welcome
+    [01:18:54]: [aioftp.client] 220 welcome
+    [01:18:54]: [aioftp.client] USER anonymous
+    [01:18:54]: [aioftp.server] USER anonymous
+    [01:18:54]: [aioftp.server] 230 anonymous login
+    [01:18:54]: [aioftp.client] 230 anonymous login
+    [01:18:54]: [aioftp.client] TYPE I
+    [01:18:54]: [aioftp.server] TYPE I
+    [01:18:54]: [aioftp.server] 200
+    [01:18:54]: [aioftp.client] 200
+    [01:18:54]: [aioftp.client] PASV
+    [01:18:54]: [aioftp.server] PASV
+    [01:18:54]: [aioftp.server] 227-listen socket created
+    [01:18:54]: [aioftp.server] 227 (127,0,0,1,223,249)
+    [01:18:54]: [aioftp.client] 227-listen socket created
+    [01:18:54]: [aioftp.client] 227 (127,0,0,1,223,249)
+    [01:18:54]: [aioftp.client] COLL 20
+    [01:18:54]: [aioftp.server] COLL 20
+    [01:18:54]: [aioftp.server] 150 coll transfer started
+    [01:18:54]: [aioftp.client] 150 coll transfer started
     received: b'\x00\x00\x00\x00\x00\x00\x00\x00' 0
     received: b'\x00\x00\x00\x00\x00\x00\x00\x01' 1
     received: b'\x00\x00\x00\x00\x00\x00\x00\x02' 2
@@ -220,15 +210,15 @@ And the output for this is:
     received: b'\x00\x00\x00\x00\x00\x00\x00\x10' 16
     received: b'\x00\x00\x00\x00\x00\x00\x00\x11' 17
     received: b'\x00\x00\x00\x00\x00\x00\x00\x12' 18
-    INFO:aioftp:aioftp server: 200 coll transfer done
+    [01:18:54]: [aioftp.server] 200 coll transfer done
     received: b'\x00\x00\x00\x00\x00\x00\x00\x13' 19
-    INFO:aioftp:aioftp client: 200 coll transfer done
+    [01:18:54]: [aioftp.client] 200 coll transfer done
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-    INFO:aioftp:aioftp client: QUIT
-    INFO:aioftp:aioftp server: QUIT
-    INFO:aioftp:aioftp server: 221 bye
-    INFO:aioftp:aioftp server: closing connection from 127.0.0.1:54476
-    INFO:aioftp:aioftp client: 221 bye
+    [01:18:54]: [aioftp.client] QUIT
+    [01:18:54]: [aioftp.server] QUIT
+    [01:18:54]: [aioftp.server] 221 bye
+    [01:18:54]: [aioftp.server] closing connection from 127.0.0.1:48883
+    [01:18:54]: [aioftp.client] 221 bye
     done
 
 It is a good idea you to see source code of :py:class:`aioftp.Server` in

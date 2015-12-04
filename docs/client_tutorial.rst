@@ -16,8 +16,8 @@ Firstly you should create :class:`aioftp.Client` instance and connect to host
 ::
 
     >>> client = aioftp.Client()
-    >>> yield from client.connect("ftp.server.com")
-    >>> yield from client.login("user", "pass")
+    >>> await client.connect("ftp.server.com")
+    >>> await client.login("user", "pass")
 
 Download and upload paths
 -------------------------
@@ -31,14 +31,14 @@ used as destination.
 Lets upload some file to current directory
 ::
 
-    >>> yield from client.upload("test.py")
+    >>> await client.upload("test.py")
 
 If you want specify new name, or different path to uploading/downloading path
 you should use "write_into" argument, which works for directory as well
 ::
 
-    >>> yield from client.upload("test.py", "tmp/test.py", write_into=True)
-    >>> yield from client.upload("folder1", "folder2", write_into=True)
+    >>> await client.upload("test.py", "tmp/test.py", write_into=True)
+    >>> await client.upload("folder1", "folder2", write_into=True)
 
 After that you get
 ::
@@ -59,8 +59,8 @@ Or you can upload path as is and then rename it
 Downloading is pretty same
 ::
 
-    >>> yield from client.download("tmp/test.py", "foo.py", write_into=True)
-    >>> yield from client.download("folder2")
+    >>> await client.download("tmp/test.py", "foo.py", write_into=True)
+    >>> await client.download("folder2")
 
 Listing paths
 -------------
@@ -70,19 +70,19 @@ can list paths recursively and produce a :py:class:`list`
 
 ::
 
-    >>> yield from client.list("/")
+    >>> await client.list("/")
     [(PosixPath('/.logs'), {'unix.mode': '0755', 'unique': '801g4804045', ...
 
 ::
 
-    >>> yield from client.list("/", recursive=True)
+    >>> await client.list("/", recursive=True)
     [(PosixPath('/.logs'), {'unix.mode': '0755', 'unique': '801g4804045', ...
 
 If you ommit path argument, result will be list for current working directory
 
 ::
 
-    >>> yield from c.list()
+    >>> await c.list()
     [(PosixPath('test.py'), {'unique': '801g480a508', 'size': '3102', ...
 
 Getting path stats
@@ -92,9 +92,9 @@ When you need get some path stats you should use :py:meth:`aioftp.Client.stat`
 
 ::
 
-    >>> yield from client.stat("tmp2.py")
+    >>> await client.stat("tmp2.py")
     {'size': '909', 'create': '1445437246.4320722', 'type': 'file', ...
-    >>> yield from client.stat(".git")
+    >>> await client.stat(".git")
     {'create': '1445435702.6441028', 'type': 'dir', 'size': '4096', ...
 
 If you need just to check path for is it file, directory or exists you can use
@@ -107,15 +107,15 @@ If you need just to check path for is it file, directory or exists you can use
 
 ::
 
-    >>> yield from client.if_file("/public_html")
+    >>> await client.if_file("/public_html")
     False
-    >>> yield from client.is_dir("/public_html")
+    >>> await client.is_dir("/public_html")
     True
-    >>> yield from client.is_file("test.py")
+    >>> await client.is_file("test.py")
     True
-    >>> yield from client.exists("test.py")
+    >>> await client.exists("test.py")
     True
-    >>> yield from client.exists("naked-guido.png")
+    >>> await client.exists("naked-guido.png")
     False
 
 Remove path
@@ -127,8 +127,8 @@ checks.
 
 ::
 
-    >>> yield from client.remove("tmp.py")
-    >>> yield from client.remove("folder1")
+    >>> await client.remove("tmp.py")
+    >>> await client.remove("folder1")
 
 Dealing with directories
 ------------------------
@@ -143,17 +143,17 @@ Directories coroutines are pretty simple.
 
 ::
 
-    >>> yield from client.get_current_directory()
+    >>> await client.get_current_directory()
     PosixPath('/public_html')
-    >>> yield from client.change_directory("folder1")
-    >>> yield from client.get_current_directory()
+    >>> await client.change_directory("folder1")
+    >>> await client.get_current_directory()
     PosixPath('/public_html/folder1')
-    >>> yield from client.change_directory()
-    >>> yield from client.get_current_directory()
+    >>> await client.change_directory()
+    >>> await client.get_current_directory()
     PosixPath('/public_html')
-    >>> yield from client.make_directory("folder2")
-    >>> yield from client.change_directory("folder2")
-    >>> yield from client.get_current_directory()
+    >>> await client.make_directory("folder2")
+    >>> await client.change_directory("folder2")
+    >>> await client.get_current_directory()
     PosixPath('/public_html/folder2')
 
 Rename (move) path
@@ -163,10 +163,10 @@ To change name (move) file or directory use :py:meth:`aioftp.Client.rename`.
 
 ::
 
-    >>> yield from client.list()
+    >>> await client.list()
     [(PosixPath('test.py'), {'modify': '20150423090041', 'type': 'file', ...
-    >>> yield from client.rename("test.py", "foo.py")
-    >>> yield from client.list()
+    >>> await client.rename("test.py", "foo.py")
+    >>> await client.list()
     [(PosixPath('foo.py'), {'modify': '20150423090041', 'type': 'file', ...
 
 Closing connection
@@ -177,7 +177,7 @@ connection.
 
 ::
 
-    >>> yield from client.quit()
+    >>> await client.quit()
 
 Advanced download and upload, abort
 -----------------------------------
@@ -194,34 +194,26 @@ work with streams is:
 
 ::
 
-    stream = yield from client.download_stream("tmp.py")
-    while True:
+    >>> async with client.download_stream("tmp.py") as stream:
+    ...
+    ...     async for block stream.iter_by_block():
+    ...
+    ...         # do something with data
 
-        block = yield from stream.read(8192)
-        if not block:
+Or, if you want to abort transfer at some point
 
-            yield from stream.finish()
-            break
+::
 
-        # do something with data
-
-        if something_not_interesting:
-
-            yield from client.abort()
-            stream.close()
-            break
-
-It is important not to `finish` stream after abort, cause there is no «return»
-from worker, but abort return.
-
-**Abort is tricky part of aioftp client, and you definitely should not use it
-with high-level api**, cause abort sended and received as plain command, not as
-«out-of-bound». This will break command flow if you will abort at the point of
-command transactions of upload/download (between real file transactions).
-Anyway you can try `abort(wait=False)` this is just "say abort and run away".
-But this also will break command flow if there is nothing to abort and server
-tell us about this. The simplest way to abort transaction is to cancel task
-and reconnect to server, but this functionality is on user shoulders.
+    >>> stream = await client.download_stream("tmp.py")
+    ... async for block stream.iter_by_block():
+    ...
+    ...     # do something with data
+    ...
+    ...     if something_not_interesting:
+    ...
+    ...         await client.abort()
+    ...         stream.close()
+    ...         break
 
 Throttle
 --------

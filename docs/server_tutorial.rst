@@ -16,7 +16,7 @@ At first you should create :class:`aioftp.Server` instance and start it
 ::
 
     >>> server = aioftp.Server()
-    >>> yield from server.start()
+    >>> await server.start()
 
 Default arguments allow anonymous login and read/write current directory. So,
 there is one user with anonymous login and read/write permissions on "/"
@@ -53,7 +53,7 @@ You can specify as much users as you want, just pass list of them when creating
     ...     ),
     ... )
     >>> server = aioftp.Server(users)
-    >>> yield from server.start()
+    >>> await server.start()
 
 This will create two users: "Guido", who can read and write to "/Guido" folder,
 which is home folder, but can't read/write the root and other directories and
@@ -79,7 +79,7 @@ instance. Default factory is :py:class:`aioftp.AsyncPathIO`.
 ::
 
     >>> server = aioftp.Server(path_io_factory=aioftp.MemoryPathIO)
-    >>> yield from server.start()
+    >>> await server.start()
 
 Dealing with timeouts
 ---------------------
@@ -133,24 +133,24 @@ Server have many options for read/write speed throttle:
 ::
 
     >>> server = aioftp.Server(
-            read_speed_limit=1024 * 1024,
-            write_speed_limit=1024 * 1024,
-            read_speed_limit_per_connection=100 * 1024,
-            write_speed_limit_per_connection=100 * 1024
-        )
+    ...     read_speed_limit=1024 * 1024,
+    ...     write_speed_limit=1024 * 1024,
+    ...     read_speed_limit_per_connection=100 * 1024,
+    ...     write_speed_limit_per_connection=100 * 1024
+    ... )
 
 User throttles can be provided by user constructor
 
 ::
 
     >>> users = (
-            aioftp.User(
-                read_speed_limit=1024 * 1024,
-                write_speed_limit=1024 * 1024,
-                read_speed_limit_per_connection=100 * 1024,
-                write_speed_limit_per_connection=100 * 1024
-            ),
-        )
+    ...     aioftp.User(
+    ...         read_speed_limit=1024 * 1024,
+    ...         write_speed_limit=1024 * 1024,
+    ...         read_speed_limit_per_connection=100 * 1024,
+    ...         write_speed_limit_per_connection=100 * 1024
+    ...     ),
+    ... )
     >>> server = aioftp.Server(users)
 
 Stopping the server
@@ -163,7 +163,7 @@ for server to stop use :py:meth:`aioftp.Server.wait_closed`
 ::
 
     >>> server.close()
-    >>> yield from server.wait_closed()
+    >>> await server.wait_closed()
 
 Futher reading
 --------------

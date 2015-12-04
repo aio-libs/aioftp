@@ -16,3 +16,5 @@ Common API
     :members:
 
 .. autofunction:: aioftp.with_timeout
+
+.. autofunction:: aioftp.async_enterable

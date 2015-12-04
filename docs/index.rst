@@ -37,7 +37,7 @@ can easily extend current set of commands.
 Dependencies
 ------------
 
-- Python 3.4.2+
+- Python 3.5
 - docopt (for execution module as script only)
 
 License
@@ -63,17 +63,18 @@ Client example
     import aioftp
 
 
-    @asyncio.coroutine
-    def get_mp3(host, login, password):
+    async def get_mp3(host, login, password):
 
         client = aioftp.Client()
-        yield from client.connect(host)
-        yield from client.login(login, password)
-        for path, info in (yield from client.list(recursive=True)):
+        await client.connect(host)
+        await client.login(login, password)
+        for path, info in (await client.list(recursive=True)):
 
             if info["type"] == "file" and path.suffix == ".mp3":
 
-                yield from client.download(path)
+                await client.download(path)
+
+        await client.quit()
 
 
     loop = asyncio.get_event_loop()
