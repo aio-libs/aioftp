@@ -5,6 +5,9 @@ Path abstraction layer API
 
 .. autoclass :: aioftp.AbstractPathIO
     :members:
+    :private-members:
+
+.. autoclass :: aioftp.pathio.AsyncPathIOContext
 
 .. autoclass :: aioftp.PathIO
     :show-inheritance:
