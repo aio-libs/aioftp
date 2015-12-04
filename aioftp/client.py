@@ -17,12 +17,11 @@ __all__ = (
 logger = logging.getLogger("aioftp.client")
 
 
-@asyncio.coroutine
-def open_connection(host, port, loop, create_connection):
+async def open_connection(host, port, loop, create_connection):
 
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    transport, _ = yield from create_connection(lambda: protocol, host, port)
+    transport, _ = await create_connection(lambda: protocol, host, port)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
     return reader, writer
 
@@ -68,8 +67,7 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         super().__init__(*args, **kwargs)
         self.client = client
 
-    @asyncio.coroutine
-    def finish(self, expected_codes="2xx", wait_codes="1xx"):
+    async def finish(self, expected_codes="2xx", wait_codes="1xx"):
         """
         :py:func:`asyncio.coroutine`
 
@@ -85,7 +83,13 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
             :py:class:`str`
         """
         self.close()
-        yield from self.client.command(None, expected_codes, wait_codes)
+        await self.client.command(None, expected_codes, wait_codes)
+
+    async def __aexit__(self, exc_type, exc, tb):
+
+        if exc is None:
+
+            await self.finish()
 
 
 class BaseClient:
@@ -114,12 +118,11 @@ class BaseClient:
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
-    @asyncio.coroutine
-    def connect(self, host, port=21):
+    async def connect(self, host, port=21):
 
         self.server_host = host
         self.server_port = port
-        reader, writer = yield from open_connection(
+        reader, writer = await open_connection(
             host,
             port,
             self.loop,
@@ -139,8 +142,7 @@ class BaseClient:
         """
         self.stream.close()
 
-    @asyncio.coroutine
-    def parse_line(self):
+    async def parse_line(self):
         """
         :py:func:`asyncio.coroutine`
 
@@ -154,7 +156,7 @@ class BaseClient:
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
         """
-        line = yield from self.stream.readline()
+        line = await self.stream.readline()
         if not line:
 
             self.stream.close()
@@ -164,8 +166,7 @@ class BaseClient:
         logger.info(s)
         return Code(s[:3]), s[3:]
 
-    @asyncio.coroutine
-    def parse_response(self):
+    async def parse_response(self):
         """
         :py:func:`asyncio.coroutine`
 
@@ -177,12 +178,12 @@ class BaseClient:
         :raises aioftp.StatusCodeError: if received code does not matches all
             already received codes
         """
-        code, rest = yield from self.parse_line()
+        code, rest = await self.parse_line()
         info = [rest]
         curr_code = code
         while str.startswith(rest, "-") or not str.isdigit(curr_code):
 
-            curr_code, rest = yield from self.parse_line()
+            curr_code, rest = await self.parse_line()
             if str.isdigit(curr_code):
 
                 info.append(rest)
@@ -216,8 +217,7 @@ class BaseClient:
 
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
-    @asyncio.coroutine
-    def command(self, command=None, expected_codes=(), wait_codes=()):
+    async def command(self, command=None, expected_codes=(), wait_codes=()):
         """
         :py:func:`asyncio.coroutine`
 
@@ -245,14 +245,14 @@ class BaseClient:
 
             logger.info(command)
             message = command + END_OF_LINE
-            yield from self.stream.write(str.encode(message, encoding="utf-8"))
+            await self.stream.write(str.encode(message, encoding="utf-8"))
 
         if expected_codes or wait_codes:
 
-            code, info = yield from self.parse_response()
+            code, info = await self.parse_response()
             while any(map(code.matches, wait_codes)):
 
-                code, info = yield from self.parse_response()
+                code, info = await self.parse_response()
 
             if expected_codes:
 
@@ -377,8 +377,7 @@ class Client(BaseClient):
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
 
-    @asyncio.coroutine
-    def connect(self, host, port=21):
+    async def connect(self, host, port=21):
         """
         :py:func:`asyncio.coroutine`
 
@@ -390,12 +389,11 @@ class Client(BaseClient):
         :param port: port number for connection
         :type port: :py:class:`int`
         """
-        yield from super().connect(host, port)
-        code, info = yield from self.command(None, "220", "120")
+        await super().connect(host, port)
+        code, info = await self.command(None, "220", "120")
         return info
 
-    @asyncio.coroutine
-    def login(self, user="anonymous", password="anon@", account=""):
+    async def login(self, user="anonymous", password="anon@", account=""):
         """
         :py:func:`asyncio.coroutine`
 
@@ -412,7 +410,7 @@ class Client(BaseClient):
 
         :raises aioftp.StatusCodeError: if unknown code received
         """
-        code, info = yield from self.command("USER " + user, ("230", "33x"))
+        code, info = await self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
 
             if code == "331":
@@ -427,10 +425,9 @@ class Client(BaseClient):
 
                 raise errors.StatusCodeError("33x", code, info)
 
-            code, info = yield from self.command(cmd, ("230", "33x"))
+            code, info = await self.command(cmd, ("230", "33x"))
 
-    @asyncio.coroutine
-    def get_current_directory(self):
+    async def get_current_directory(self):
         """
         :py:func:`asyncio.coroutine`
 
@@ -438,12 +435,11 @@ class Client(BaseClient):
 
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
-        code, info = yield from self.command("PWD", "257")
+        code, info = await self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
         return directory
 
-    @asyncio.coroutine
-    def change_directory(self, path=".."):
+    async def change_directory(self, path=".."):
         """
         :py:func:`asyncio.coroutine`
 
@@ -460,10 +456,9 @@ class Client(BaseClient):
 
             cmd = "CWD " + str(path)
 
-        yield from self.command(cmd, "2xx")
+        await self.command(cmd, "2xx")
 
-    @asyncio.coroutine
-    def make_directory(self, path, *, parents=True):
+    async def make_directory(self, path, *, parents=True):
         """
         :py:func:`asyncio.coroutine`
 
@@ -477,7 +472,7 @@ class Client(BaseClient):
         """
         path = pathlib.PurePosixPath(path)
         need_create = []
-        while path.name and not (yield from self.exists(path)):
+        while path.name and not (await self.exists(path)):
 
             need_create.append(path)
             path = path.parent
@@ -488,10 +483,9 @@ class Client(BaseClient):
         need_create.reverse()
         for path in need_create:
 
-            yield from self.command("MKD " + str(path), "257")
+            await self.command("MKD " + str(path), "257")
 
-    @asyncio.coroutine
-    def remove_directory(self, path):
+    async def remove_directory(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -500,10 +494,9 @@ class Client(BaseClient):
         :param path: empty directory to remove
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        yield from self.command("RMD " + str(path), "250")
+        await self.command("RMD " + str(path), "250")
 
-    @asyncio.coroutine
-    def list(self, path="", *, recursive=False):
+    async def list(self, path="", *, recursive=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -520,35 +513,29 @@ class Client(BaseClient):
         result = []
         directories = []
         command = str.strip("MLSD " + str(path))
-        stream = yield from self.get_stream(command, "1xx")
-        while True:
+        async with self.get_stream(command, "1xx") as stream:
 
-            line = yield from stream.readline()
-            if not line:
+            async for line in stream.iter_by_line():
 
-                yield from stream.finish()
-                break
+                name, info = self.parse_mlsx_line(line)
+                if info["type"] in ("file", "dir"):
 
-            name, info = self.parse_mlsx_line(line)
-            if info["type"] in ("file", "dir"):
+                    stat = path / name, info
+                    if info["type"] == "dir":
 
-                stat = path / name, info
-                if info["type"] == "dir":
+                        directories.append(stat)
 
-                    directories.append(stat)
-
-                result.append(stat)
+                    result.append(stat)
 
         if recursive:
 
             for name, info in directories:
 
-                result += yield from self.list(name, recursive=recursive)
+                result += await self.list(name, recursive=recursive)
 
         return result
 
-    @asyncio.coroutine
-    def stat(self, path):
+    async def stat(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -560,12 +547,11 @@ class Client(BaseClient):
         :return: path info
         :rtype: :py:class:`dict`
         """
-        code, info = yield from self.command("MLST " + str(path), "2xx")
+        code, info = await self.command("MLST " + str(path), "2xx")
         name, info = self.parse_mlsx_line(str.lstrip(info[1]))
         return info
 
-    @asyncio.coroutine
-    def is_file(self, path):
+    async def is_file(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -576,11 +562,10 @@ class Client(BaseClient):
 
         :rtype: :py:class:`bool`
         """
-        info = yield from self.stat(path)
+        info = await self.stat(path)
         return info["type"] == "file"
 
-    @asyncio.coroutine
-    def is_dir(self, path):
+    async def is_dir(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -591,11 +576,10 @@ class Client(BaseClient):
 
         :rtype: :py:class:`bool`
         """
-        info = yield from self.stat(path)
+        info = await self.stat(path)
         return info["type"] == "dir"
 
-    @asyncio.coroutine
-    def exists(self, path):
+    async def exists(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -606,15 +590,14 @@ class Client(BaseClient):
 
         :rtype: :py:class:`bool`
         """
-        code, info = yield from self.command(
+        code, info = await self.command(
             "MLST " + str(path),
             ("2xx", "550")
         )
         exists = code.matches("2xx")
         return exists
 
-    @asyncio.coroutine
-    def rename(self, source, destination):
+    async def rename(self, source, destination):
         """
         :py:func:`asyncio.coroutine`
 
@@ -626,11 +609,10 @@ class Client(BaseClient):
         :param destination: path new name
         :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        yield from self.command("RNFR " + str(source), "350")
-        yield from self.command("RNTO " + str(destination), "2xx")
+        await self.command("RNFR " + str(source), "350")
+        await self.command("RNTO " + str(destination), "2xx")
 
-    @asyncio.coroutine
-    def remove_file(self, path):
+    async def remove_file(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -639,10 +621,9 @@ class Client(BaseClient):
         :param path: file to remove
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        yield from self.command("DELE " + str(path), "2xx")
+        await self.command("DELE " + str(path), "2xx")
 
-    @asyncio.coroutine
-    def remove(self, path):
+    async def remove(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -652,28 +633,25 @@ class Client(BaseClient):
         :param path: path to remove
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        if (yield from self.exists(path)):
+        if await self.exists(path):
 
-            info = yield from self.stat(path)
+            info = await self.stat(path)
             if info["type"] == "file":
 
-                yield from self.remove_file(path)
+                await self.remove_file(path)
 
             elif info["type"] == "dir":
 
-                for name, info in (yield from self.list(path)):
+                for name, info in (await self.list(path)):
 
                     if info["type"] in ("dir", "file"):
 
-                        yield from self.remove(name)
+                        await self.remove(name)
 
-                yield from self.remove_directory(path)
+                await self.remove_directory(path)
 
-    @asyncio.coroutine
     def upload_stream(self, destination):
         """
-        :py:func:`asyncio.coroutine`
-
         Create stream for write data to `destination` file.
 
         :param destination: destination path of file on server side
@@ -681,13 +659,10 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return (yield from self.get_stream("STOR " + str(destination), "1xx"))
+        return self.get_stream("STOR " + str(destination), "1xx")
 
-    @asyncio.coroutine
     def append_stream(self, destination):
         """
-        :py:func:`asyncio.coroutine`
-
         Create stream for append (write) data to `destination` file.
 
         :param destination: destination path of file on server side
@@ -695,11 +670,10 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return (yield from self.get_stream("APPE " + str(destination), "1xx"))
+        return self.get_stream("APPE " + str(destination), "1xx")
 
-    @asyncio.coroutine
-    def upload(self, source, destination="", *, write_into=False,
-               block_size=DEFAULT_BLOCK_SIZE):
+    async def upload(self, source, destination="", *, write_into=False,
+                     block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -726,35 +700,25 @@ class Client(BaseClient):
 
             destination = destination / source.name
 
-        if (yield from self.path_io.is_file(source)):
+        if await self.path_io.is_file(source):
 
-            yield from self.make_directory(destination.parent)
-            fin = yield from self.path_io.open(source, mode="rb")
-            try:
+            await self.make_directory(destination.parent)
+            file_in = self.path_io.open(source, mode="rb")
+            stream = await self.upload_stream(destination)
+            async with file_in, stream:
 
-                stream = yield from self.upload_stream(destination)
-                while True:
+                async for block in file_in.iter_by_block(block_size):
 
-                    block = yield from self.path_io.read(fin, block_size)
-                    if not block:
+                    await stream.write(block)
 
-                        yield from stream.finish()
-                        break
+        elif await self.path_io.is_dir(source):
 
-                    yield from stream.write(block)
-
-            finally:
-
-                yield from self.path_io.close(fin)
-
-        elif (yield from self.path_io.is_dir(source)):
-
-            yield from self.make_directory(destination)
+            await self.make_directory(destination)
             sources = collections.deque([source])
             while sources:
 
                 src = sources.popleft()
-                for path in (yield from self.path_io.list(src)):
+                for path in (await self.path_io.list(src)):
 
                     if write_into:
 
@@ -764,21 +728,20 @@ class Client(BaseClient):
 
                         relative = path.relative_to(source.parent)
 
-                    if (yield from self.path_io.is_dir(path)):
+                    if (await self.path_io.is_dir(path)):
 
-                        yield from self.make_directory(relative)
+                        await self.make_directory(relative)
                         sources.append(path)
 
                     else:
 
-                        yield from self.upload(
+                        await self.upload(
                             path,
                             relative,
                             write_into=True,
                             block_size=block_size
                         )
 
-    @asyncio.coroutine
     def download_stream(self, source):
         """
         :py:func:`asyncio.coroutine`
@@ -790,11 +753,10 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return (yield from self.get_stream("RETR " + str(source), "1xx"))
+        return self.get_stream("RETR " + str(source), "1xx")
 
-    @asyncio.coroutine
-    def download(self, source, destination="", *, write_into=False,
-                 block_size=DEFAULT_BLOCK_SIZE):
+    async def download(self, source, destination="", *, write_into=False,
+                       block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -821,66 +783,54 @@ class Client(BaseClient):
 
             destination = destination / source.name
 
-        if (yield from self.is_file(source)):
+        if await self.is_file(source):
 
-            if not (yield from self.path_io.exists(destination.parent)):
+            if not await self.path_io.exists(destination.parent):
 
-                yield from self.path_io.mkdir(destination.parent)
+                await self.path_io.mkdir(destination.parent)
 
-            fout = yield from self.path_io.open(destination, mode="wb")
-            try:
+            file_out = self.path_io.open(destination, mode="wb")
+            stream = await self.download_stream(source)
+            async with file_out, stream:
 
-                stream = yield from self.download_stream(source)
-                while True:
+                async for block in stream.iter_by_block(block_size):
 
-                    block = yield from stream.read(block_size)
-                    if not block:
+                    await file_out.write(block)
 
-                        yield from stream.finish()
-                        break
+        elif await self.is_dir(source):
 
-                    yield from self.path_io.write(fout, block)
+            if not await self.path_io.exists(destination):
 
-            finally:
+                await self.path_io.mkdir(destination, parents=True)
 
-                yield from self.path_io.close(fout)
-
-        elif (yield from self.is_dir(source)):
-
-            if not (yield from self.path_io.exists(destination)):
-
-                yield from self.path_io.mkdir(destination, parents=True)
-
-            for name, info in (yield from self.list(source, recursive=True)):
+            for name, info in (await self.list(source, recursive=True)):
 
                 full = destination / name.relative_to(source)
                 if info["type"] == "dir":
 
-                    if not (yield from self.path_io.exists(full)):
+                    if not (await self.path_io.exists(full)):
 
-                        yield from self.path_io.mkdir(full, parents=True)
+                        await self.path_io.mkdir(full, parents=True)
 
                 elif info["type"] == "file":
 
-                    yield from self.download(
+                    await self.download(
                         name,
                         full,
                         write_into=True,
                         block_size=block_size
                     )
 
-    @asyncio.coroutine
-    def quit(self):
+    async def quit(self):
         """
         :py:func:`asyncio.coroutine`
 
         Send "QUIT" and close connection.
         """
-        yield from self.command("QUIT", "2xx")
+        await self.command("QUIT", "2xx")
         self.close()
 
-    @asyncio.coroutine
-    def get_passive_connection(self, conn_type="I"):
+    async def get_passive_connection(self, conn_type="I"):
         """
         :py:func:`asyncio.coroutine`
 
@@ -892,14 +842,14 @@ class Client(BaseClient):
         :rtype: (:py:class:`asyncio.StreamReader`,
             :py:class:`asyncio.StreamWriter`)
         """
-        yield from self.command("TYPE " + conn_type, "200")
-        code, info = yield from self.command("PASV", "227")
+        await self.command("TYPE " + conn_type, "200")
+        code, info = await self.command("PASV", "227")
         ip, port = self.parse_address_response(info[-1])
         if ip == "0.0.0.0":
 
             ip = self.server_host
 
-        reader, writer = yield from open_connection(
+        reader, writer = await open_connection(
             ip,
             port,
             self.loop,
@@ -907,8 +857,8 @@ class Client(BaseClient):
         )
         return reader, writer
 
-    @asyncio.coroutine
-    def get_stream(self, *command_args, conn_type="I"):
+    @async_enterable
+    async def get_stream(self, *command_args, conn_type="I"):
         """
         :py:func:`asyncio.coroutine`
 
@@ -922,8 +872,8 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
-        reader, writer = yield from self.get_passive_connection(conn_type)
-        yield from self.command(*command_args)
+        reader, writer = await self.get_passive_connection(conn_type)
+        await self.command(*command_args)
         stream = DataConnectionThrottleStreamIO(
             self,
             reader,
@@ -934,8 +884,7 @@ class Client(BaseClient):
         )
         return stream
 
-    @asyncio.coroutine
-    def abort(self, *, wait=True):
+    async def abort(self, *, wait=True):
         """
         :py:func:`asyncio.coroutine`
 
@@ -946,8 +895,8 @@ class Client(BaseClient):
         """
         if wait:
 
-            yield from self.command("ABOR", "226", "426")
+            await self.command("ABOR", "226", "426")
 
         else:
 
-            yield from self.command("ABOR")
+            await self.command("ABOR")

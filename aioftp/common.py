@@ -12,11 +12,90 @@ __all__ = (
     "END_OF_LINE",
     "DEFAULT_BLOCK_SIZE",
     "wrap_with_container",
+    "AsyncStreamIterator",
+    "async_enterable",
 )
 
 
 END_OF_LINE = "\r\n"
 DEFAULT_BLOCK_SIZE = 8192
+
+
+class AsyncStreamIterator:
+
+    def __init__(self, read_coro):
+
+        self.read_coro = read_coro
+
+    async def __aiter__(self):
+
+        return self
+
+    async def __anext__(self):
+
+        data = await self.read_coro()
+        if data:
+
+            return data
+
+        else:
+
+            raise StopAsyncIteration
+
+
+def async_enterable(f):
+    """
+    Decorator. Bring coroutine result up, so it can be used as async context
+
+    ::
+
+        async def foo():
+
+            return AsyncContextInstance()
+
+        ctx = await foo()
+        with ctx:
+
+            # do
+
+    ::
+
+        @async_enterable
+        async def foo():
+
+            return AsyncContextInstance()
+
+        with foo() as ctx:
+
+            # do
+
+        ctx = await foo()
+        with ctx:
+
+            # do
+
+    """
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+
+        class AsyncEnterableInstance:
+
+            async def __aenter__(self):
+
+                self.context = await f(*args, **kwargs)
+                return self.context
+
+            async def __aexit__(self, *args):
+
+                await self.context.__aexit__(*args)
+
+            def __await__(self):
+
+                return self.__aenter__().__await__()
+
+        return AsyncEnterableInstance()
+
+    return wrapper
 
 
 def wrap_with_container(o):
@@ -62,8 +141,7 @@ def with_timeout(name):
             self.timeout = 1
 
         @with_timeout
-        @asyncio.coroutine
-        def foo(self, ...):
+        async def foo(self, ...):
 
             pass
 
@@ -75,8 +153,7 @@ def with_timeout(name):
             self.foo_timeout = 1
 
         @with_timeout("foo_timeout")
-        @asyncio.coroutine
-        def foo(self, ...):
+        async def foo(self, ...):
 
             pass
 
@@ -126,18 +203,16 @@ class StreamIO:
         self.loop = loop or asyncio.get_event_loop()
 
     @with_timeout("read_timeout")
-    @asyncio.coroutine
-    def readline(self):
+    async def readline(self):
         """
         :py:func:`asyncio.coroutine`
 
         Proxy for :py:meth:`asyncio.StreamReader.readline`.
         """
-        return (yield from self.reader.readline())
+        return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    @asyncio.coroutine
-    def read(self, count=DEFAULT_BLOCK_SIZE):
+    async def read(self, count=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -146,11 +221,10 @@ class StreamIO:
         :param count: block size for read operation
         :type count: :py:class:`int`
         """
-        return (yield from self.reader.read(count))
+        return await self.reader.read(count)
 
     @with_timeout("write_timeout")
-    @asyncio.coroutine
-    def write(self, data):
+    async def write(self, data):
         """
         :py:func:`asyncio.coroutine`
 
@@ -161,7 +235,7 @@ class StreamIO:
         :type data: :py:class:`bytes`
         """
         self.writer.write(data)
-        yield from self.writer.drain()
+        await self.writer.drain()
 
     def close(self):
         """
@@ -193,8 +267,7 @@ class Throttle:
         self._start = None
         self._sum = 0
 
-    @asyncio.coroutine
-    def wait(self):
+    async def wait(self):
         """
         :py:func:`asyncio.coroutine`
 
@@ -205,7 +278,7 @@ class Throttle:
 
             now = self.loop.time()
             end = self._start + self._sum / self._limit
-            yield from asyncio.sleep(max(0, end - now), loop=self.loop)
+            await asyncio.sleep(max(0, end - now), loop=self.loop)
 
     def append(self, data, start):
         """
@@ -354,8 +427,7 @@ class ThrottleStreamIO(StreamIO):
         super().__init__(*args, **kwargs)
         self.throttles = throttles
 
-    @asyncio.coroutine
-    def wait(self, name):
+    async def wait(self, name):
         """
         :py:func:`asyncio.coroutine`
 
@@ -369,7 +441,7 @@ class ThrottleStreamIO(StreamIO):
 
             waiters.append(getattr(throttle, name).wait())
 
-        yield from asyncio.wait(waiters, loop=self.loop)
+        await asyncio.wait(waiters, loop=self.loop)
 
     def append(self, name, data, start):
         """
@@ -389,40 +461,53 @@ class ThrottleStreamIO(StreamIO):
 
             getattr(throttle, name).append(data, start)
 
-    @asyncio.coroutine
-    def read(self, count=DEFAULT_BLOCK_SIZE):
+    async def read(self, count=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
         :py:meth:`aioftp.StreamIO.read` proxy
         """
-        yield from self.wait("read")
+        await self.wait("read")
         start = self.loop.time()
-        data = yield from super().read(count)
+        data = await super().read(count)
         self.append("read", data, start)
         return data
 
-    @asyncio.coroutine
-    def readline(self):
+    async def readline(self):
         """
         :py:func:`asyncio.coroutine`
 
         :py:meth:`aioftp.StreamIO.readline` proxy
         """
-        yield from self.wait("read")
+        await self.wait("read")
         start = self.loop.time()
-        data = yield from super().readline()
+        data = await super().readline()
         self.append("read", data, start)
         return data
 
-    @asyncio.coroutine
-    def write(self, data):
+    async def write(self, data):
         """
         :py:func:`asyncio.coroutine`
 
         :py:meth:`aioftp.StreamIO.write` proxy
         """
-        yield from self.wait("write")
+        await self.wait("write")
         start = self.loop.time()
-        yield from super().write(data)
+        await super().write(data)
         self.append("write", data, start)
+
+    async def __aenter__(self):
+
+        return self
+
+    async def __aexit__(self, *args):
+
+        self.close()
+
+    def iter_by_line(self):
+
+        return AsyncStreamIterator(self.readline)
+
+    def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
+
+        return AsyncStreamIterator(lambda: self.read(count))

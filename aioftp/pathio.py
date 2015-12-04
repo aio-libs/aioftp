@@ -6,7 +6,7 @@ import io
 import time
 import sys
 
-from .common import with_timeout
+from .common import with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE
 from . import errors
 
 
@@ -16,6 +16,38 @@ __all__ = (
     "AsyncPathIO",
     "MemoryPathIO",
 )
+
+
+class AsyncPathIOContext:
+
+    def __init__(self, pathio, args, kwargs):
+
+        self.close = None
+        self.pathio = pathio
+        self.args = args
+        self.kwargs = kwargs
+
+    async def __aenter__(self):
+
+        self.file = await self.pathio._open(*self.args, **self.kwargs)
+        self.write = functools.partial(self.pathio.write, self.file)
+        self.read = functools.partial(self.pathio.read, self.file)
+        self.close = functools.partial(self.pathio.close, self.file)
+        return self
+
+    async def __aexit__(self, *args):
+
+        if self.close is not None:
+
+            await self.close()
+
+    def __await__(self):
+
+        return self.__aenter__().__await__()
+
+    def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
+
+        return AsyncStreamIterator(lambda: self.read(count))
 
 
 class AbstractPathIO:
@@ -42,12 +74,11 @@ class AbstractPathIO:
         def decorator(f):
 
             @functools.wraps(f)
-            @asyncio.coroutine
-            def wrapper(*args, **kwargs):
+            async def wrapper(*args, **kwargs):
 
                 try:
 
-                    return (yield from f(*args, **kwargs))
+                    return await f(*args, **kwargs)
 
                 except asyncio.CancelledError:
 
@@ -68,7 +99,7 @@ class AbstractPathIO:
             "unlink",
             "list",
             "stat",
-            "open",
+            "_open",
             "read",
             "write",
             "close",
@@ -80,8 +111,7 @@ class AbstractPathIO:
 
                 setattr(self, name, decorator(getattr(self, name)))
 
-    @asyncio.coroutine
-    def exists(self, path):
+    async def exists(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -94,8 +124,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def is_dir(self, path):
+    async def is_dir(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -108,8 +137,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def is_file(self, path):
+    async def is_file(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -122,8 +150,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def mkdir(self, path, *, parents=False):
+    async def mkdir(self, path, *, parents=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -137,8 +164,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def rmdir(self, path):
+    async def rmdir(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -149,8 +175,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def unlink(self, path):
+    async def unlink(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -161,8 +186,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def list(self, path):
+    async def list(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -175,8 +199,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def stat(self, path):
+    async def stat(self, path):
         """
         :py:func:`asyncio.coroutine`
 
@@ -191,8 +214,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def open(self, path, *args, **kwargs):
+    async def _open(self, path, mode):
         """
         :py:func:`asyncio.coroutine`
 
@@ -204,12 +226,24 @@ class AbstractPathIO:
         :param path: path to create
         :type path: :py:class:`pathlib.Path`
 
+        :param mode: specifies the mode in which the file is opened ("rb",
+            "wb", "ab" (read, write, append, all binary))
+        :type mode: :py:class:`str`
+
         :return: file-object
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def write(self, file, data):
+    def open(self, *args, **kwargs):
+        """
+        Create instance of :py:class:`aioftp.pathio.AsyncPathIOContext`,
+        parameters passed to :py:meth:`aioftp.AbstractPathIO._open`
+
+        :rtype: :py:class:`aioftp.pathio.AsyncPathIOContext`
+        """
+        return AsyncPathIOContext(self, args, kwargs)
+
+    async def write(self, file, data):
         """
         :py:func:`asyncio.coroutine`
 
@@ -222,8 +256,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def read(self, file):
+    async def read(self, file, block_size):
         """
         :py:func:`asyncio.coroutine`
 
@@ -231,12 +264,14 @@ class AbstractPathIO:
 
         :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
 
+        :param block_size: bytes count to read
+        :type block_size: :py:class:`int`
+
         :rtype: :py:class:`bytes`
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def close(self, file):
+    async def close(self, file):
         """
         :py:func:`asyncio.coroutine`
 
@@ -246,8 +281,7 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
-    def rename(self, source, destination):
+    async def rename(self, source, destination):
         """
         :py:func:`asyncio.coroutine`
 
@@ -267,68 +301,55 @@ class PathIO(AbstractPathIO):
     Blocking path io. Directly based on :py:class:`pathlib.Path` methods.
     """
 
-    @asyncio.coroutine
-    def exists(self, path):
+    async def exists(self, path):
 
         return path.exists()
 
-    @asyncio.coroutine
-    def is_dir(self, path):
+    async def is_dir(self, path):
 
         return path.is_dir()
 
-    @asyncio.coroutine
-    def is_file(self, path):
+    async def is_file(self, path):
 
         return path.is_file()
 
-    @asyncio.coroutine
-    def mkdir(self, path, *, parents=False):
+    async def mkdir(self, path, *, parents=False):
 
         return path.mkdir(parents=parents)
 
-    @asyncio.coroutine
-    def rmdir(self, path):
+    async def rmdir(self, path):
 
         return path.rmdir()
 
-    @asyncio.coroutine
-    def unlink(self, path):
+    async def unlink(self, path):
 
         return path.unlink()
 
-    @asyncio.coroutine
-    def list(self, path):
+    async def list(self, path):
 
         return tuple(path.glob("*"))
 
-    @asyncio.coroutine
-    def stat(self, path):
+    async def stat(self, path):
 
         return path.stat()
 
-    @asyncio.coroutine
-    def open(self, path, *args, **kwargs):
+    async def _open(self, path, *args, **kwargs):
 
         return path.open(*args, **kwargs)
 
-    @asyncio.coroutine
-    def write(self, file, data):
+    async def write(self, file, *args, **kwargs):
 
-        return file.write(data)
+        return file.write(*args, **kwargs)
 
-    @asyncio.coroutine
-    def read(self, file, *args, **kwargs):
+    async def read(self, file, *args, **kwargs):
 
         return file.read(*args, **kwargs)
 
-    @asyncio.coroutine
-    def close(self, file):
+    async def close(self, file):
 
         return file.close()
 
-    @asyncio.coroutine
-    def rename(self, source, destination):
+    async def rename(self, source, destination):
 
         return source.rename(destination)
 
@@ -341,90 +362,78 @@ class AsyncPathIO(AbstractPathIO):
     """
 
     @with_timeout
-    @asyncio.coroutine
-    def exists(self, path):
+    async def exists(self, path):
 
-        return (yield from self.loop.run_in_executor(None, path.exists))
-
-    @with_timeout
-    @asyncio.coroutine
-    def is_dir(self, path):
-
-        return (yield from self.loop.run_in_executor(None, path.is_dir))
+        return await self.loop.run_in_executor(None, path.exists)
 
     @with_timeout
-    @asyncio.coroutine
-    def is_file(self, path):
+    async def is_dir(self, path):
 
-        return (yield from self.loop.run_in_executor(None, path.is_file))
+        return await self.loop.run_in_executor(None, path.is_dir)
 
     @with_timeout
-    @asyncio.coroutine
-    def mkdir(self, path, *, parents=False):
+    async def is_file(self, path):
+
+        return await self.loop.run_in_executor(None, path.is_file)
+
+    @with_timeout
+    async def mkdir(self, path, *, parents=False):
 
         f = functools.partial(path.mkdir, parents=parents)
-        return (yield from self.loop.run_in_executor(None, f))
+        return await self.loop.run_in_executor(None, f)
 
     @with_timeout
-    @asyncio.coroutine
-    def rmdir(self, path):
+    async def rmdir(self, path):
 
-        return (yield from self.loop.run_in_executor(None, path.rmdir))
-
-    @with_timeout
-    @asyncio.coroutine
-    def unlink(self, path):
-
-        return (yield from self.loop.run_in_executor(None, path.unlink))
+        return await self.loop.run_in_executor(None, path.rmdir)
 
     @with_timeout
-    @asyncio.coroutine
-    def list(self, path):
+    async def unlink(self, path):
+
+        return await self.loop.run_in_executor(None, path.unlink)
+
+    @with_timeout
+    async def list(self, path):
 
         def worker(pattern):
 
             return tuple(path.glob(pattern))
 
-        return (yield from self.loop.run_in_executor(None, worker, "*"))
+        return await self.loop.run_in_executor(None, worker, "*")
 
     @with_timeout
-    @asyncio.coroutine
-    def stat(self, path):
+    async def stat(self, path):
 
-        return (yield from self.loop.run_in_executor(None, path.stat))
+        return (await self.loop.run_in_executor(None, path.stat))
 
     @with_timeout
-    @asyncio.coroutine
-    def open(self, path, *args, **kwargs):
+    async def _open(self, path, *args, **kwargs):
 
         f = functools.partial(path.open, *args, **kwargs)
-        return (yield from self.loop.run_in_executor(None, f))
+        return await self.loop.run_in_executor(None, f)
 
     @with_timeout
-    @asyncio.coroutine
-    def write(self, file, data):
+    async def write(self, file, *args, **kwargs):
 
-        return (yield from self.loop.run_in_executor(None, file.write, data))
+        f = functools.partial(file.write, *args, **kwargs)
+        return await self.loop.run_in_executor(None, f)
 
     @with_timeout
-    @asyncio.coroutine
-    def read(self, file, *args, **kwargs):
+    async def read(self, file, *args, **kwargs):
 
         f = functools.partial(file.read, *args, **kwargs)
-        return (yield from self.loop.run_in_executor(None, f))
+        return await self.loop.run_in_executor(None, f)
 
     @with_timeout
-    @asyncio.coroutine
-    def close(self, file):
+    async def close(self, file):
 
-        return (yield from self.loop.run_in_executor(None, file.close))
+        return await self.loop.run_in_executor(None, file.close)
 
     @with_timeout
-    @asyncio.coroutine
-    def rename(self, source, destination):
+    async def rename(self, source, destination):
 
         f = functools.partial(source.rename, destination)
-        return (yield from self.loop.run_in_executor(None, f))
+        return await self.loop.run_in_executor(None, f)
 
 
 class Node:
@@ -498,25 +507,21 @@ class MemoryPathIO(AbstractPathIO):
 
         return node
 
-    @asyncio.coroutine
-    def exists(self, path):
+    async def exists(self, path):
 
         return self.get_node(path) is not None
 
-    @asyncio.coroutine
-    def is_dir(self, path):
+    async def is_dir(self, path):
 
         node = self.get_node(path)
         return not (node is None or node.type != "dir")
 
-    @asyncio.coroutine
-    def is_file(self, path):
+    async def is_file(self, path):
 
         node = self.get_node(path)
         return not (node is None or node.type != "file")
 
-    @asyncio.coroutine
-    def mkdir(self, path, *, parents=False):
+    async def mkdir(self, path, *, parents=False):
 
         if self.get_node(path):
 
@@ -560,8 +565,7 @@ class MemoryPathIO(AbstractPathIO):
 
                     raise FileExistsError
 
-    @asyncio.coroutine
-    def rmdir(self, path):
+    async def rmdir(self, path):
 
         node = self.get_node(path)
         if node is None:
@@ -587,8 +591,7 @@ class MemoryPathIO(AbstractPathIO):
 
             parent.content.pop(i)
 
-    @asyncio.coroutine
-    def unlink(self, path):
+    async def unlink(self, path):
 
         node = self.get_node(path)
         if node is None:
@@ -610,8 +613,7 @@ class MemoryPathIO(AbstractPathIO):
 
             parent.content.pop(i)
 
-    @asyncio.coroutine
-    def list(self, path):
+    async def list(self, path):
 
         node = self.get_node(path)
         if node is None or node.type != "dir":
@@ -624,8 +626,7 @@ class MemoryPathIO(AbstractPathIO):
             paths = map(lambda name: path / name, names)
             return tuple(paths)
 
-    @asyncio.coroutine
-    def stat(self, path):
+    async def stat(self, path):
 
         node = self.get_node(path)
         if node is None:
@@ -650,8 +651,7 @@ class MemoryPathIO(AbstractPathIO):
                 0o100777,
             )
 
-    @asyncio.coroutine
-    def open(self, path, mode="rb", *args, **kwargs):
+    async def _open(self, path, mode="rb", *args, **kwargs):
 
         if mode == "rb":
 
@@ -698,24 +698,20 @@ class MemoryPathIO(AbstractPathIO):
 
         return file_like
 
-    @asyncio.coroutine
-    def write(self, file, data):
+    async def write(self, file, data):
 
         file.write(data)
         file.mtime = int(time.time())
 
-    @asyncio.coroutine
-    def read(self, file, count=None):
+    async def read(self, file, count=None):
 
         return file.read(count)
 
-    @asyncio.coroutine
-    def close(self, file):
+    async def close(self, file):
 
         pass
 
-    @asyncio.coroutine
-    def rename(self, source, destination):
+    async def rename(self, source, destination):
 
         if source != destination:
 
