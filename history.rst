@@ -1,6 +1,8 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+- async context manager for streams and pathio files io
+- python 3.5 only
 - logging provided by "aioftp.client" and "aioftp.server"
 - all path errors are now reraised as PathIOError
 - server does not drop connection on path io errors since now, but return "451" code
