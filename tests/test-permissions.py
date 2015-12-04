@@ -9,11 +9,11 @@ from common import *  # noqa
     ),)], {}))
 @with_connection
 @expect_codes_in_exception("550")
-def test_permission_denied(loop, client, server):
+async def test_permission_denied(loop, client, server):
 
-    yield from client.login()
-    yield from client.make_directory("bar")
-    yield from client.quit()
+    await client.login()
+    await client.make_directory("bar")
+    await client.quit()
 
 
 @aioftp_setup(
@@ -28,18 +28,9 @@ def test_permission_denied(loop, client, server):
     ),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_permission_overriden(loop, client, server, *, tmp_dir):
+async def test_permission_overriden(loop, client, server, *, tmp_dir):
 
-    yield from client.login()
-    yield from client.make_directory("bar")
-    yield from client.remove_directory("bar")
-    yield from client.quit()
-
-
-def test_permission_representation():
-
-    p = aioftp.Permission(writable=False)
-    nose.tools.eq_(
-        repr(p),
-        "Permission(PurePosixPath('/'), readable=True, writable=False)"
-    )
+    await client.login()
+    await client.make_directory("bar")
+    await client.remove_directory("bar")
+    await client.quit()

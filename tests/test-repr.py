@@ -43,3 +43,12 @@ def test_memory_path_io_repr():
         repr(pio),
         "[Node(type='dir', name='/', ctime=1, mtime=1, content=[])]"
     )
+
+
+def test_permission_representation():
+
+    p = aioftp.Permission(writable=False)
+    nose.tools.eq_(
+        repr(p),
+        "Permission(PurePosixPath('/'), readable=True, writable=False)"
+    )

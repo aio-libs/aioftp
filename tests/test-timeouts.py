@@ -13,28 +13,25 @@ from aioftp.server import MemoryUserManager
         [(aioftp.User(base_path="tests/foo", home_path="/"),)],
         {"idle_timeout": 1}))
 @with_connection
-def test_idle_timeout(loop, client, server):
+async def test_idle_timeout(loop, client, server):
 
-    yield from asyncio.sleep(2, loop=loop)
-    yield from client.login()
+    await asyncio.sleep(2, loop=loop)
+    await client.login()
 
 
 class SlowMemoryPathIO(aioftp.MemoryPathIO):
 
     @aioftp.with_timeout
-    @asyncio.coroutine
-    def mkdir(self, path, parents=False):
+    async def mkdir(self, path, parents=False):
 
-        yield from asyncio.sleep(10, loop=self.loop)
+        await asyncio.sleep(10, loop=self.loop)
 
     @aioftp.with_timeout
-    @asyncio.coroutine
-    def open(self, path, mode):
+    async def _open(self, path, mode):
 
-        yield from asyncio.sleep(10, loop=self.loop)
+        await asyncio.sleep(10, loop=self.loop)
 
 
-@expect_codes_in_exception("451")
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path="tests/foo", home_path="/"),)],
@@ -42,11 +39,12 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
             "path_timeout": 1,
             "path_io_factory": SlowMemoryPathIO,
         }))
+@expect_codes_in_exception("451")
 @with_connection
-def test_server_path_timeout(loop, client, server):
+async def test_server_path_timeout(loop, client, server):
 
-    yield from client.login()
-    yield from client.make_directory("foo")
+    await client.login()
+    await client.make_directory("foo")
 
 
 @nose.tools.raises(asyncio.TimeoutError)
@@ -62,17 +60,17 @@ def test_server_path_timeout(loop, client, server):
         }))
 @with_connection
 @with_tmp_dir("foo")
-def test_client_path_timeout(loop, client, server, *, tmp_dir):
+async def test_client_path_timeout(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo.txt"
     with f.open("wb") as fout:
 
         fout.write(b"-" * 1024)
 
-    yield from client.login()
+    await client.login()
     try:
 
-        yield from client.download("foo.txt", "/foo.txt", write_into=True)
+        await client.download("foo.txt", "/foo.txt", write_into=True)
 
     except aioftp.PathIOError as e:
 
@@ -91,23 +89,23 @@ def test_client_path_timeout(loop, client, server, *, tmp_dir):
 @with_connection
 @expect_codes_in_exception("503")
 @with_tmp_dir("foo")
-def test_wait_pasv_timeout_fail_short(loop, client, server, *, tmp_dir):
+async def test_wait_pasv_timeout_fail_short(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo.txt"
     b = b"foobar"
 
-    yield from client.login()
-    yield from client.command("STOR " + f.name)
-    yield from asyncio.sleep(0.5, loop=loop)
-    reader, writer = yield from client.get_passive_connection("I")
+    await client.login()
+    await client.command("STOR " + f.name)
+    await asyncio.sleep(0.5, loop=loop)
+    reader, writer = await client.get_passive_connection("I")
 
     with contextlib.closing(writer) as writer:
 
         writer.write(b)
-        yield from writer.drain()
+        await writer.drain()
 
-    yield from client.command(None, "2xx", "1xx")
-    yield from client.quit()
+    await client.command(None, "2xx", "1xx")
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -125,23 +123,23 @@ def test_wait_pasv_timeout_fail_short(loop, client, server, *, tmp_dir):
 @with_connection
 @expect_codes_in_exception("503")
 @with_tmp_dir("foo")
-def test_wait_pasv_timeout_fail_long(loop, client, server, *, tmp_dir):
+async def test_wait_pasv_timeout_fail_long(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo.txt"
     b = b"foobar"
 
-    yield from client.login()
-    yield from client.command("STOR " + f.name)
-    yield from asyncio.sleep(2, loop=loop)
-    reader, writer = yield from client.get_passive_connection("I")
+    await client.login()
+    await client.command("STOR " + f.name)
+    await asyncio.sleep(2, loop=loop)
+    reader, writer = await client.get_passive_connection("I")
 
     with contextlib.closing(writer) as writer:
 
         writer.write(b)
-        yield from writer.drain()
+        await writer.drain()
 
-    yield from client.command(None, "2xx", "1xx")
-    yield from client.quit()
+    await client.command(None, "2xx", "1xx")
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -158,19 +156,19 @@ def test_wait_pasv_timeout_fail_long(loop, client, server, *, tmp_dir):
         {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
+async def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo.txt"
     b = b"foobar"
 
-    yield from client.login()
-    yield from client.command("TYPE I", "200")
-    code, info = yield from client.command("PASV", "227")
+    await client.login()
+    await client.command("TYPE I", "200")
+    code, info = await client.command("PASV", "227")
     ip, port = client.parse_address_response(info[-1])
 
-    yield from client.command("STOR " + f.name)
-    yield from asyncio.sleep(0.5, loop=loop)
-    reader, writer = yield from aioftp.client.open_connection(
+    await client.command("STOR " + f.name)
+    await asyncio.sleep(0.5, loop=loop)
+    reader, writer = await aioftp.client.open_connection(
         ip,
         port,
         loop,
@@ -180,10 +178,10 @@ def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
     with contextlib.closing(writer) as writer:
 
         writer.write(b)
-        yield from writer.drain()
+        await writer.drain()
 
-    yield from client.command(None, "2xx", "1xx")
-    yield from client.quit()
+    await client.command(None, "2xx", "1xx")
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -201,20 +199,21 @@ def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
 @with_connection
 @expect_codes_in_exception("425")
 @with_tmp_dir("foo")
-def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
+async def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *,
+                                                 tmp_dir):
 
     f = tmp_dir / "foo.txt"
     b = b"foobar"
 
-    yield from client.login()
-    yield from client.command("TYPE I", "200")
-    code, info = yield from client.command("PASV", "227")
+    await client.login()
+    await client.command("TYPE I", "200")
+    code, info = await client.command("PASV", "227")
     ip, port = client.parse_address_response(info[-1])
 
-    yield from client.command("STOR " + f.name)
-    yield from asyncio.sleep(2, loop=loop)
+    await client.command("STOR " + f.name)
+    await asyncio.sleep(2, loop=loop)
 
-    reader, writer = yield from aioftp.client.open_connection(
+    reader, writer = await aioftp.client.open_connection(
         ip,
         port,
         loop,
@@ -224,10 +223,10 @@ def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
     with contextlib.closing(writer) as writer:
 
         writer.write(b)
-        yield from writer.drain()
+        await writer.drain()
 
-    yield from client.command(None, "2xx", "1xx")
-    yield from client.quit()
+    await client.command(None, "2xx", "1xx")
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -240,10 +239,9 @@ def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *, tmp_dir):
 
 class SlowServer(aioftp.Server):
 
-    @asyncio.coroutine
-    def dispatcher(self, reader, writer):
+    async def dispatcher(self, reader, writer):
 
-        yield from asyncio.sleep(10, loop=self.loop)
+        await asyncio.sleep(10, loop=self.loop)
 
 
 @nose.tools.raises(asyncio.TimeoutError)
@@ -255,19 +253,18 @@ def test_client_socket_timeout():
     server = SlowServer(loop=loop)
     client = aioftp.Client(loop=loop, socket_timeout=1)
 
-    @asyncio.coroutine
-    def coro():
+    async def coro():
 
         try:
 
-            yield from server.start(None, 8888)
-            yield from client.connect("127.0.0.1", 8888)
-            yield from asyncio.sleep(10, loop=loop)
+            await server.start(None, 8888)
+            await client.connect("127.0.0.1", 8888)
+            await asyncio.sleep(10, loop=loop)
 
         finally:
 
             server.close()
-            yield from server.wait_closed()
+            await server.wait_closed()
 
     loop.run_until_complete(coro())
 
@@ -275,10 +272,9 @@ def test_client_socket_timeout():
 class SlowUserManager(MemoryUserManager):
 
     @aioftp.with_timeout
-    @asyncio.coroutine
-    def get_user(self, login):
+    async def get_user(self, login):
 
-        yield from asyncio.sleep(10, loop=self.loop)
+        await asyncio.sleep(10, loop=self.loop)
 
 
 @nose.tools.raises(ConnectionResetError)
@@ -292,19 +288,18 @@ def test_user_manager_timeout():
         loop=loop)
     client = aioftp.Client(loop=loop)
 
-    @asyncio.coroutine
-    def coro():
+    async def coro():
 
         try:
 
-            yield from server.start(None, 8888)
-            yield from client.connect("127.0.0.1", 8888)
-            yield from client.login()
+            await server.start(None, 8888)
+            await client.connect("127.0.0.1", 8888)
+            await client.login()
 
         finally:
 
             server.close()
-            yield from server.wait_closed()
+            await server.wait_closed()
 
     loop.run_until_complete(coro())
 
@@ -319,6 +314,6 @@ if __name__ == "__main__":
         level=logging.INFO
     )
 
-    test_wait_pasv_timeout_ok()
-    test_wait_pasv_timeout_ok_but_too_long()
+    test_server_path_timeout()
+    # test_wait_pasv_timeout_ok_but_too_long()
     print("done")

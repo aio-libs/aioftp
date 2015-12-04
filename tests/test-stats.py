@@ -9,15 +9,15 @@ from common import *  # noqa
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_exists(loop, client, server, *, tmp_dir):
+async def test_exists(loop, client, server, *, tmp_dir):
 
-    yield from client.login()
-    yield from client.make_directory("bar")
-    exists = yield from client.exists("bar")
+    await client.login()
+    await client.make_directory("bar")
+    exists = await client.exists("bar")
     nose.tools.eq_(exists, True)
 
-    yield from client.remove_directory("bar")
-    exists = yield from client.exists("bar")
+    await client.remove_directory("bar")
+    exists = await client.exists("bar")
     nose.tools.eq_(exists, False)
 
 
@@ -25,20 +25,20 @@ def test_exists(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_is_dir(loop, client, server, *, tmp_dir):
+async def test_is_dir(loop, client, server, *, tmp_dir):
 
-    yield from client.login()
-    yield from client.make_directory("bar")
-    is_dir = yield from client.is_dir("bar")
+    await client.login()
+    await client.make_directory("bar")
+    is_dir = await client.is_dir("bar")
     nose.tools.eq_(is_dir, True)
 
     tmp_file = tmp_dir / "foo.txt"
     tmp_file.touch()
 
-    is_dir = yield from client.is_dir("foo.txt")
+    is_dir = await client.is_dir("foo.txt")
     nose.tools.eq_(is_dir, False)
 
-    yield from client.remove_directory("bar")
+    await client.remove_directory("bar")
 
     tmp_file.unlink()
 
@@ -47,20 +47,20 @@ def test_is_dir(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_is_file(loop, client, server, *, tmp_dir):
+async def test_is_file(loop, client, server, *, tmp_dir):
 
-    yield from client.login()
-    yield from client.make_directory("bar")
-    is_file = yield from client.is_file("bar")
+    await client.login()
+    await client.make_directory("bar")
+    is_file = await client.is_file("bar")
     nose.tools.eq_(is_file, False)
 
     tmp_file = tmp_dir / "foo.txt"
     tmp_file.touch()
 
-    is_file = yield from client.is_file("foo.txt")
+    is_file = await client.is_file("foo.txt")
     nose.tools.eq_(is_file, True)
 
-    yield from client.remove_directory("bar")
+    await client.remove_directory("bar")
 
     tmp_file.unlink()
 
@@ -69,7 +69,7 @@ def test_is_file(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_stats(loop, client, server, *, tmp_dir):
+async def test_stats(loop, client, server, *, tmp_dir):
 
     s = "i'm a text"
     tmp_file = tmp_dir / "foo.txt"
@@ -77,8 +77,8 @@ def test_stats(loop, client, server, *, tmp_dir):
 
         fout.write(s)
 
-    yield from client.login()
-    stats = yield from client.stat("foo.txt")
+    await client.login()
+    stats = await client.stat("foo.txt")
     nose.tools.eq_(stats["type"], "file")
     nose.tools.eq_(stats["size"], str(len(s)))
 
@@ -89,17 +89,17 @@ def test_stats(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_native_list(loop, client, server, *, tmp_dir):
+async def test_native_list(loop, client, server, *, tmp_dir):
 
     tmp_file = tmp_dir / "foo.txt"
     tmp_file.touch()
 
     lines = []
-    yield from client.login()
-    stream = yield from client.get_stream(str.strip("LIST"), "1xx")
+    await client.login()
+    stream = await client.get_stream(str.strip("LIST"), "1xx")
     while True:
 
-        raw = yield from stream.readline()
+        raw = await stream.readline()
         if not raw:
 
             break
@@ -107,8 +107,8 @@ def test_native_list(loop, client, server, *, tmp_dir):
         lines.append(raw)
 
     con = next(iter(server.connections.values()))
-    yield from client.quit()
-    ans = yield from server.build_list_string(con, tmp_file)
+    await client.quit()
+    ans = await server.build_list_string(con, tmp_file)
     tmp_file.unlink()
 
     nose.tools.eq_(len(lines), 1)
@@ -121,16 +121,16 @@ def test_native_list(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_recursive_list(loop, client, server, *, tmp_dir):
+async def test_recursive_list(loop, client, server, *, tmp_dir):
 
     d = tmp_dir / "foo"
     (tmp_dir / "bar.txt").touch()
     d.mkdir()
     (d / "baz.foo").touch()
 
-    yield from client.login()
+    await client.login()
     paths = set()
-    for path, stats in (yield from client.list(recursive=True)):
+    for path, stats in (await client.list(recursive=True)):
 
         paths.add(path)
 
@@ -140,26 +140,24 @@ def test_recursive_list(loop, client, server, *, tmp_dir):
     names = "bar.txt", "foo", "foo/baz.foo"
     nose.tools.ok_(paths == set(map(pathlib.PurePosixPath, names)))
 
-    yield from client.quit()
+    await client.quit()
 
 
 @nose.tools.raises(aioftp.PathIsNotFileOrDir)
 @aioftp_setup()
-def test_not_a_file_or_dir(loop, client, server):
+async def test_not_a_file_or_dir(loop, client, server):
 
     class NotFileOrDirPathIO(aioftp.AbstractPathIO):
 
-        @asyncio.coroutine
-        def is_file(self, path):
+        async def is_file(self, path):
 
             return False
 
-        @asyncio.coroutine
-        def is_dir(self, path):
+        async def is_dir(self, path):
 
             return False
 
-    yield from server.build_mlsx_string(
+    await server.build_mlsx_string(
         aioftp.Connection(
             path_io=NotFileOrDirPathIO(loop=loop),
             path_timeout=None,

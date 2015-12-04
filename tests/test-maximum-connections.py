@@ -4,118 +4,120 @@ import aioftp
 
 @aioftp_setup()
 @with_connection
-def test_multiply_connections_no_limits(loop, client, server):
+async def test_multiply_connections_no_limits(loop, client, server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(4)]
     for client in clients:
 
-        yield from client.connect("127.0.0.1", PORT)
-        yield from client.login()
+        await client.connect("127.0.0.1", PORT)
+        await client.login()
 
     for client in clients:
 
-        yield from client.quit()
+        await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User(maximum_connections=4),)], {}))
 @expect_codes_in_exception("530")
 @with_connection
-def test_multiply_connections_limited_error(loop, client, server):
+async def test_multiply_connections_limited_error(loop, client, server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(5)]
     for client in clients:
 
-        yield from client.connect("127.0.0.1", PORT)
-        yield from client.login()
+        await client.connect("127.0.0.1", PORT)
+        await client.login()
 
     for client in clients:
 
-        yield from client.quit()
+        await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User(maximum_connections=1),)], {}))
 @with_connection
-def test_multiply_user_commands(loop, client, server):
+async def test_multiply_user_commands(loop, client, server):
 
     for _ in range(10):
 
-        yield from client.login()
+        await client.login()
 
-    yield from client.quit()
+    await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo", maximum_connections=4),)], {}))
 @expect_codes_in_exception("530")
 @with_connection
-def test_multiply_connections_with_user_limited_error(loop, client, server):
+async def test_multiply_connections_with_user_limited_error(loop, client,
+                                                            server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(5)]
     for client in clients:
 
-        yield from client.connect("127.0.0.1", PORT)
-        yield from client.login("foo")
+        await client.connect("127.0.0.1", PORT)
+        await client.login("foo")
 
     for client in clients:
 
-        yield from client.quit()
+        await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo", maximum_connections=4),)], {}))
 @with_connection
-def test_multiply_connections_relogin_balanced(loop, client, server):
+async def test_multiply_connections_relogin_balanced(loop, client, server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(5)]
     for client in clients[:-1]:
 
-        yield from client.connect("127.0.0.1", PORT)
-        yield from client.login("foo")
+        await client.connect("127.0.0.1", PORT)
+        await client.login("foo")
 
-    yield from clients[0].quit()
-    yield from clients[-1].connect("127.0.0.1", PORT)
-    yield from clients[-1].login("foo")
+    await clients[0].quit()
+    await clients[-1].connect("127.0.0.1", PORT)
+    await clients[-1].login("foo")
 
     for client in clients[1:]:
 
-        yield from client.quit()
+        await client.quit()
 
 
 @aioftp_setup(
     server_args=([], {"maximum_connections": 5}))
 @with_connection
 @expect_codes_in_exception("421")
-def test_multiply_connections_server_limit_error(loop, client, server):
+async def test_multiply_connections_server_limit_error(loop, client, server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(5)]
     for client in clients:
 
-        yield from client.connect("127.0.0.1", PORT)
-        # yield from client.login("foo")
+        await client.connect("127.0.0.1", PORT)
+        # await client.login("foo")
 
     for client in clients:
 
-        yield from client.quit()
+        await client.quit()
 
 
 @aioftp_setup(
     server_args=([], {"maximum_connections": 5}))
 @with_connection
-def test_multiply_connections_server_relogin_balanced(loop, client, server):
+async def test_multiply_connections_server_relogin_balanced(loop, client,
+                                                            server):
 
     clients = [aioftp.Client(loop=loop) for _ in range(5)]
     for client in clients[:-1]:
 
-        yield from client.connect("127.0.0.1", PORT)
+        await client.connect("127.0.0.1", PORT)
 
-    yield from clients[0].quit()
-    yield from clients[-1].connect("127.0.0.1", PORT)
+    await clients[0].quit()
+    await clients[-1].connect("127.0.0.1", PORT)
 
     for client in clients[1:]:
 
-        yield from client.quit()
+        await client.quit()
 
 
 if __name__ == "__main__":

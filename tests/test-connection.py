@@ -3,122 +3,121 @@ from common import *  # noqa
 
 @nose.tools.raises(OSError)
 @aioftp_setup()
-def test_client_without_server(loop, client, server):
+async def test_client_without_server(loop, client, server):
 
-    yield from client.connect("127.0.0.1", PORT)
+    await client.connect("127.0.0.1", PORT)
 
 
 @aioftp_setup()
 @with_connection
-def test_connection(loop, client, server):
+async def test_connection(loop, client, server):
 
     pass
 
 
 @aioftp_setup()
 @with_connection
-def test_quit(loop, client, server):
+async def test_quit(loop, client, server):
 
-    yield from client.quit()
+    await client.quit()
 
 
 @aioftp_setup()
 @with_connection
-def test_dirty_quit(loop, client, server):
+async def test_dirty_quit(loop, client, server):
 
-    yield from asyncio.sleep(0.5, loop=loop)
+    await asyncio.sleep(0.5, loop=loop)
     client.close()
-    yield from asyncio.sleep(0.5, loop=loop)
+    await asyncio.sleep(0.5, loop=loop)
 
 
 @aioftp_setup()
 @with_connection
 @expect_codes_in_exception("502")
-def test_not_implemented(loop, client, server):
+async def test_not_implemented(loop, client, server):
 
-    yield from client.command("FOOBAR", "2xx", "1xx")
+    await client.command("FOOBAR", "2xx", "1xx")
 
 
 @aioftp_setup()
 @with_connection
 @expect_codes_in_exception("502")
-def test_type_not_implemented(loop, client, server):
+async def test_type_not_implemented(loop, client, server):
 
-    yield from client.login()
-    yield from client.get_passive_connection("A")
+    await client.login()
+    await client.get_passive_connection("A")
 
 
 @nose.tools.timed(2)
 @nose.tools.raises(ConnectionResetError)
 @aioftp_setup()
 @with_connection
-def test_extra_pasv_connection(loop, client, server):
+async def test_extra_pasv_connection(loop, client, server):
 
-    yield from client.login()
-    r, w = yield from client.get_passive_connection()
-    er, ew = yield from client.get_passive_connection()
+    await client.login()
+    r, w = await client.get_passive_connection()
+    er, ew = await client.get_passive_connection()
     while True:
 
         ew.write(b"-" * 8192)
-        yield from asyncio.sleep(0.1, loop=loop)
-        yield from ew.drain()
+        await asyncio.sleep(0.1, loop=loop)
+        await ew.drain()
 
-    yield from client.quit()
+    await client.quit()
 
 
 @nose.tools.timed(2)
 @nose.tools.raises(ConnectionError)
 @aioftp_setup()
 @with_connection
-def test_closing_pasv_connection(loop, client, server):
+async def test_closing_pasv_connection(loop, client, server):
 
-    yield from client.login()
-    r, w = yield from client.get_passive_connection()
+    await client.login()
+    r, w = await client.get_passive_connection()
     host, port = w.transport.get_extra_info("peername")
-    nr, nw = yield from asyncio.open_connection(host, port, loop=loop)
+    nr, nw = await asyncio.open_connection(host, port, loop=loop)
     while True:
 
         nw.write(b"-" * 100)
-        yield from asyncio.sleep(0.1, loop=loop)
-        yield from nw.drain()
+        await asyncio.sleep(0.1, loop=loop)
+        await nw.drain()
 
-    yield from client.quit()
+    await client.quit()
 
 
 @nose.tools.timed(2)
 @nose.tools.raises(ConnectionResetError)
 @aioftp_setup()
 @with_connection
-def test_server_shutdown(loop, client, server):
+async def test_server_shutdown(loop, client, server):
 
-    @asyncio.coroutine
-    def close_server():
+    async def close_server():
 
-        yield from asyncio.sleep(1, loop=loop)
+        await asyncio.sleep(1, loop=loop)
         server.close()
-        yield from server.wait_closed()
+        await server.wait_closed()
 
-    yield from client.login()
-    asyncio.async(close_server(), loop=loop)
+    await client.login()
+    loop.create_task(close_server())
     while True:
 
-        yield from client.list()
-        yield from asyncio.sleep(0.5, loop=loop)
+        await client.list()
+        await asyncio.sleep(0.5, loop=loop)
 
 
 @aioftp_setup()
-def test_client_zeros_passiv_ip(loop, client, server):
+async def test_client_zeros_passiv_ip(loop, client, server):
 
-    yield from server.start(None, PORT)
-    yield from client.connect("127.0.0.1", PORT)
+    await server.start(None, PORT)
+    await client.connect("127.0.0.1", PORT)
 
-    yield from client.login()
-    r, w = yield from client.get_passive_connection()
+    await client.login()
+    r, w = await client.get_passive_connection()
     w.close()
 
     client.close()
     server.close()
-    yield from server.wait_closed()
+    await server.wait_closed()
 
 if __name__ == "__main__":
 

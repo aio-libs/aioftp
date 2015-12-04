@@ -9,16 +9,16 @@ from common import *  # noqa
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_remove_single_file(loop, client, server, *, tmp_dir):
+async def test_remove_single_file(loop, client, server, *, tmp_dir):
 
     tmp_file = tmp_dir / "foo.txt"
     nose.tools.ok_(tmp_file.exists() is False)
     tmp_file.touch()
     nose.tools.ok_(tmp_file.exists())
 
-    yield from client.login()
-    yield from client.remove_file("foo.txt")
-    yield from client.quit()
+    await client.login()
+    await client.remove_file("foo.txt")
+    await client.quit()
 
     nose.tools.ok_(tmp_file.exists() is False)
 
@@ -27,7 +27,7 @@ def test_remove_single_file(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_recursive_remove(loop, client, server, *, tmp_dir):
+async def test_recursive_remove(loop, client, server, *, tmp_dir):
 
     d = tmp_dir / "foo"
     d.mkdir()
@@ -37,10 +37,10 @@ def test_recursive_remove(loop, client, server, *, tmp_dir):
     dd.mkdir()
     (dd / "foo.baz").touch()
 
-    yield from client.login()
-    yield from client.remove("foo")
-    r = yield from client.list()
-    yield from client.quit()
+    await client.login()
+    await client.remove("foo")
+    r = await client.list()
+    await client.quit()
 
     nose.tools.eq_(len(r), 0)
 
@@ -49,18 +49,18 @@ def test_recursive_remove(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_file_download(loop, client, server, *, tmp_dir):
+async def test_file_download(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo"
     with f.open("w") as fout:
 
         fout.write("foobar")
 
-    yield from client.login()
-    stream = yield from client.download_stream("foo")
-    data = yield from stream.read()
-    yield from stream.finish()
-    yield from client.quit()
+    await client.login()
+    stream = await client.download_stream("foo")
+    data = await stream.read()
+    await stream.finish()
+    await client.quit()
 
     f.unlink()
 
@@ -71,7 +71,7 @@ def test_file_download(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_file_upload(loop, client, server, *, tmp_dir):
+async def test_file_upload(loop, client, server, *, tmp_dir):
 
     def callback(data):
 
@@ -80,12 +80,12 @@ def test_file_upload(loop, client, server, *, tmp_dir):
     f = tmp_dir / "foo"
     b = b"foobar"
 
-    yield from client.login()
+    await client.login()
 
-    stream = yield from client.upload_stream("foo")
-    yield from stream.write(b)
-    yield from stream.finish()
-    yield from client.quit()
+    stream = await client.upload_stream("foo")
+    await stream.write(b)
+    await stream.finish()
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -100,7 +100,7 @@ def test_file_upload(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_file_append(loop, client, server, *, tmp_dir):
+async def test_file_append(loop, client, server, *, tmp_dir):
 
     f = tmp_dir / "foo"
     with f.open("w") as fout:
@@ -108,11 +108,11 @@ def test_file_append(loop, client, server, *, tmp_dir):
         fout.write("foobar")
 
     ab = b"foobar"
-    yield from client.login()
-    stream = yield from client.append_stream("foo")
-    yield from stream.write(ab)
-    yield from stream.finish()
-    yield from client.quit()
+    await client.login()
+    stream = await client.append_stream("foo")
+    await stream.write(ab)
+    await stream.finish()
+    await client.quit()
 
     with f.open("rb") as fin:
 
@@ -144,7 +144,7 @@ def make_some_files(path):
     server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_upload_folder(loop, client, server, *, tmp_dir):
+async def test_upload_folder(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -163,16 +163,16 @@ def test_upload_folder(loop, client, server, *, tmp_dir):
                 cdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.upload(cdir)
+        await client.login()
+        await client.upload(cdir)
         rpaths = set(
             map(
                 lambda p: p.relative_to(sdir / "client"),
                 (sdir / "client").rglob("*"),
             )
         )
-        yield from client.remove("/")
-        yield from client.quit()
+        await client.remove("/")
+        await client.quit()
 
     ecdir.rmdir()
     cdir.rmdir()
@@ -183,7 +183,7 @@ def test_upload_folder(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_upload_folder_into(loop, client, server, *, tmp_dir):
+async def test_upload_folder_into(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -202,16 +202,16 @@ def test_upload_folder_into(loop, client, server, *, tmp_dir):
                 cdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.upload(cdir, write_into=True)
+        await client.login()
+        await client.upload(cdir, write_into=True)
         rpaths = set(
             map(
                 lambda p: p.relative_to(sdir),
                 (sdir).rglob("*"),
             )
         )
-        yield from client.remove("/")
-        yield from client.quit()
+        await client.remove("/")
+        await client.quit()
 
     ecdir.rmdir()
     cdir.rmdir()
@@ -222,7 +222,7 @@ def test_upload_folder_into(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo/server"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_upload_folder_into_another(loop, client, server, *, tmp_dir):
+async def test_upload_folder_into_another(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -244,16 +244,16 @@ def test_upload_folder_into_another(loop, client, server, *, tmp_dir):
                 cdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.upload(cdir, "foo", write_into=True)
+        await client.login()
+        await client.upload(cdir, "foo", write_into=True)
         rpaths = set(
             map(
                 lambda p: p.relative_to(esdir),
                 (esdir).rglob("*"),
             )
         )
-        yield from client.remove("/")
-        yield from client.quit()
+        await client.remove("/")
+        await client.quit()
 
     ecdir.rmdir()
     cdir.rmdir()
@@ -264,7 +264,7 @@ def test_upload_folder_into_another(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_download_folder(loop, client, server, *, tmp_dir):
+async def test_download_folder(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -283,16 +283,16 @@ def test_download_folder(loop, client, server, *, tmp_dir):
                 sdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.download("/server", cdir)
+        await client.login()
+        await client.download("/server", cdir)
         cpaths = set(
             map(
                 lambda p: p.relative_to(cdir / "server"),
                 (cdir / "server").rglob("*"),
             )
         )
-        yield from client.remove("/client")
-        yield from client.quit()
+        await client.remove("/client")
+        await client.quit()
 
     esdir.rmdir()
     sdir.rmdir()
@@ -303,7 +303,7 @@ def test_download_folder(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_download_folder_into(loop, client, server, *, tmp_dir):
+async def test_download_folder_into(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -322,16 +322,16 @@ def test_download_folder_into(loop, client, server, *, tmp_dir):
                 sdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.download("/server", cdir, write_into=True)
+        await client.login()
+        await client.download("/server", cdir, write_into=True)
         cpaths = set(
             map(
                 lambda p: p.relative_to(cdir),
                 (cdir).rglob("*"),
             )
         )
-        yield from client.remove("/client")
-        yield from client.quit()
+        await client.remove("/client")
+        await client.quit()
 
     esdir.rmdir()
     sdir.rmdir()
@@ -342,7 +342,7 @@ def test_download_folder_into(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_download_folder_into_another(loop, client, server, *, tmp_dir):
+async def test_download_folder_into_another(loop, client, server, *, tmp_dir):
 
     sdir = tmp_dir / "server"
     sdir.mkdir()
@@ -361,16 +361,16 @@ def test_download_folder_into_another(loop, client, server, *, tmp_dir):
                 sdir.rglob("*")
             )
         )
-        yield from client.login()
-        yield from client.download("/server", cdir / "foo", write_into=True)
+        await client.login()
+        await client.download("/server", cdir / "foo", write_into=True)
         cpaths = set(
             map(
                 lambda p: p.relative_to(cdir / "foo"),
                 (cdir / "foo").rglob("*"),
             )
         )
-        yield from client.remove("/client")
-        yield from client.quit()
+        await client.remove("/client")
+        await client.quit()
 
     esdir.rmdir()
     sdir.rmdir()
@@ -381,7 +381,7 @@ def test_download_folder_into_another(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_upload_file_into_another(loop, client, server, *, tmp_dir):
+async def test_upload_file_into_another(loop, client, server, *, tmp_dir):
 
     cfile = tmp_dir / "client_file.txt"
     sfile = tmp_dir / "server_file.txt"
@@ -389,8 +389,8 @@ def test_upload_file_into_another(loop, client, server, *, tmp_dir):
 
         fout.write("foobar")
 
-    yield from client.login()
-    yield from client.upload(cfile, sfile.name, write_into=True)
+    await client.login()
+    await client.upload(cfile, sfile.name, write_into=True)
 
     with sfile.open() as fin:
 
@@ -405,7 +405,7 @@ def test_upload_file_into_another(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_download_file(loop, client, server, *, tmp_dir):
+async def test_download_file(loop, client, server, *, tmp_dir):
 
     cfile = tmp_dir / "bar" / "server_file.txt"
     sfile = tmp_dir / "server_file.txt"
@@ -414,9 +414,8 @@ def test_download_file(loop, client, server, *, tmp_dir):
 
         fout.write("foobar")
 
-    yield from client.login()
-    yield from client.download(sfile.name, tmp_dir / "bar")
-
+    await client.login()
+    await client.download(sfile.name, tmp_dir / "bar")
     with cfile.open() as fin:
 
         data = fin.read()
@@ -431,7 +430,7 @@ def test_download_file(loop, client, server, *, tmp_dir):
     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
-def test_download_file_write_into(loop, client, server, *, tmp_dir):
+async def test_download_file_write_into(loop, client, server, *, tmp_dir):
 
     cfile = tmp_dir / "client_file.txt"
     sfile = tmp_dir / "server_file.txt"
@@ -440,8 +439,8 @@ def test_download_file_write_into(loop, client, server, *, tmp_dir):
 
         fout.write("foobar")
 
-    yield from client.login()
-    yield from client.download(sfile.name, cfile, write_into=True)
+    await client.login()
+    await client.download(sfile.name, cfile, write_into=True)
 
     with cfile.open() as fin:
 
@@ -455,8 +454,7 @@ def test_download_file_write_into(loop, client, server, *, tmp_dir):
 class OsErrorPathIO(aioftp.PathIO):
 
     @aioftp.with_timeout
-    @asyncio.coroutine
-    def write(self, fout, data):
+    async def write(self, fout, data):
 
         raise OSError("test os error")
 
@@ -470,14 +468,14 @@ class OsErrorPathIO(aioftp.PathIO):
 @with_connection
 @expect_codes_in_exception("451")
 @with_tmp_dir("foo")
-def test_upload_file_os_error(loop, client, server, *, tmp_dir):
+async def test_upload_file_os_error(loop, client, server, *, tmp_dir):
 
-    yield from client.login()
-    stream = yield from client.upload_stream("file.txt")
+    await client.login()
+    stream = await client.upload_stream("file.txt")
     try:
 
-        yield from stream.write(b"-" * 1024)
-        yield from stream.finish()
+        await stream.write(b"-" * 1024)
+        await stream.finish()
 
     finally:
 
@@ -498,13 +496,13 @@ if __name__ == "__main__":
     # test_file_download()
     # test_file_upload()
     # test_file_append()
-    test_upload_folder()
-    test_upload_folder_into()
-    test_upload_folder_into_another()
-    test_download_folder()
-    test_download_folder_into()
-    test_download_folder_into_another()
-    test_upload_file_into_another()
+    # test_upload_folder()
+    # test_upload_folder_into()
+    # test_upload_folder_into_another()
+    # test_download_folder()
+    # test_download_folder_into()
+    # test_download_folder_into_another()
+    # test_upload_file_into_another()
     test_download_file()
-    test_download_file_write_into()
+    # test_download_file_write_into()
     print("done")

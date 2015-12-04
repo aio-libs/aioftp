@@ -4,74 +4,76 @@ from common import *  # noqa
 @aioftp_setup()
 @with_connection
 @expect_codes_in_exception("503")
-def test_not_logged_in(loop, client, server):
+async def test_not_logged_in(loop, client, server):
 
-    yield from client.get_current_directory()
-
-
-@aioftp_setup()
-@with_connection
-def test_anonymous_login(loop, client, server):
-
-    yield from client.login()
-    yield from client.quit()
+    await client.get_current_directory()
 
 
 @aioftp_setup()
 @with_connection
-def test_login_with_login_data(loop, client, server):
+async def test_anonymous_login(loop, client, server):
 
-    yield from client.login("foo", "bar")
-    yield from client.quit()
+    await client.login()
+    await client.quit()
+
+
+@aioftp_setup()
+@with_connection
+async def test_login_with_login_data(loop, client, server):
+
+    await client.login("foo", "bar")
+    await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo"),)], {}))
 @with_connection
-def test_login_with_login_and_no_password(loop, client, server):
+async def test_login_with_login_and_no_password(loop, client, server):
 
-    yield from client.login("foo")
-    yield from client.quit()
-
-
-@aioftp_setup(
-    server_args=([(aioftp.User("foo", "bar"),)], {}))
-@with_connection
-def test_login_with_login_and_password(loop, client, server):
-
-    yield from client.login("foo", "bar")
-    yield from client.quit()
+    await client.login("foo")
+    await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo", "bar"),)], {}))
 @with_connection
-@expect_codes_in_exception("530")
-def test_login_with_login_and_password_no_such_user(loop, client, server):
+async def test_login_with_login_and_password(loop, client, server):
 
-    yield from client.login("fo", "bar")
-    yield from client.quit()
+    await client.login("foo", "bar")
+    await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo", "bar"),)], {}))
 @with_connection
 @expect_codes_in_exception("530")
-def test_login_with_login_and_password_bad_password(loop, client, server):
+async def test_login_with_login_and_password_no_such_user(loop, client,
+                                                          server):
 
-    yield from client.login("foo", "baz")
-    yield from client.quit()
+    await client.login("fo", "bar")
+    await client.quit()
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User("foo", "bar"),)], {}))
+@with_connection
+@expect_codes_in_exception("530")
+async def test_login_with_login_and_password_bad_password(loop, client,
+                                                          server):
+
+    await client.login("foo", "baz")
+    await client.quit()
 
 
 @aioftp_setup(
     server_args=([(aioftp.User("foo", "bar"),)], {}))
 @with_connection
 @expect_codes_in_exception("503")
-def test_pasv_after_login(loop, client, server):
+async def test_pasv_after_login(loop, client, server):
 
-    yield from client.login("foo", "bar")
-    yield from client.command("PASS baz", ("230", "33x"))
-    yield from client.quit()
+    await client.login("foo", "bar")
+    await client.command("PASS baz", ("230", "33x"))
+    await client.quit()
 
 
 if __name__ == "__main__":
