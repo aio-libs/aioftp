@@ -1,4 +1,3 @@
-include flit.ini
 include readme.rst
 include license.txt
 include history.rst
