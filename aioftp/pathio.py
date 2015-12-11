@@ -70,7 +70,79 @@ class AsyncPathIOContext:
         return AsyncStreamIterator(lambda: self.read(count))
 
 
-class AbstractPathIO:
+class UniversalException:
+
+    def __init__(self, *args, universal_exception=True, **kwargs):
+
+        if universal_exception and hasattr(self, "universal_exception_coros"):
+
+            def decorator(f):
+
+                @functools.wraps(f)
+                async def wrapper(*args, **kwargs):
+
+                    try:
+
+                        return await f(*args, **kwargs)
+
+                    except asyncio.CancelledError:
+
+                        raise
+
+                    except NotImplementedError:
+
+                        raise
+
+                    except:
+
+                        raise errors.PathIOError(reason=sys.exc_info())
+
+                return wrapper
+
+            for name in self.universal_exception_coros:
+
+                setattr(self, name, decorator(getattr(self, name)))
+
+
+class AbstractAsyncGeneratorLister(UniversalException):
+
+    universal_exception_coros = (
+        "__aiter__",
+        "__anext__",
+    )
+
+    def __init__(self, *args, timeout=None, loop=None, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        self.timeout = timeout
+        self.loop = loop or asyncio.get_event_loop()
+
+    @with_timeout
+    async def __aiter__(self):
+
+        raise NotImplementedError
+
+    @with_timeout
+    async def __anext__(self):
+
+        raise NotImplementedError
+
+    async def _to_list(self):
+
+        items = []
+        async for item in self:
+
+            items.append(item)
+
+        return items
+
+    def __await__(self):
+
+        return self._to_list().__await__()
+
+
+class AbstractPathIO(UniversalException):
     """
     Abstract class for path io operations.
 
@@ -86,50 +158,27 @@ class AbstractPathIO:
     :type universal_exception: :py:class:`bool`
     """
 
-    def __init__(self, *, timeout=None, loop=None, universal_exception=True):
+    universal_exception_coros = (
+        "exists",
+        "is_dir",
+        "is_file",
+        "mkdir",
+        "rmdir",
+        "unlink",
+        "stat",
+        "_open",
+        "read",
+        "write",
+        "close",
+        "rename",
+    )
+
+    def __init__(self, *args, timeout=None, loop=None, **kwargs):
+
+        super().__init__(*args, **kwargs)
 
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
-
-        def decorator(f):
-
-            @functools.wraps(f)
-            async def wrapper(*args, **kwargs):
-
-                try:
-
-                    return await f(*args, **kwargs)
-
-                except asyncio.CancelledError:
-
-                    raise
-
-                except:
-
-                    raise errors.PathIOError(reason=sys.exc_info())
-
-            return wrapper
-
-        coroutine_names = (
-            "exists",
-            "is_dir",
-            "is_file",
-            "mkdir",
-            "rmdir",
-            "unlink",
-            "list",
-            "stat",
-            "_open",
-            "read",
-            "write",
-            "close",
-            "rename"
-        )
-        if universal_exception:
-
-            for name in coroutine_names:
-
-                setattr(self, name, decorator(getattr(self, name)))
 
     async def exists(self, path):
         """
@@ -206,16 +255,31 @@ class AbstractPathIO:
         """
         raise NotImplementedError
 
-    async def list(self, path):
+    def list(self, path):
         """
-        :py:func:`asyncio.coroutine`
-
-        List path content. If path is file, then return empty sequence
+        Create instance of subclass of
+        :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister`. You should
+        subclass and implement `__aiter__` and `__anext__` methods for
+        :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister` and return
+        new instance.
 
         :param path: path to list
         :type path: :py:class:`pathlib.Path`
 
-        :rtype: :py:class:`collections.Iterable` of :py:class:`pathlib.Path`
+        :rtype: :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister`
+
+        Usage:
+        ::
+
+            async for p in pathio.list(path):
+
+                # do
+
+        or borring instance of :py:class:`list`:
+        ::
+
+            paths = await pathio.list(path)
+
         """
         raise NotImplementedError
 
@@ -345,9 +409,26 @@ class PathIO(AbstractPathIO):
 
         return path.unlink()
 
-    async def list(self, path):
+    def list(self, path):
 
-        return tuple(path.glob("*"))
+        class Lister(AbstractAsyncGeneratorLister):
+
+            async def __aiter__(self):
+
+                self.iter = path.glob("*")
+                return self
+
+            async def __anext__(self):
+
+                try:
+
+                    return next(self.iter)
+
+                except StopIteration:
+
+                    raise StopAsyncIteration
+
+        return Lister(timeout=self.timeout, loop=self.loop)
 
     async def stat(self, path):
 
@@ -412,19 +493,38 @@ class AsyncPathIO(AbstractPathIO):
 
         return await self.loop.run_in_executor(None, path.unlink)
 
-    @with_timeout
-    async def list(self, path):
+    def list(self, path):
 
-        def worker(pattern):
+        class Lister(AbstractAsyncGeneratorLister):
 
-            return tuple(path.glob(pattern))
+            def worker(self):
 
-        return await self.loop.run_in_executor(None, worker, "*")
+                try:
+
+                    return next(self.iter)
+
+                except StopIteration:
+
+                    raise StopAsyncIteration
+
+            @with_timeout
+            async def __aiter__(self):
+
+                f = lambda: path.glob("*")
+                self.iter = await self.loop.run_in_executor(None, f)
+                return self
+
+            @with_timeout
+            async def __anext__(self):
+
+                return await self.loop.run_in_executor(None, self.worker)
+
+        return Lister(timeout=self.timeout, loop=self.loop)
 
     @with_timeout
     async def stat(self, path):
 
-        return (await self.loop.run_in_executor(None, path.stat))
+        return await self.loop.run_in_executor(None, path.stat)
 
     @with_timeout
     async def _open(self, path, *args, **kwargs):
@@ -496,9 +596,9 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, *, timeout=None, loop=None, **kwargs):
+    def __init__(self, *args, **kwargs):
 
-        super().__init__(timeout=timeout, loop=loop, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):
@@ -633,18 +733,36 @@ class MemoryPathIO(AbstractPathIO):
 
             parent.content.pop(i)
 
-    async def list(self, path):
+    def list(self, path):
 
-        node = self.get_node(path)
-        if node is None or node.type != "dir":
+        class Lister(AbstractAsyncGeneratorLister):
 
-            return ()
+            async def __aiter__(cls):
 
-        else:
+                node = self.get_node(path)
+                if node is None or node.type != "dir":
 
-            names = map(operator.attrgetter("name"), node.content)
-            paths = map(lambda name: path / name, names)
-            return tuple(paths)
+                    cls.iter = iter(())
+
+                else:
+
+                    names = map(operator.attrgetter("name"), node.content)
+                    paths = map(lambda name: path / name, names)
+                    cls.iter = iter(paths)
+
+                return cls
+
+            async def __anext__(cls):
+
+                try:
+
+                    return next(cls.iter)
+
+                except StopIteration:
+
+                    raise StopAsyncIteration
+
+        return Lister(timeout=self.timeout, loop=self.loop)
 
     async def stat(self, path):
 
