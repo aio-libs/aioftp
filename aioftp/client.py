@@ -567,32 +567,6 @@ class Client(BaseClient):
                 return self._to_list().__await__()
 
         return AsyncClientLister()
-        """
-        result = []
-        directories = []
-        command = str.strip("MLSD " + str(path))
-        async with self.get_stream(command, "1xx") as stream:
-
-            async for line in stream.iter_by_line():
-
-                name, info = self.parse_mlsx_line(line)
-                if info["type"] in ("file", "dir"):
-
-                    stat = path / name, info
-                    if info["type"] == "dir":
-
-                        directories.append(stat)
-
-                    result.append(stat)
-
-        if recursive:
-
-            for name, info in directories:
-
-                result += await self.list(name, recursive=recursive)
-
-        return result
-        """
 
     async def stat(self, path):
         """
