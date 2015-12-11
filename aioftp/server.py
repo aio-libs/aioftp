@@ -1171,7 +1171,7 @@ class Server(AbstractServer):
 
             code, info = "503", "already logged in"
 
-        elif (await auth):
+        elif await auth:
 
             connection.logged = True
             code, info = "230", "normal login"
@@ -1279,16 +1279,13 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
-            try:
 
-                for path in (await connection.path_io.list(real_path)):
+            async with stream:
+
+                async for path in connection.path_io.list(real_path):
 
                     s = await self.build_mlsx_string(connection, path)
                     await stream.write(str.encode(s + END_OF_LINE, "utf-8"))
-
-            finally:
-
-                stream.close()
 
             connection.response("200", "mlsd transfer done")
             return True
@@ -1343,16 +1340,13 @@ class Server(AbstractServer):
 
             stream = connection.data_connection
             del connection.data_connection
-            try:
 
-                for path in (await connection.path_io.list(real_path)):
+            async with stream:
+
+                async for path in connection.path_io.list(real_path):
 
                     s = await self.build_list_string(connection, path)
                     await stream.write(str.encode(s + END_OF_LINE, "utf-8"))
-
-            finally:
-
-                stream.close()
 
             connection.response("226", "list transfer done")
             return True
