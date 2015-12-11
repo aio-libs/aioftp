@@ -85,10 +85,6 @@ def async_enterable(f):
                 self.context = await f(*args, **kwargs)
                 return self.context
 
-            async def __aexit__(self, *args):
-
-                await self.context.__aexit__(*args)
-
             def __await__(self):
 
                 return self.__aenter__().__await__()
