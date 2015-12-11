@@ -130,7 +130,7 @@ async def test_recursive_list(loop, client, server, *, tmp_dir):
 
     await client.login()
     paths = set()
-    for path, stats in (await client.list(recursive=True)):
+    async for path, stats in client.list(recursive=True):
 
         paths.add(path)
 
