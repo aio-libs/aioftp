@@ -184,8 +184,9 @@ async def test_memory_path_unreachable_mkdir_cause_file(loop, client, server):
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
         {"path_io_factory": aioftp.MemoryPathIO}))
-async def test_memory_path_unreachable_mkdir_cause_file_with_parents(loop, client,
-                                                               server):
+async def test_memory_path_unreachable_mkdir_cause_file_with_parents(loop,
+                                                                     client,
+                                                                     server):
 
     mp = raw_memory_path_io(loop=loop)
     await mp.open(pathlib.PurePosixPath("/foo"), "wb")
@@ -259,7 +260,7 @@ async def test_memory_path_list_not_exists(loop, client, server):
 
     mp = aioftp.MemoryPathIO(loop=loop)
     r = await mp.list(pathlib.PurePosixPath("/foo"))
-    nose.tools.eq_(r, tuple())
+    nose.tools.eq_(r, [])
 
 
 @nose.tools.raises(FileNotFoundError)
@@ -376,8 +377,8 @@ async def test_memory_path_rename_to_not_exists(loop, client, server):
     s, d = pathlib.PurePosixPath("/foo"), pathlib.PurePosixPath("/bar")
     await mp.open(s, "wb")
     await mp.rename(s, d)
-    nose.tools.eq_((await mp.exists(d)), True)
-    nose.tools.eq_((await mp.exists(s)), False)
+    nose.tools.eq_(await mp.exists(d), True)
+    nose.tools.eq_(await mp.exists(s), False)
 
 
 @aioftp_setup(
@@ -391,8 +392,8 @@ async def test_memory_path_rename_to_exists(loop, client, server):
     await mp.open(s, "wb")
     await mp.open(d, "wb")
     await mp.rename(s, d)
-    nose.tools.eq_((await mp.exists(d)), True)
-    nose.tools.eq_((await mp.exists(s)), False)
+    nose.tools.eq_(await mp.exists(d), True)
+    nose.tools.eq_(await mp.exists(s), False)
 
 
 if __name__ == "__main__":
