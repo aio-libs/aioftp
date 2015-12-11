@@ -1,6 +1,8 @@
 import nose
+import pathlib
 
 from common import *  # noqa
+from aioftp.pathio import AbstractAsyncGeneratorLister
 
 
 @aioftp_setup(
@@ -64,6 +66,23 @@ class FakeSlowPathIO(aioftp.PathIO):
 
         await asyncio.sleep(0.05, loop=self.loop)
         return b"-" * 8192
+
+    def list(self, path):
+
+        # infinite list
+        files = tuple(path.glob("*"))
+
+        class Lister(AbstractAsyncGeneratorLister):
+
+            async def __aiter__(self):
+
+                return self
+
+            async def __anext__(self):
+
+                return files[0]
+
+        return Lister(timeout=self.timeout, loop=self.loop)
 
 
 @aioftp_setup(
@@ -131,6 +150,28 @@ async def test_nothing_to_abort(loop, client, server):
     await client.login()
     await client.abort()
     await client.quit()
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo", home_path="/"),)],
+                 {"path_io_factory": FakeSlowPathIO}))
+@with_connection
+@with_tmp_dir("foo")
+async def test_mlsd_abort(loop, client, server, *, tmp_dir):
+
+    tmp_file = tmp_dir / "test.txt"
+    tmp_file.touch()
+
+    await client.login()
+    cwd = await client.get_current_directory()
+    nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
+
+    async for path, info in client.list():
+
+        await client.abort()
+        break
+
+    tmp_file.unlink()
 
 
 if __name__ == "__main__":
