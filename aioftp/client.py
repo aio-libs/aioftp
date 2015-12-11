@@ -472,7 +472,7 @@ class Client(BaseClient):
         """
         path = pathlib.PurePosixPath(path)
         need_create = []
-        while path.name and not (await self.exists(path)):
+        while path.name and not await self.exists(path):
 
             need_create.append(path)
             path = path.parent
@@ -496,7 +496,7 @@ class Client(BaseClient):
         """
         await self.command("RMD " + str(path), "250")
 
-    async def list(self, path="", *, recursive=False):
+    def list(self, path="", *, recursive=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -509,6 +509,64 @@ class Client(BaseClient):
         :type recursive: :py:class:`bool`
 
         :rtype: :py:class:`list` or :py:class:`None`
+        """
+        class AsyncClientLister:
+
+            async def _new_stream(cls, local_path):
+
+                cls.path = local_path
+                command = str.strip("MLSD " + str(cls.path))
+                return await self.get_stream(command, "1xx")
+
+            async def __aiter__(cls):
+
+                cls.stream = await cls._new_stream(path)
+                cls.directories = collections.deque()
+                return cls
+
+            async def __anext__(cls):
+
+                while True:
+
+                    line = await cls.stream.readline()
+                    while not line:
+
+                        if cls.directories:
+
+                            current_path, info = cls.directories.popleft()
+                            await cls.stream.finish()
+                            cls.stream = await cls._new_stream(current_path)
+                            line = await cls.stream.readline()
+
+                        else:
+
+                            await cls.stream.finish()
+                            raise StopAsyncIteration
+
+                    name, info = self.parse_mlsx_line(line)
+                    if info["type"] in ("file", "dir"):
+
+                        stat = cls.path / name, info
+                        if info["type"] == "dir" and recursive:
+
+                            cls.directories.append(stat)
+
+                        return stat
+
+            async def _to_list(self):
+
+                items = []
+                async for item in self:
+
+                    items.append(item)
+
+                return items
+
+            def __await__(self):
+
+                return self._to_list().__await__()
+
+        return AsyncClientLister()
         """
         result = []
         directories = []
@@ -534,6 +592,7 @@ class Client(BaseClient):
                 result += await self.list(name, recursive=recursive)
 
         return result
+        """
 
     async def stat(self, path):
         """
@@ -718,7 +777,7 @@ class Client(BaseClient):
             while sources:
 
                 src = sources.popleft()
-                for path in (await self.path_io.list(src)):
+                async for path in self.path_io.list(src):
 
                     if write_into:
 
@@ -728,7 +787,7 @@ class Client(BaseClient):
 
                         relative = path.relative_to(source.parent)
 
-                    if (await self.path_io.is_dir(path)):
+                    if await self.path_io.is_dir(path):
 
                         await self.make_directory(relative)
                         sources.append(path)
@@ -803,16 +862,10 @@ class Client(BaseClient):
 
                 await self.path_io.mkdir(destination, parents=True)
 
-            for name, info in (await self.list(source, recursive=True)):
+            for name, info in (await self.list(source)):
 
                 full = destination / name.relative_to(source)
-                if info["type"] == "dir":
-
-                    if not (await self.path_io.exists(full)):
-
-                        await self.path_io.mkdir(full, parents=True)
-
-                elif info["type"] == "file":
+                if info["type"] in ("file", "dir"):
 
                     await self.download(
                         name,
