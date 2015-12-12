@@ -54,7 +54,7 @@ def async_enterable(f):
             return AsyncContextInstance()
 
         ctx = await foo()
-        with ctx:
+        async with ctx:
 
             # do
 
@@ -65,12 +65,12 @@ def async_enterable(f):
 
             return AsyncContextInstance()
 
-        with foo() as ctx:
+        async with foo() as ctx:
 
             # do
 
         ctx = await foo()
-        with ctx:
+        async with ctx:
 
             # do
 
@@ -84,6 +84,10 @@ def async_enterable(f):
 
                 self.context = await f(*args, **kwargs)
                 return self.context
+
+            async def __aexit__(self, *args, **kwargs):
+
+                await self.context.__aexit__(*args, **kwargs)
 
             def __await__(self):
 
