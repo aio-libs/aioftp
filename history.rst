@@ -1,6 +1,7 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+- `async for` for pathio list function
 - async context manager for streams and pathio files io
 - python 3.5 only
 - logging provided by "aioftp.client" and "aioftp.server"
