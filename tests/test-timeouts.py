@@ -21,11 +21,13 @@ async def test_idle_timeout(loop, client, server):
 
 class SlowMemoryPathIO(aioftp.MemoryPathIO):
 
+    @aioftp.pathio.universal_exception
     @aioftp.with_timeout
     async def mkdir(self, path, parents=False):
 
         await asyncio.sleep(10, loop=self.loop)
 
+    @aioftp.pathio.universal_exception
     @aioftp.with_timeout
     async def _open(self, path, mode):
 

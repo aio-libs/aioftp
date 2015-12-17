@@ -1,11 +1,55 @@
+import functools
+
 import nose
 
 from common import *  # noqa
 
 
+@nose.tools.nottest
 def raw_memory_path_io(*args, **kwargs):
 
-    return aioftp.MemoryPathIO(*args, universal_exception=False, **kwargs)
+    return aioftp.MemoryPathIO(*args, **kwargs)
+
+
+@nose.tools.nottest
+def check_universal_exception_reason(expect):
+
+    def decorator(f):
+
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+
+            try:
+
+                return f(*args, **kwargs)
+
+            except aioftp.PathIOError as exc:
+
+                type, instance, traceback = exc.reason
+                if type != expect:
+
+                    raise Exception(
+                        str.format(
+                            "Exception type mismatch {} != {}",
+                            type,
+                            expect
+                        )
+                    )
+
+            except:
+
+                raise Exception(
+                    str.format(
+                        "Unexpected exception {}, {}, {}",
+                        type,
+                        instance,
+                        traceback
+                    )
+                )
+
+        return wrapper
+
+    return decorator
 
 
 @aioftp_setup(
@@ -144,7 +188,7 @@ async def test_memory_path_unreachable_path_raw(loop, client, server):
     nose.tools.eq_(mp.get_node(pathlib.PurePosixPath("/foo/bar/baz")), None)
 
 
-@nose.tools.raises(FileExistsError)
+@check_universal_exception_reason(FileExistsError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -156,7 +200,7 @@ async def test_memory_path_mkdir_on_exist(loop, client, server):
     await mp.mkdir(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -167,7 +211,7 @@ async def test_memory_path_mkdir_unreachable_parents(loop, client, server):
     await mp.mkdir(pathlib.PurePosixPath("/foo/bar"))
 
 
-@nose.tools.raises(FileExistsError)
+@check_universal_exception_reason(FileExistsError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -179,7 +223,7 @@ async def test_memory_path_unreachable_mkdir_cause_file(loop, client, server):
     await mp.mkdir(pathlib.PurePosixPath("/foo/bar"))
 
 
-@nose.tools.raises(FileExistsError)
+@check_universal_exception_reason(FileExistsError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -193,7 +237,7 @@ async def test_memory_path_unreachable_mkdir_cause_file_with_parents(loop,
     await mp.mkdir(pathlib.PurePosixPath("/foo/bar"), parents=True)
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -204,7 +248,7 @@ async def test_memory_path_remove_directory_not_exists(loop, client, server):
     await mp.rmdir(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(NotADirectoryError)
+@check_universal_exception_reason(NotADirectoryError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -216,7 +260,7 @@ async def test_memory_path_remove_directory_is_file(loop, client, server):
     await mp.rmdir(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(OSError)
+@check_universal_exception_reason(OSError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -229,7 +273,7 @@ async def test_memory_path_remove_directory_not_empty(loop, client, server):
     await mp.rmdir(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -240,7 +284,7 @@ async def test_memory_path_unlink_not_exists(loop, client, server):
     await mp.unlink(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(IsADirectoryError)
+@check_universal_exception_reason(IsADirectoryError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -263,7 +307,7 @@ async def test_memory_path_list_not_exists(loop, client, server):
     nose.tools.eq_(r, [])
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -274,7 +318,7 @@ async def test_memory_path_stat_not_exists(loop, client, server):
     await mp.stat(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -285,7 +329,7 @@ async def test_memory_path_open_read_not_exists(loop, client, server):
     await mp.open(pathlib.PurePosixPath("/foo"))
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -297,7 +341,7 @@ async def test_memory_path_open_write_parent_file(loop, client, server):
     await mp.open(pathlib.PurePosixPath("/foo/bar"), "wb")
 
 
-@nose.tools.raises(IsADirectoryError)
+@check_universal_exception_reason(IsADirectoryError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -330,7 +374,7 @@ async def test_memory_path_open_append_new(loop, client, server):
     await mp.open(pathlib.PurePosixPath("/foo"), "ab")
 
 
-@nose.tools.raises(IsADirectoryError)
+@check_universal_exception_reason(IsADirectoryError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -342,7 +386,7 @@ async def test_memory_path_open_append_over_dir(loop, client, server):
     await mp.open(pathlib.PurePosixPath("/foo"), "ab")
 
 
-@nose.tools.raises(ValueError)
+@check_universal_exception_reason(ValueError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
@@ -353,7 +397,7 @@ async def test_memory_path_open_bad_mode(loop, client, server):
     await mp.open(pathlib.PurePosixPath("/foo"), "foobar")
 
 
-@nose.tools.raises(FileNotFoundError)
+@check_universal_exception_reason(FileNotFoundError)
 @aioftp_setup(
     server_args=(
         [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],

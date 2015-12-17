@@ -2,7 +2,6 @@ import nose
 import pathlib
 
 from common import *  # noqa
-from aioftp.pathio import AbstractAsyncGeneratorLister
 
 
 @aioftp_setup(
@@ -72,7 +71,7 @@ class FakeSlowPathIO(aioftp.PathIO):
         # infinite list
         files = tuple(path.glob("*"))
 
-        class Lister(AbstractAsyncGeneratorLister):
+        class Lister(aioftp.AbstractAsyncLister):
 
             async def __aiter__(self):
 

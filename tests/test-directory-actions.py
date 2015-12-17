@@ -156,3 +156,42 @@ async def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     await client.remove_directory("hurr")
     files = await client.list()
     nose.tools.eq_(len(files), 0)
+
+
+class FakeErrorPathIO(aioftp.PathIO):
+
+    def list(self, path):
+
+        class Lister(aioftp.AbstractAsyncLister):
+
+            @aioftp.pathio.universal_exception
+            @aioftp.with_timeout
+            async def __aiter__(self):
+
+                self.iter = path.glob("*")
+                return self
+
+            @aioftp.pathio.universal_exception
+            @aioftp.with_timeout
+            async def __anext__(self):
+
+                try:
+
+                    raise Exception("KERNEL PANIC")
+
+                except StopIteration:
+
+                    raise StopAsyncIteration
+
+        return Lister(timeout=self.timeout, loop=self.loop)
+
+
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests"),)],
+                 {"path_io_factory": FakeErrorPathIO}))
+@expect_codes_in_exception("451")
+@with_connection
+async def test_exception_in_list(loop, client, server):
+
+    await client.login()
+    await client.list()

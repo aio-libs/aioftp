@@ -453,6 +453,7 @@ async def test_download_file_write_into(loop, client, server, *, tmp_dir):
 
 class OsErrorPathIO(aioftp.PathIO):
 
+    @aioftp.pathio.universal_exception
     @aioftp.with_timeout
     async def write(self, fout, data):
 
