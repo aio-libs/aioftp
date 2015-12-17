@@ -800,8 +800,7 @@ def worker(f):
     ::
 
         @worker
-        async         def worker(self, connection, rest):
-
+        async def worker(self, connection, rest):
             ...
 
     """
