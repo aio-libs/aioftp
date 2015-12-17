@@ -108,7 +108,13 @@ class AsyncStreamIterator:
 
 class AsyncListerMixin:
     """
-    Add ability to collect data to list from asynchronous for loop via await.
+    Add ability to `async for` context to collect data to list via await.
+
+    ::
+
+        >>> class Context(AsyncListerMixin):
+        ...     ...
+        >>> results = await Context(...)
     """
     async def _to_list(self):
 
