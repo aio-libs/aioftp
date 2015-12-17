@@ -66,7 +66,8 @@ Listing paths
 -------------
 
 For listing paths you should use :py:meth:`aioftp.Client.list` coroutine, which
-can list paths recursively and produce a :py:class:`list`
+can list paths recursively and produce a :py:class:`list` and can be used
+with `async for`
 
 ::
 
@@ -77,6 +78,13 @@ can list paths recursively and produce a :py:class:`list`
 
     >>> await client.list("/", recursive=True)
     [(PosixPath('/.logs'), {'unix.mode': '0755', 'unique': '801g4804045', ...
+
+::
+
+    >>> async for path, info in client.list("/", recursive=True):
+    ...     print(path)
+    (PosixPath('/.logs'), {'unix.mode': '0755', 'unique': '801g4804045', ...
+    ...
 
 If you ommit path argument, result will be list for current working directory
 
@@ -196,7 +204,7 @@ work with streams is:
 
     >>> async with client.download_stream("tmp.py") as stream:
     ...
-    ...     async for block stream.iter_by_block():
+    ...     async for block in stream.iter_by_block():
     ...
     ...         # do something with data
 
@@ -205,7 +213,7 @@ Or, if you want to abort transfer at some point
 ::
 
     >>> stream = await client.download_stream("tmp.py")
-    ... async for block stream.iter_by_block():
+    ... async for block in stream.iter_by_block():
     ...
     ...     # do something with data
     ...
@@ -214,6 +222,8 @@ Or, if you want to abort transfer at some point
     ...         await client.abort()
     ...         stream.close()
     ...         break
+    ...
+    ...     await stream.finish()
 
 Throttle
 --------

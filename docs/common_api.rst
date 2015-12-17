@@ -15,6 +15,10 @@ Common API
 .. autoclass:: aioftp.ThrottleStreamIO
     :members:
 
+.. autoclass:: aioftp.AsyncListerMixin
+
+.. autoclass:: aioftp.AbstractAsyncLister
+
 .. autofunction:: aioftp.with_timeout
 
 .. autofunction:: aioftp.async_enterable

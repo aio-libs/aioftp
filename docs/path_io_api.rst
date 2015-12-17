@@ -9,6 +9,8 @@ Path abstraction layer API
 
 .. autoclass :: aioftp.pathio.AsyncPathIOContext
 
+.. autofunction :: aioftp.pathio.universal_exception
+
 .. autoclass :: aioftp.PathIO
     :show-inheritance:
 
