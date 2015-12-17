@@ -22,7 +22,6 @@ __all__ = (
     "ConnectionConditions",
     "PathConditions",
     "PathPermissions",
-    "worker",
     "Server",
 )
 logger = logging.getLogger("aioftp.server")
