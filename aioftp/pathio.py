@@ -6,7 +6,8 @@ import io
 import time
 import sys
 
-from .common import with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE
+from .common import (with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE,
+                     AbstractAsyncLister)
 from . import errors
 
 
@@ -70,79 +71,39 @@ class AsyncPathIOContext:
         return AsyncStreamIterator(lambda: self.read(count))
 
 
-class UniversalException:
+def universal_exception(coro):
+    """
+    Decorator. Reraising any exception (except `CancelledError` and
+    `NotImplementedError`) with universal exception
+    :py:class:`aioftp.PathIOError`
+    """
+    @functools.wraps(coro)
+    async def wrapper(*args, **kwargs):
 
-    def __init__(self, *args, universal_exception=True, **kwargs):
+        try:
 
-        if universal_exception and hasattr(self, "universal_exception_coros"):
+            return await coro(*args, **kwargs)
 
-            def decorator(f):
+        except asyncio.CancelledError:
 
-                @functools.wraps(f)
-                async def wrapper(*args, **kwargs):
+            raise
 
-                    try:
+        except NotImplementedError:
 
-                        return await f(*args, **kwargs)
+            raise
 
-                    except asyncio.CancelledError:
+        except StopAsyncIteration:
 
-                        raise
+            raise
 
-                    except NotImplementedError:
+        except:
 
-                        raise
+            raise errors.PathIOError(reason=sys.exc_info())
 
-                    except:
-
-                        raise errors.PathIOError(reason=sys.exc_info())
-
-                return wrapper
-
-            for name in self.universal_exception_coros:
-
-                setattr(self, name, decorator(getattr(self, name)))
+    return wrapper
 
 
-class AbstractAsyncGeneratorLister(UniversalException):
-
-    universal_exception_coros = (
-        "__aiter__",
-        "__anext__",
-    )
-
-    def __init__(self, *args, timeout=None, loop=None, **kwargs):
-
-        super().__init__(*args, **kwargs)
-
-        self.timeout = timeout
-        self.loop = loop or asyncio.get_event_loop()
-
-    @with_timeout
-    async def __aiter__(self):
-
-        raise NotImplementedError
-
-    @with_timeout
-    async def __anext__(self):
-
-        raise NotImplementedError
-
-    async def _to_list(self):
-
-        items = []
-        async for item in self:
-
-            items.append(item)
-
-        return items
-
-    def __await__(self):
-
-        return self._to_list().__await__()
-
-
-class AbstractPathIO(UniversalException):
+class AbstractPathIO:
     """
     Abstract class for path io operations.
 
@@ -151,35 +112,14 @@ class AbstractPathIO(UniversalException):
 
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
-
-    :param universal_exception: decorate base path io methods to handle all
-        exceptions and reraise with universal path io exception
-        :py:class:`aioftp.PathIOError`
-    :type universal_exception: :py:class:`bool`
     """
 
-    universal_exception_coros = (
-        "exists",
-        "is_dir",
-        "is_file",
-        "mkdir",
-        "rmdir",
-        "unlink",
-        "stat",
-        "_open",
-        "read",
-        "write",
-        "close",
-        "rename",
-    )
-
-    def __init__(self, *args, timeout=None, loop=None, **kwargs):
-
-        super().__init__(*args, **kwargs)
+    def __init__(self, timeout=None, loop=None):
 
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
+    @universal_exception
     async def exists(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -193,6 +133,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def is_dir(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -206,6 +147,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def is_file(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -219,6 +161,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def mkdir(self, path, *, parents=False):
         """
         :py:func:`asyncio.coroutine`
@@ -233,6 +176,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def rmdir(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -244,6 +188,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def unlink(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -257,32 +202,32 @@ class AbstractPathIO(UniversalException):
 
     def list(self, path):
         """
-        Create instance of subclass of
-        :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister`. You should
-        subclass and implement `__aiter__` and `__anext__` methods for
-        :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister` and return
-        new instance.
+        Create instance of subclass of :py:class:`aioftp.AbstractAsyncLister`.
+        You should subclass and implement `__aiter__` and `__anext__` methods
+        for :py:class:`aioftp.AbstractAsyncLister` and return new instance.
 
         :param path: path to list
         :type path: :py:class:`pathlib.Path`
 
-        :rtype: :py:class:`aioftp.pathio.AbstractAsyncGeneratorLister`
+        :rtype: :py:class:`aioftp.AbstractAsyncLister`
 
         Usage:
         ::
 
-            async for p in pathio.list(path):
-
-                # do
+            >>> async for p in pathio.list(path):
+            ...     # do
 
         or borring instance of :py:class:`list`:
         ::
 
-            paths = await pathio.list(path)
+            >>> paths = await pathio.list(path)
+            >>> paths
+            [path, path, path, ...]
 
         """
         raise NotImplementedError
 
+    @universal_exception
     async def stat(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -298,6 +243,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def _open(self, path, mode):
         """
         :py:func:`asyncio.coroutine`
@@ -327,6 +273,7 @@ class AbstractPathIO(UniversalException):
         """
         return AsyncPathIOContext(self, args, kwargs)
 
+    @universal_exception
     async def write(self, file, data):
         """
         :py:func:`asyncio.coroutine`
@@ -340,6 +287,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def read(self, file, block_size):
         """
         :py:func:`asyncio.coroutine`
@@ -355,6 +303,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def close(self, file):
         """
         :py:func:`asyncio.coroutine`
@@ -365,6 +314,7 @@ class AbstractPathIO(UniversalException):
         """
         raise NotImplementedError
 
+    @universal_exception
     async def rename(self, source, destination):
         """
         :py:func:`asyncio.coroutine`
@@ -385,39 +335,47 @@ class PathIO(AbstractPathIO):
     Blocking path io. Directly based on :py:class:`pathlib.Path` methods.
     """
 
+    @universal_exception
     async def exists(self, path):
 
         return path.exists()
 
+    @universal_exception
     async def is_dir(self, path):
 
         return path.is_dir()
 
+    @universal_exception
     async def is_file(self, path):
 
         return path.is_file()
 
+    @universal_exception
     async def mkdir(self, path, *, parents=False):
 
         return path.mkdir(parents=parents)
 
+    @universal_exception
     async def rmdir(self, path):
 
         return path.rmdir()
 
+    @universal_exception
     async def unlink(self, path):
 
         return path.unlink()
 
     def list(self, path):
 
-        class Lister(AbstractAsyncGeneratorLister):
+        class Lister(AbstractAsyncLister):
 
+            @universal_exception
             async def __aiter__(self):
 
                 self.iter = path.glob("*")
                 return self
 
+            @universal_exception
             async def __anext__(self):
 
                 try:
@@ -430,26 +388,32 @@ class PathIO(AbstractPathIO):
 
         return Lister(timeout=self.timeout, loop=self.loop)
 
+    @universal_exception
     async def stat(self, path):
 
         return path.stat()
 
+    @universal_exception
     async def _open(self, path, *args, **kwargs):
 
         return path.open(*args, **kwargs)
 
+    @universal_exception
     async def write(self, file, *args, **kwargs):
 
         return file.write(*args, **kwargs)
 
+    @universal_exception
     async def read(self, file, *args, **kwargs):
 
         return file.read(*args, **kwargs)
 
+    @universal_exception
     async def close(self, file):
 
         return file.close()
 
+    @universal_exception
     async def rename(self, source, destination):
 
         return source.rename(destination)
@@ -462,32 +426,38 @@ class AsyncPathIO(AbstractPathIO):
     :py:class:`pathlib.Path` methods.
     """
 
+    @universal_exception
     @with_timeout
     async def exists(self, path):
 
         return await self.loop.run_in_executor(None, path.exists)
 
+    @universal_exception
     @with_timeout
     async def is_dir(self, path):
 
         return await self.loop.run_in_executor(None, path.is_dir)
 
+    @universal_exception
     @with_timeout
     async def is_file(self, path):
 
         return await self.loop.run_in_executor(None, path.is_file)
 
+    @universal_exception
     @with_timeout
     async def mkdir(self, path, *, parents=False):
 
         f = functools.partial(path.mkdir, parents=parents)
         return await self.loop.run_in_executor(None, f)
 
+    @universal_exception
     @with_timeout
     async def rmdir(self, path):
 
         return await self.loop.run_in_executor(None, path.rmdir)
 
+    @universal_exception
     @with_timeout
     async def unlink(self, path):
 
@@ -495,7 +465,7 @@ class AsyncPathIO(AbstractPathIO):
 
     def list(self, path):
 
-        class Lister(AbstractAsyncGeneratorLister):
+        class Lister(AbstractAsyncLister):
 
             def worker(self):
 
@@ -507,6 +477,7 @@ class AsyncPathIO(AbstractPathIO):
 
                     raise StopAsyncIteration
 
+            @universal_exception
             @with_timeout
             async def __aiter__(self):
 
@@ -514,6 +485,7 @@ class AsyncPathIO(AbstractPathIO):
                 self.iter = await self.loop.run_in_executor(None, f)
                 return self
 
+            @universal_exception
             @with_timeout
             async def __anext__(self):
 
@@ -521,34 +493,40 @@ class AsyncPathIO(AbstractPathIO):
 
         return Lister(timeout=self.timeout, loop=self.loop)
 
+    @universal_exception
     @with_timeout
     async def stat(self, path):
 
         return await self.loop.run_in_executor(None, path.stat)
 
+    @universal_exception
     @with_timeout
     async def _open(self, path, *args, **kwargs):
 
         f = functools.partial(path.open, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
+    @universal_exception
     @with_timeout
     async def write(self, file, *args, **kwargs):
 
         f = functools.partial(file.write, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
+    @universal_exception
     @with_timeout
     async def read(self, file, *args, **kwargs):
 
         f = functools.partial(file.read, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
+    @universal_exception
     @with_timeout
     async def close(self, file):
 
         return await self.loop.run_in_executor(None, file.close)
 
+    @universal_exception
     @with_timeout
     async def rename(self, source, destination):
 
@@ -627,20 +605,24 @@ class MemoryPathIO(AbstractPathIO):
 
         return node
 
+    @universal_exception
     async def exists(self, path):
 
         return self.get_node(path) is not None
 
+    @universal_exception
     async def is_dir(self, path):
 
         node = self.get_node(path)
         return not (node is None or node.type != "dir")
 
+    @universal_exception
     async def is_file(self, path):
 
         node = self.get_node(path)
         return not (node is None or node.type != "file")
 
+    @universal_exception
     async def mkdir(self, path, *, parents=False):
 
         if self.get_node(path):
@@ -685,6 +667,7 @@ class MemoryPathIO(AbstractPathIO):
 
                     raise FileExistsError
 
+    @universal_exception
     async def rmdir(self, path):
 
         node = self.get_node(path)
@@ -711,6 +694,7 @@ class MemoryPathIO(AbstractPathIO):
 
             parent.content.pop(i)
 
+    @universal_exception
     async def unlink(self, path):
 
         node = self.get_node(path)
@@ -735,8 +719,9 @@ class MemoryPathIO(AbstractPathIO):
 
     def list(self, path):
 
-        class Lister(AbstractAsyncGeneratorLister):
+        class Lister(AbstractAsyncLister):
 
+            @universal_exception
             async def __aiter__(cls):
 
                 node = self.get_node(path)
@@ -752,6 +737,7 @@ class MemoryPathIO(AbstractPathIO):
 
                 return cls
 
+            @universal_exception
             async def __anext__(cls):
 
                 try:
@@ -764,6 +750,7 @@ class MemoryPathIO(AbstractPathIO):
 
         return Lister(timeout=self.timeout, loop=self.loop)
 
+    @universal_exception
     async def stat(self, path):
 
         node = self.get_node(path)
@@ -789,6 +776,7 @@ class MemoryPathIO(AbstractPathIO):
                 0o100777,
             )
 
+    @universal_exception
     async def _open(self, path, mode="rb", *args, **kwargs):
 
         if mode == "rb":
@@ -836,19 +824,23 @@ class MemoryPathIO(AbstractPathIO):
 
         return file_like
 
+    @universal_exception
     async def write(self, file, data):
 
         file.write(data)
         file.mtime = int(time.time())
 
+    @universal_exception
     async def read(self, file, count=None):
 
         return file.read(count)
 
+    @universal_exception
     async def close(self, file):
 
         pass
 
+    @universal_exception
     async def rename(self, source, destination):
 
         if source != destination:
