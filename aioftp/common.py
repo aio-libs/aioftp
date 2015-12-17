@@ -13,98 +13,14 @@ __all__ = (
     "DEFAULT_BLOCK_SIZE",
     "wrap_with_container",
     "AsyncStreamIterator",
+    "AbstractAsyncLister",
+    "AsyncListerMixin",
     "async_enterable",
 )
 
 
 END_OF_LINE = "\r\n"
 DEFAULT_BLOCK_SIZE = 8192
-
-
-class AsyncStreamIterator:
-
-    def __init__(self, read_coro):
-
-        self.read_coro = read_coro
-
-    async def __aiter__(self):
-
-        return self
-
-    async def __anext__(self):
-
-        data = await self.read_coro()
-        if data:
-
-            return data
-
-        else:
-
-            raise StopAsyncIteration
-
-
-def async_enterable(f):
-    """
-    Decorator. Bring coroutine result up, so it can be used as async context
-
-    ::
-
-        async def foo():
-
-            return AsyncContextInstance()
-
-        ctx = await foo()
-        async with ctx:
-
-            # do
-
-    ::
-
-        @async_enterable
-        async def foo():
-
-            return AsyncContextInstance()
-
-        async with foo() as ctx:
-
-            # do
-
-        ctx = await foo()
-        async with ctx:
-
-            # do
-
-    """
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-
-        class AsyncEnterableInstance:
-
-            async def __aenter__(self):
-
-                self.context = await f(*args, **kwargs)
-                return self.context
-
-            async def __aexit__(self, *args, **kwargs):
-
-                await self.context.__aexit__(*args, **kwargs)
-
-            def __await__(self):
-
-                return self.__aenter__().__await__()
-
-        return AsyncEnterableInstance()
-
-    return wrapper
-
-
-def wrap_with_container(o):
-
-    if isinstance(o, str):
-
-        o = (o,)
-
-    return o
 
 
 def _with_timeout(name):
@@ -166,6 +82,163 @@ def with_timeout(name):
     else:
 
         return _with_timeout("timeout")(name)
+
+
+class AsyncStreamIterator:
+
+    def __init__(self, read_coro):
+
+        self.read_coro = read_coro
+
+    async def __aiter__(self):
+
+        return self
+
+    async def __anext__(self):
+
+        data = await self.read_coro()
+        if data:
+
+            return data
+
+        else:
+
+            raise StopAsyncIteration
+
+
+class AsyncListerMixin:
+    """
+    Add ability to collect data to list from asynchronous for loop via await.
+    """
+    async def _to_list(self):
+
+        items = []
+        async for item in self:
+
+            items.append(item)
+
+        return items
+
+    def __await__(self):
+
+        return self._to_list().__await__()
+
+
+class AbstractAsyncLister(AsyncListerMixin):
+    """
+    Abstract context with ability to collect all iterables into
+    :py:class:`list` via `await` with optional timeout (via
+    :py:func:`aioftp.with_timeout`)
+
+    :param timeout: timeout for __aiter__, __anext__ operations
+    :type timeout: :py:class:`None`, :py:class:`int` or :py:class:`float`
+
+    :param loop: loop to use for timeouts
+    :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    ::
+
+        >>> class Lister(AbstractAsyncLister):
+
+        ...     @with_timeout
+        ...     async def __aiter__(self):
+        ...         ...
+
+        ...     @with_timeout
+        ...     async def __anext__(self):
+        ...         ...
+
+    ::
+
+        >>> async for block in Lister(...):
+        ...     ...
+
+    ::
+
+        >>> result = await Lister(...)
+        >>> result
+        [block, block, block, ...]
+    """
+    def __init__(self, *, timeout=None, loop=None):
+
+        self.timeout = timeout
+        self.loop = loop or asyncio.get_event_loop()
+
+    @with_timeout
+    async def __aiter__(self):
+
+        raise NotImplementedError
+
+    @with_timeout
+    async def __anext__(self):
+
+        raise NotImplementedError
+
+
+def async_enterable(f):
+    """
+    Decorator. Bring coroutine result up, so it can be used as async context
+
+    ::
+
+        async def foo():
+
+            ...
+            return AsyncContextInstance(...)
+
+        ctx = await foo()
+        async with ctx:
+
+            # do
+
+    ::
+
+        @async_enterable
+        async def foo():
+
+            ...
+            return AsyncContextInstance(...)
+
+        async with foo() as ctx:
+
+            # do
+
+        ctx = await foo()
+        async with ctx:
+
+            # do
+
+    """
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+
+        class AsyncEnterableInstance:
+
+            async def __aenter__(self):
+
+                self.context = await f(*args, **kwargs)
+                return await self.context.__aenter__()
+
+            async def __aexit__(self, *args, **kwargs):
+
+                await self.context.__aexit__(*args, **kwargs)
+
+            def __await__(self):
+
+                return f(*args, **kwargs).__await__()
+
+        return AsyncEnterableInstance()
+
+    return wrapper
+
+
+def wrap_with_container(o):
+
+    if isinstance(o, str):
+
+        o = (o,)
+
+    return o
 
 
 class StreamIO:

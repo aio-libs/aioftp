@@ -510,7 +510,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`list` or :py:class:`None`
         """
-        class AsyncClientLister:
+        class AsyncClientLister(AsyncListerMixin):
 
             async def _new_stream(cls, local_path):
 
@@ -531,16 +531,15 @@ class Client(BaseClient):
                     line = await cls.stream.readline()
                     while not line:
 
+                        await cls.stream.finish()
                         if cls.directories:
 
                             current_path, info = cls.directories.popleft()
-                            await cls.stream.finish()
                             cls.stream = await cls._new_stream(current_path)
                             line = await cls.stream.readline()
 
                         else:
 
-                            await cls.stream.finish()
                             raise StopAsyncIteration
 
                     name, info = self.parse_mlsx_line(line)
@@ -552,19 +551,6 @@ class Client(BaseClient):
                             cls.directories.append(stat)
 
                         return stat
-
-            async def _to_list(self):
-
-                items = []
-                async for item in self:
-
-                    items.append(item)
-
-                return items
-
-            def __await__(self):
-
-                return self._to_list().__await__()
 
         return AsyncClientLister()
 
@@ -623,10 +609,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`bool`
         """
-        code, info = await self.command(
-            "MLST " + str(path),
-            ("2xx", "550")
-        )
+        code, info = await self.command("MLST " + str(path), ("2xx", "550"))
         exists = code.matches("2xx")
         return exists
 
@@ -736,9 +719,8 @@ class Client(BaseClient):
         if await self.path_io.is_file(source):
 
             await self.make_directory(destination.parent)
-            file_in = self.path_io.open(source, mode="rb")
-            stream = await self.upload_stream(destination)
-            async with file_in, stream:
+            async with self.path_io.open(source, mode="rb") as file_in, \
+                    self.upload_stream(destination) as stream:
 
                 async for block in file_in.iter_by_block(block_size):
 
@@ -822,9 +804,8 @@ class Client(BaseClient):
 
                 await self.path_io.mkdir(destination.parent)
 
-            file_out = self.path_io.open(destination, mode="wb")
-            stream = await self.download_stream(source)
-            async with file_out, stream:
+            async with self.path_io.open(destination, mode="wb") as file_out, \
+                    self.download_stream(source) as stream:
 
                 async for block in stream.iter_by_block(block_size):
 
