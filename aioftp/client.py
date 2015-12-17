@@ -508,7 +508,16 @@ class Client(BaseClient):
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
 
-        :rtype: :py:class:`list` or :py:class:`None`
+        :rtype: :py:class:`list` or `async for` context
+
+        ::
+
+            >>> async for path, info in client.list():
+            ...     print(path)
+
+        ::
+
+            >>> stats = await client.list()
         """
         class AsyncClientLister(AsyncListerMixin):
 
