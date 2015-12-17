@@ -18,7 +18,7 @@ aioftp
 .. image:: https://img.shields.io/pypi/pyversions/aioftp.svg
     :target: https://pypi.python.org/pypi/aioftp
 
-ftp client/server for asyncio. (http://aioftp.readthedocs.org)
+ftp client/server for asyncio (http://pohmelie.github.io/aioftp or http://aioftp.readthedocs.org (no python 3.5))
 
 .. _GitHub: https://github.com/pohmelie/aioftp
 
