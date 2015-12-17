@@ -32,7 +32,7 @@ class MyServer(aioftp.Server):
             wait=True,
             fail_code="425",
             fail_info="Can't open data connection")
-        @aioftp.worker
+        @aioftp.server.worker
         async def coll_worker(self, connection, rest):
 
             stream = connection.data_connection
