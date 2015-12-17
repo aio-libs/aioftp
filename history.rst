@@ -1,4 +1,4 @@
-x.x.x (xx-xx-xxxx)
+0.4.0 (17-12-2015)
 ------------------
 
 - `async for` for pathio list function

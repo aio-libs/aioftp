@@ -6,7 +6,7 @@ from .errors import *  # noqa
 from .common import *  # noqa
 from .pathio import *  # noqa
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 version = tuple(map(int, str.split(__version__, ".")))
 
 __all__ = (
