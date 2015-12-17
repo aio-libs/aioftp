@@ -798,9 +798,9 @@ def worker(f):
 
     ::
 
-        @worker
-        async def worker(self, connection, rest):
-            ...
+        >>> @worker
+        ... async def worker(self, connection, rest):
+        ...     ...
 
     """
 

@@ -24,7 +24,7 @@ class StatusCodeError(Exception):
     :param info: list of lines with server response
     :type info: :py:class:`list` of :py:class:`str`
 
-    Usage::
+    ::
 
         >>> try:
         ...     # something with aioftp

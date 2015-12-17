@@ -26,19 +26,19 @@ class AsyncPathIOContext:
     Usage:
     ::
 
-        async with pathio.open(filename) as file_in:
-
-            async for block in file_in.iter_by_block(size):
-
-                # do
+        >>> async with pathio.open(filename) as file_in:
+        ...
+        ...     async for block in file_in.iter_by_block(size):
+        ...
+        ...         # do
 
     or borring:
     ::
 
-        file = await pathio.open(filename)
-        data = await file.read(size)
-        await file.write(data)
-        await file.close()
+        >>> file = await pathio.open(filename)
+        ... data = await file.read(size)
+        ... await file.write(data)
+        ... await file.close()
 
     """
     def __init__(self, pathio, args, kwargs):

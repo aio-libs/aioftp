@@ -52,26 +52,26 @@ def with_timeout(name):
     Wait for `self.timeout`
     ::
 
-        def __init__(self, ...):
-
-            self.timeout = 1
-
-        @with_timeout
-        async def foo(self, ...):
-
-            pass
+        >>> def __init__(self, ...):
+        ...
+        ...     self.timeout = 1
+        ...
+        ... @with_timeout
+        ... async def foo(self, ...):
+        ...
+        ...     pass
 
     Wait for custom timeout
     ::
 
-        def __init__(self, ...):
-
-            self.foo_timeout = 1
-
-        @with_timeout("foo_timeout")
-        async def foo(self, ...):
-
-            pass
+        >>> def __init__(self, ...):
+        ...
+        ...     self.foo_timeout = 1
+        ...
+        ... @with_timeout("foo_timeout")
+        ... async def foo(self, ...):
+        ...
+        ...     pass
 
     """
 
@@ -145,7 +145,7 @@ class AbstractAsyncLister(AsyncListerMixin):
     ::
 
         >>> class Lister(AbstractAsyncLister):
-
+        ...
         ...     @with_timeout
         ...     async def __aiter__(self):
         ...         ...
@@ -187,32 +187,32 @@ def async_enterable(f):
 
     ::
 
-        async def foo():
-
-            ...
-            return AsyncContextInstance(...)
-
-        ctx = await foo()
-        async with ctx:
-
-            # do
+        >>> async def foo():
+        ...
+        ...     ...
+        ...     return AsyncContextInstance(...)
+        ...
+        ... ctx = await foo()
+        ... async with ctx:
+        ...
+        ...     # do
 
     ::
 
-        @async_enterable
-        async def foo():
-
-            ...
-            return AsyncContextInstance(...)
-
-        async with foo() as ctx:
-
-            # do
-
-        ctx = await foo()
-        async with ctx:
-
-            # do
+        >>> @async_enterable
+        ... async def foo():
+        ...
+        ...     ...
+        ...     return AsyncContextInstance(...)
+        ...
+        ... async with foo() as ctx:
+        ...
+        ...     # do
+        ...
+        ... ctx = await foo()
+        ... async with ctx:
+        ...
+        ...     # do
 
     """
     @functools.wraps(f)
@@ -487,18 +487,18 @@ class ThrottleStreamIO(StreamIO):
 
     ::
 
-        self.stream = ThrottleStreamIO(
-            reader,
-            writer,
-            throttles={
-                "main": StreamThrottle(
-                    read=Throttle(...),
-                    write=Throttle(...)
-                )
-            },
-            timeout=timeout,
-            loop=loop
-        )
+        >>> self.stream = ThrottleStreamIO(
+        ...     reader,
+        ...     writer,
+        ...     throttles={
+        ...         "main": StreamThrottle(
+        ...             read=Throttle(...),
+        ...             write=Throttle(...)
+        ...         )
+        ...     },
+        ...     timeout=timeout,
+        ...     loop=loop
+        ... )
     """
 
     def __init__(self, *args, throttles={}, **kwargs):
