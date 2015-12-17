@@ -7,7 +7,7 @@ Server API
     :members: start, close, wait_closed
     :show-inheritance:
 
-.. autofunction :: aioftp.worker
+.. autofunction :: aioftp.server.worker
 
 .. autoclass :: aioftp.User
     :members:
