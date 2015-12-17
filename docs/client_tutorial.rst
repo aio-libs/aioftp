@@ -84,7 +84,6 @@ with `async for`
     >>> async for path, info in client.list("/", recursive=True):
     ...     print(path)
     (PosixPath('/.logs'), {'unix.mode': '0755', 'unique': '801g4804045', ...
-    ...
 
 If you ommit path argument, result will be list for current working directory
 
@@ -277,9 +276,9 @@ to specify global timeout for socket io operations.
 ::
 
     >>> client = aioftp.Client(
-        path_timeout=1,
-        path_io_factory=pathio.AsyncPathIO
-    )
+    ...     path_timeout=1,
+    ...     path_io_factory=pathio.AsyncPathIO
+    ... )
 
 Using proxy
 -----------
@@ -290,18 +289,18 @@ with this library in mind.
 
 ::
 
-    configuration = {
-        "PROXY_SERVERS": [
-            {
-                "TYPE": "SOCKS4",
-                "ADDRESS": "127.0.0.1",
-                "PORT": 9050,
-                "ACCOUNT": {
-                    "NAME": ""
-                }
-            },
-        ]
-    }
+    >>> configuration = {
+    ...     "PROXY_SERVERS": [
+    ...         {
+    ...             "TYPE": "SOCKS4",
+    ...             "ADDRESS": "127.0.0.1",
+    ...             "PORT": 9050,
+    ...             "ACCOUNT": {
+    ...                 "NAME": ""
+    ...             }
+    ...         },
+    ...     ]
+    ... }
     tunnel = twunnel3.proxy_server.create_tunnel(configuration)
     client = aioftp.Client(create_connection=tunnel.create_connection)
 
