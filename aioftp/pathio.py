@@ -586,6 +586,7 @@ class MemoryPathIO(AbstractPathIO):
     def get_node(self, path):
 
         nodes = self.fs
+        node = None
         for part in path.parts:
 
             if not isinstance(nodes, list):
