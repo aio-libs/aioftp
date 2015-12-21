@@ -34,6 +34,40 @@ MLST, RNFR, RNTO, DELE, STOR, RETR, TYPE (only "I"), PASV, ABOR, APPE
 This subsets are enough for 99% of tasks, but if you need something, then you
 can easily extend current set of commands.
 
+Server benchmark
+----------------
+
+Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>`_ and
+checked with its ftpbench script.
+
+aioftp 0.4.1
+
+::
+
+    $ ./ftpbench -u anonymous -p none -P 8021 -b all
+    STOR (client -> server)                              146.06 MB/sec
+    RETR (server -> client)                              273.88 MB/sec
+    200 concurrent clients (connect, login)                0.36 secs
+    STOR (1 file with 200 idle clients)                  121.02 MB/sec
+    RETR (1 file with 200 idle clients)                  274.31 MB/sec
+    200 concurrent clients (RETR 10.0M file)              16.09 secs
+    200 concurrent clients (STOR 10.0M file)              19.03 secs
+    200 concurrent clients (QUIT)                          0.11 secs
+
+pyftpdlib 1.5.0
+
+::
+
+    $ ./ftpbench -u anonymous -p none -P 8021 -b all
+    STOR (client -> server)                              198.65 MB/sec
+    RETR (server -> client)                             3361.68 MB/sec
+    200 concurrent clients (connect, login)                0.09 secs
+    STOR (1 file with 200 idle clients)                  209.34 MB/sec
+    RETR (1 file with 200 idle clients)                 3367.59 MB/sec
+    200 concurrent clients (RETR 10.0M file)               1.04 secs
+    200 concurrent clients (STOR 10.0M file)               1.98 secs
+    200 concurrent clients (QUIT)                          0.02 secs
+
 Dependencies
 ------------
 
