@@ -518,9 +518,14 @@ class ThrottleStreamIO(StreamIO):
         waiters = []
         for throttle in self.throttles.values():
 
-            waiters.append(getattr(throttle, name).wait())
+            curr_throttle = getattr(throttle, name)
+            if curr_throttle.limit:
 
-        await asyncio.wait(waiters, loop=self.loop)
+                waiters.append(curr_throttle.wait())
+
+        if waiters:
+
+            await asyncio.wait(waiters, loop=self.loop)
 
     def append(self, name, data, start):
         """
