@@ -887,7 +887,7 @@ class Server(AbstractServer):
                  idle_timeout=None,
                  wait_future_timeout=1,
                  path_timeout=None,
-                 path_io_factory=pathio.AsyncPathIO,
+                 path_io_factory=pathio.PathIO,
                  maximum_connections=None,
                  read_speed_limit=None,
                  write_speed_limit=None,

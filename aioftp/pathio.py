@@ -423,7 +423,8 @@ class AsyncPathIO(AbstractPathIO):
     """
     Non-blocking path io. Based on
     :py:meth:`asyncio.BaseEventLoop.run_in_executor` and
-    :py:class:`pathlib.Path` methods.
+    :py:class:`pathlib.Path` methods. It's really slow, so it's better to avoid
+    usage of this path io layer.
     """
 
     @universal_exception

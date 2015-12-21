@@ -35,7 +35,7 @@ if args["--memory"]:
 else:
 
     user = aioftp.User(args["<login>"], args["<password>"])
-    path_io_factory = aioftp.AsyncPathIO
+    path_io_factory = aioftp.PathIO
 
 server = aioftp.Server([user], path_io_factory=path_io_factory)
 
