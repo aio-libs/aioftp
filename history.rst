@@ -1,3 +1,10 @@
+0.4.1 (21-12-2015)
+------------------
+
+- improved performance on non-throttled streams
+- default path io layer for client and server is PathIO since now
+- added benchmark result
+
 0.4.0 (17-12-2015)
 ------------------
 
