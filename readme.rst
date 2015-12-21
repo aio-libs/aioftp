@@ -49,7 +49,7 @@ can easily extend current set of commands.
 Server benchmark
 ----------------
 
-Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>` and
+Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>`_ and
 checked with it's ftpbench script.
 
 aioftp 0.4.1
