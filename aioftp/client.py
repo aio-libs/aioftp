@@ -102,7 +102,7 @@ class BaseClient:
                  read_speed_limit=None,
                  write_speed_limit=None,
                  path_timeout=None,
-                 path_io_factory=pathio.AsyncPathIO):
+                 path_io_factory=pathio.PathIO):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
