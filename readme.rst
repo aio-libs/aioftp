@@ -50,7 +50,7 @@ Server benchmark
 ----------------
 
 Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>`_ and
-checked with it's ftpbench script.
+checked with its ftpbench script.
 
 aioftp 0.4.1
 
@@ -114,7 +114,7 @@ Client example
         client = aioftp.Client()
         await client.connect(host)
         await client.login(login, password)
-        async for path, info in await client.list(recursive=True):
+        async for path, info in client.list(recursive=True):
 
             if info["type"] == "file" and path.suffix == ".mp3":
 
