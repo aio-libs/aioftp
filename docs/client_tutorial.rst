@@ -114,7 +114,7 @@ If you need just to check path for is it file, directory or exists you can use
 
 ::
 
-    >>> await client.if_file("/public_html")
+    >>> await client.is_file("/public_html")
     False
     >>> await client.is_dir("/public_html")
     True
@@ -222,6 +222,8 @@ Or, if you want to abort transfer at some point
     ...         stream.close()
     ...         break
     ...
+    ... else:
+    ...
     ...     await stream.finish()
 
 Throttle
@@ -243,18 +245,18 @@ And can be changed after creation:
 Path abstraction layer
 ----------------------
 
-aioftp provides abstraction of file system operations. You can use one of
-existence:
+aioftp provides abstraction of file system operations. You can use exist ones:
 
 * :py:class:`aioftp.PathIO` — blocking path operations
 * :py:class:`aioftp.AsyncPathIO` — non-blocking path operations, this one is
   blocking ones just wrapped with
-  :py:meth:`asyncio.BaseEventLoop.run_in_executor`
+  :py:meth:`asyncio.BaseEventLoop.run_in_executor`. It's really slow, so it's
+  better to avoid usage of this path io layer.
 * :py:class:`aioftp.MemoryPathIO` — in-memory realization of file system, this
   one is just proof of concept and probably not too fast (as it can be).
 
 You can specify `path_io_factory` when creating :py:class:`aioftp.Client`
-instance. Default factory is :py:class:`aioftp.AsyncPathIO`.
+instance. Default factory is :py:class:`aioftp.PathIO`.
 
 ::
 

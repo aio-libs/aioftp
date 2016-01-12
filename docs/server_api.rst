@@ -17,6 +17,10 @@ Server API
 
 .. autoclass :: aioftp.AbstractUserManager
     :members:
+    :exclude-members: GetUserResponse
+
+.. autoclass :: aioftp.server.MemoryUserManager
+    :members:
 
 .. autoclass :: aioftp.Connection
     :members:

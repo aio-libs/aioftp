@@ -589,9 +589,27 @@ class ThrottleStreamIO(StreamIO):
         self.close()
 
     def iter_by_line(self):
+        """
+        Read/iterate stream by line.
 
+        :rtype: :py:class:`aioftp.AsyncStreamIterator`
+
+        ::
+
+            >>> async for line in stream.iter_by_line():
+            ...     ...
+        """
         return AsyncStreamIterator(self.readline)
 
     def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
+        """
+        Read/iterate stream by block.
 
+        :rtype: :py:class:`aioftp.AsyncStreamIterator`
+
+        ::
+
+            >>> async for block in stream.iter_by_block(block_size):
+            ...     ...
+        """
         return AsyncStreamIterator(lambda: self.read(count))

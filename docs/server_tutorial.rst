@@ -63,18 +63,18 @@ permission.
 Path abstraction layer
 ----------------------
 
-Server provides abstraction of file system operations. You can use on of
-existence:
+aioftp provides abstraction of file system operations. You can use exist ones:
 
 * :py:class:`aioftp.PathIO` — blocking path operations
 * :py:class:`aioftp.AsyncPathIO` — non-blocking path operations, this one is
   blocking ones just wrapped with
-  :py:meth:`asyncio.BaseEventLoop.run_in_executor`
+  :py:meth:`asyncio.BaseEventLoop.run_in_executor`. It's really slow, so it's
+  better to avoid usage of this path io layer.
 * :py:class:`aioftp.MemoryPathIO` — in-memory realization of file system, this
   one is just proof of concept and probably not too fast (as it can be).
 
 You can specify `path_io_factory` when creating :py:class:`aioftp.Server`
-instance. Default factory is :py:class:`aioftp.AsyncPathIO`.
+instance. Default factory is :py:class:`aioftp.PathIO`.
 
 ::
 

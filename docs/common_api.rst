@@ -14,6 +14,7 @@ Common API
 
 .. autoclass:: aioftp.ThrottleStreamIO
     :members:
+    :show-inheritance:
 
 .. autoclass:: aioftp.AsyncListerMixin
 

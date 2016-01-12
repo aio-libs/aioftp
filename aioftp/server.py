@@ -224,6 +224,9 @@ class AbstractUserManager:
         :param user: user
         :type user: :py:class:`aioftp.User`
 
+        :param password: password
+        :type password: :py:class:`str`
+
         :rtype: :py:class:`bool`
         """
         raise NotImplementedError
@@ -247,7 +250,6 @@ class MemoryUserManager(AbstractUserManager):
     :param users: container of users
     :type users: :py:class:`list`, :py:class:`tuple`, etc. of
         :py:class:`aioftp.User`
-
     """
 
     def __init__(self, users, *args, **kwargs):
