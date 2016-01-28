@@ -6,7 +6,7 @@ import socket
 import collections
 import enum
 import logging
-
+import stat
 
 from . import errors
 from . import pathio
@@ -1299,27 +1299,18 @@ class Server(AbstractServer):
 
     async def build_list_string(self, connection, path):
 
-        fields = []
-        is_dir = await connection.path_io.is_dir(path)
-        dir_flag = "d" if is_dir else "-"
-
         stats = await connection.path_io.stat(path)
-        default = list("xwr") * 3
-        for i in range(9):
+        ctime = datetime.datetime.fromtimestamp(stats.st_ctime)
 
-            if (stats.st_mode >> i) & 1 == 0:
-
-                default[i] = "-"
-
-        fields.append(dir_flag + str.join("", reversed(default)))
-        fields.append(str(stats.st_nlink))
-        fields.append("none")
-        fields.append("none")
-        fields.append(str(stats.st_size))
-
-        t = datetime.datetime.fromtimestamp(stats.st_ctime)
-        fields.append(t.strftime("%b %d %Y"))
-        fields.append(path.name)
+        fields = (
+            stat.filemode(stats.st_mode),
+            str(stats.st_nlink),
+            "none",
+            "none",
+            str(stats.st_size),
+            ctime.strftime("%b %d %Y"),
+            path.name
+        )
         s = str.join(" ", fields)
         return s
 

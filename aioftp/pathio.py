@@ -4,6 +4,7 @@ import collections
 import operator
 import io
 import time
+import stat
 import sys
 
 from .common import (with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE,
@@ -41,6 +42,7 @@ class AsyncPathIOContext:
         ... await file.close()
 
     """
+
     def __init__(self, pathio, args, kwargs):
 
         self.close = None
@@ -482,7 +484,10 @@ class AsyncPathIO(AbstractPathIO):
             @with_timeout
             async def __aiter__(self):
 
-                f = lambda: path.glob("*")
+                def f():
+
+                    return path.glob("*")
+
                 self.iter = await self.loop.run_in_executor(None, f)
                 return self
 
@@ -765,17 +770,19 @@ class MemoryPathIO(AbstractPathIO):
             if node.type == "file":
 
                 size = len(node.content.getbuffer())
+                mode = stat.S_IFREG | 0o666
 
             else:
 
                 size = 0
+                mode = stat.S_IFDIR | 0o777
 
             return MemoryPathIO.Stats(
                 size,
                 node.ctime,
                 node.mtime,
                 1,
-                0o100777,
+                mode,
             )
 
     @universal_exception
