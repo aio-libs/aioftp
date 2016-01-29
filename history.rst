@@ -1,3 +1,9 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- build LIST string with stat.filemode
+Thanks to `rsichny <https://github.com/rsichny>`_
+
 0.4.1 (21-12-2015)
 ------------------
 
