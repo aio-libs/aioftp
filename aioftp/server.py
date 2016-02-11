@@ -2,6 +2,7 @@ import asyncio
 import pathlib
 import functools
 import datetime
+import errno
 import socket
 import collections
 import enum
@@ -873,6 +874,9 @@ class Server(AbstractServer):
     :param write_speed_limit_per_connection: server write speed limit per
         connection in bytes per second
     :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
+
+    :param data_ports: port numbers that are available for passive connections
+    :type data_ports: :py:class:`collections.Iterable` or :py:class:`None`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -894,7 +898,8 @@ class Server(AbstractServer):
                  read_speed_limit=None,
                  write_speed_limit=None,
                  read_speed_limit_per_connection=None,
-                 write_speed_limit_per_connection=None):
+                 write_speed_limit_per_connection=None,
+                 data_ports=None):
 
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
@@ -902,6 +907,17 @@ class Server(AbstractServer):
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=self.loop)
+
+        if data_ports is not None:
+
+            self.available_data_ports = asyncio.PriorityQueue(loop=self.loop)
+
+            for data_port in data_ports:
+                self.available_data_ports.put_nowait((0, data_port))
+
+        else:
+
+            self.available_data_ports = None
 
         if isinstance(users, AbstractUserManager):
 
@@ -947,6 +963,7 @@ class Server(AbstractServer):
             client_host=host,
             client_port=port,
             server_host=self.server_host,
+            passive_server_port=0,
             server_port=self.server_port,
             command_connection=stream,
             socket_timeout=self.socket_timeout,
@@ -1041,6 +1058,12 @@ class Server(AbstractServer):
                 if connection.future.passive_server.done():
 
                     connection.passive_server.close()
+
+                    if self.available_data_ports is not None:
+
+                        self.available_data_ports.put_nowait(
+                            (0, connection.passive_server_port)
+                        )
 
                 if connection.future.data_connection.done():
 
@@ -1490,6 +1513,58 @@ class Server(AbstractServer):
         connection.response(code, info)
         return True
 
+    async def _start_passive_server(self, connection, handler_callback):
+
+        if self.available_data_ports is not None:
+
+            viewed_ports = set()
+
+            while True:
+
+                try:
+
+                    priority, port = self.available_data_ports.get_nowait()
+
+                    if port in viewed_ports:
+
+                        raise errors.NoAvailablePort
+
+                    viewed_ports.add(port)
+                    passive_server = await asyncio.start_server(
+                        handler_callback,
+                        connection.server_host,
+                        port,
+                        loop=connection.loop
+                    )
+                    connection.passive_server_port = port
+
+                    break
+
+                except asyncio.QueueEmpty:
+
+                    raise errors.NoAvailablePort
+
+                except OSError as err:
+
+                    self.available_data_ports.put_nowait(
+                        (priority + 1, port)
+                    )
+
+                    if err.errno != errno.EADDRINUSE:
+
+                        raise
+
+        else:
+
+            passive_server = await asyncio.start_server(
+                handler_callback,
+                connection.server_host,
+                connection.passive_server_port,
+                loop=connection.loop,
+            )
+
+        return passive_server
+
     @ConnectionConditions(ConnectionConditions.login_required)
     async def pasv(self, connection, rest):
 
@@ -1511,12 +1586,18 @@ class Server(AbstractServer):
 
         if not connection.future.passive_server.done():
 
-            connection.passive_server = await asyncio.start_server(
-                handler,
-                connection.server_host,
-                0,
-                loop=connection.loop,
-            )
+            coro = self._start_passive_server(connection, handler)
+
+            try:
+
+                connection.passive_server = await coro
+
+            except errors.NoAvailablePort:
+
+                connection.response("421", ["no free ports"])
+
+                return False
+
             code, info = "227", ["listen socket created"]
 
         else:

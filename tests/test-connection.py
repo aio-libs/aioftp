@@ -85,6 +85,151 @@ async def test_closing_pasv_connection(loop, client, server):
     await client.quit()
 
 
+@aioftp_setup()
+@with_connection
+async def test_pasv_connection_ports_not_added(loop, client, server):
+
+    await client.login()
+    await client.get_passive_connection()
+    await client.quit()
+
+    nose.tools.eq_(server.available_data_ports, None)
+
+
+@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@with_connection
+async def test_pasv_connection_ports(loop, client, server):
+
+    clients = [aioftp.Client(loop=loop) for _ in range(2)]
+    expected_data_ports = [30000, 30001]
+
+    for i, client in enumerate(clients):
+
+        await client.connect("127.0.0.1", PORT)
+        await client.login()
+        r, w = await client.get_passive_connection()
+        host, port = w.transport.get_extra_info("peername")
+        nose.tools.eq_(port, expected_data_ports[i])
+
+    for client in clients:
+
+        await client.quit()
+
+
+@aioftp_setup(server_args=([], {'data_ports': []}))
+@with_connection
+async def test_data_ports_remains_empty(loop, client, server):
+
+    await client.login()
+    await client.quit()
+
+    nose.tools.eq_(server.available_data_ports.qsize(), 0)
+
+
+@aioftp_setup(server_args=([], {'data_ports': [30000]}))
+@with_connection
+async def test_pasv_connection_port_reused(loop, client, server):
+
+    clients = [aioftp.Client(loop=loop) for _ in range(2)]
+
+    for client in clients:
+
+        await client.connect("127.0.0.1", PORT)
+        await client.login()
+        r, w = await client.get_passive_connection()
+        host, port = w.transport.get_extra_info("peername")
+        nose.tools.eq_(port, 30000)
+        await client.quit()
+
+
+@aioftp_setup(server_args=([], {'data_ports': []}))
+@expect_codes_in_exception("421")
+@with_connection
+async def test_pasv_connection_no_free_port(loop, client, server):
+
+    await client.login()
+    await client.get_passive_connection()
+
+
+@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@with_connection
+async def test_pasv_connection_busy_port(loop, client, server):
+
+    async def handle(reader, writer):
+        writer.close()
+
+    conflicting_server = await asyncio.start_server(
+        handle,
+        host=server.server_host,
+        port=30000,
+        loop=loop
+    )
+
+    await client.login()
+    r, w = await client.get_passive_connection()
+    host, port = w.transport.get_extra_info("peername")
+    nose.tools.eq_(port, 30001)
+    await client.quit()
+
+    conflicting_server.close()
+    await conflicting_server.wait_closed()
+
+
+@aioftp_setup(server_args=([], {'data_ports': [30000]}))
+@expect_codes_in_exception("421")
+@with_connection
+async def test_pasv_connection_busy_port2(loop, client, server):
+
+    async def handle(reader, writer):
+        writer.close()
+
+    conflicting_server = await asyncio.start_server(
+        handle,
+        host=server.server_host,
+        port=30000,
+        loop=loop
+    )
+
+    await client.login()
+    try:
+        await client.get_passive_connection()
+    finally:
+        conflicting_server.close()
+        await conflicting_server.wait_closed()
+
+
+@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@expect_codes_in_exception("421")
+@with_connection
+async def test_pasv_connection_busy_port3(loop, client, server):
+
+    async def handle(reader, writer):
+        writer.close()
+
+    conflicting_server1 = await asyncio.start_server(
+        handle,
+        host=server.server_host,
+        port=30000,
+        loop=loop
+    )
+
+    conflicting_server2 = await asyncio.start_server(
+        handle,
+        host=server.server_host,
+        port=30001,
+        loop=loop
+    )
+
+    await client.login()
+    try:
+        await client.get_passive_connection()
+    finally:
+        conflicting_server1.close()
+        conflicting_server2.close()
+        await conflicting_server1.wait_closed()
+        await conflicting_server2.wait_closed()
+
+
 @nose.tools.timed(2)
 @nose.tools.raises(ConnectionResetError)
 @aioftp_setup()
