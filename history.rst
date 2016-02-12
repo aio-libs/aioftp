@@ -1,6 +1,8 @@
-x.x.x (xx-xx-xxxx)
+0.5.0 (12-02-2016)
 ------------------
 
+- change development status to production/stable
+- add configuration to restrict port range for passive server
 - build LIST string with stat.filemode
 Thanks to `rsichny <https://github.com/rsichny>`_
 
