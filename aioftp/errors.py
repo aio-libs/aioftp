@@ -87,3 +87,11 @@ class PathIOError(Exception):
 
         super().__init__(*args, **kwargs)
         self.reason = reason
+
+
+class NoAvailablePort(OSError):
+    """
+    Raised when there's no available data port
+    """
+
+    pass
