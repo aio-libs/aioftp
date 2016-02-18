@@ -1,7 +1,7 @@
 import asyncio
 import pathlib
 import functools
-import datetime
+import time
 import errno
 import socket
 import collections
@@ -1321,7 +1321,16 @@ class Server(AbstractServer):
     async def build_list_string(self, connection, path):
 
         stats = await connection.path_io.stat(path)
-        ctime = datetime.datetime.fromtimestamp(stats.st_ctime)
+        now = time.time()
+        mtime = time.localtime(stats.st_mtime)
+
+        if now - 365 * 24 * 60 * 60 / 2 < stats.st_mtime <= now:
+
+            mtime = time.strftime('%b %e %H:%M', mtime)
+
+        else:
+
+            mtime = time.strftime('%b %e  %Y', mtime)
 
         fields = (
             stat.filemode(stats.st_mode),
@@ -1329,7 +1338,7 @@ class Server(AbstractServer):
             "none",
             "none",
             str(stats.st_size),
-            ctime.strftime("%b %d %Y"),
+            mtime,
             path.name
         )
         s = str.join(" ", fields)
