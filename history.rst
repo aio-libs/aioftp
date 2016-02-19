@@ -1,3 +1,9 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- fix `modifed time` field for `list` command result
+Thanks to `rsichny <https://github.com/rsichny>`_
+
 0.5.0 (12-02-2016)
 ------------------
 
