@@ -681,11 +681,11 @@ class ConnectionConditions:
                     loop=connection.loop
                 )
 
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, ConnectionRefusedError):
 
                 for future, message in futures.items():
 
-                    if not future.done():
+                    if not future.done() or future.exception():
 
                         if self.fail_info is None:
 
@@ -976,6 +976,7 @@ class Server(AbstractServer):
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
             _dispatcher=asyncio.Task.current_task(loop=self.loop),
+            is_passive=True,
         )
 
         pending = {
@@ -1055,7 +1056,8 @@ class Server(AbstractServer):
 
                         task.cancel()
 
-                if connection.future.passive_server.done():
+                if (connection.future.passive_server.done() and
+                        connection.is_passive):
 
                     connection.passive_server.close()
                     if self.available_data_ports is not None:
@@ -1298,15 +1300,14 @@ class Server(AbstractServer):
         @worker
         async def mlsd_worker(self, connection, rest):
 
-            stream = connection.data_connection
-            del connection.data_connection
-
-            async with stream:
+            async with connection.data_connection as stream:
 
                 async for path in connection.path_io.list(real_path):
 
                     s = await self.build_mlsx_string(connection, path)
                     await stream.write(str.encode(s + END_OF_LINE, "utf-8"))
+
+            del connection.data_connection
 
             connection.response("200", "mlsd transfer done")
             return True
@@ -1359,15 +1360,14 @@ class Server(AbstractServer):
         @worker
         async def list_worker(self, connection, rest):
 
-            stream = connection.data_connection
-            del connection.data_connection
-
-            async with stream:
+            async with connection.data_connection as stream:
 
                 async for path in connection.path_io.list(real_path):
 
                     s = await self.build_list_string(connection, path)
                     await stream.write(str.encode(s + END_OF_LINE, "utf-8"))
+
+            del connection.data_connection
 
             connection.response("226", "list transfer done")
             return True
@@ -1440,15 +1440,14 @@ class Server(AbstractServer):
         @worker
         async def stor_worker(self, connection, rest):
 
-            stream = connection.data_connection
-            del connection.data_connection
-
             file_out = connection.path_io.open(real_path, mode=mode)
-            async with file_out, stream:
+            async with file_out, connection.data_connection as stream:
 
                 async for data in stream.iter_by_block(connection.block_size):
 
                     await file_out.write(data)
+
+            del connection.data_connection
 
             connection.response("226", "data transfer done")
             return True
@@ -1485,15 +1484,14 @@ class Server(AbstractServer):
         @worker
         async def retr_worker(self, connection, rest):
 
-            stream = connection.data_connection
-            del connection.data_connection
-
             file_in = connection.path_io.open(real_path, mode="rb")
-            async with file_in, stream:
+            async with file_in, connection.data_connection as stream:
 
                 async for data in file_in.iter_by_block(connection.block_size):
 
                     await stream.write(data)
+
+            del connection.data_connection
 
             connection.response("226", "data transfer done")
             return True
@@ -1567,7 +1565,108 @@ class Server(AbstractServer):
         return passive_server
 
     @ConnectionConditions(ConnectionConditions.login_required)
+    async def port(self, connection, rest):
+
+        if connection.is_passive:
+
+            if connection.future.data_connection.done():
+
+                connection.data_connection.close()
+
+            else:
+
+                connection.future.data_connection.cancel()
+
+            del connection.data_connection
+
+            if connection.future.passive_server.done():
+
+                connection.passive_server.close()
+
+                if self.available_data_ports is not None:
+
+                    port = connection.passive_server_port
+                    self.available_data_ports.put_nowait((0, port))
+
+            else:
+
+                connection.future.passive_server.cancel()
+
+            del connection.passive_server
+
+            connection.is_passive = False
+
+        class DataConnectionCM:
+            def __init__(self, host, port, loop):
+                self.host = host
+                self.port = port
+                self.loop = loop
+
+            async def __aenter__(self):
+                self.reader, self.writer = await asyncio.open_connection(
+                    host=host,
+                    port=port,
+                    loop=connection.loop
+                )
+
+                self.stream = ThrottleStreamIO(
+                    self.reader,
+                    self.writer,
+                    throttles=connection.command_connection.throttles,
+                    timeout=connection.socket_timeout,
+                    loop=connection.loop
+                )
+
+                return self.stream
+
+            async def __aexit__(self, *args):
+                self.stream.close()
+                self.writer.close()
+
+        nums = tuple(map(int, str.split(rest, ",")))
+        host = str.join(".", map(str, nums[:4]))
+        port = (nums[4] << 8) | nums[5]
+
+        if not connection.future.passive_server.done():
+
+            connection.passive_server = await asyncio.sleep(0)
+
+        if connection.future.data_connection.done():
+
+            del connection.data_connection
+
+        else:
+
+            connection.future.data_connection.cancel()
+
+        del connection.data_connection
+
+        connection.data_connection = DataConnectionCM(host, port, connection.loop)
+        connection.response("200", "ok")
+        return True
+
+    @ConnectionConditions(ConnectionConditions.login_required)
     async def pasv(self, connection, rest):
+
+        if not connection.is_passive:
+
+            if connection.future.data_connection.done():
+
+                connection.data_connection.close()
+
+            else:
+
+                connection.future.data_connection.cancel()
+
+            del connection.data_connection
+
+            if not connection.future.passive_server.done():
+
+                connection.future.passive_server.cancel()
+
+            del connection.passive_server
+
+            connection.is_passive = True
 
         async def handler(reader, writer):
 
