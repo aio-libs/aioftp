@@ -264,6 +264,29 @@ async def test_client_zeros_passiv_ip(loop, client, server):
     server.close()
     await server.wait_closed()
 
+
+def test_client_session_context_manager():
+
+    async def test():
+
+        server = aioftp.Server(loop=loop)
+
+        await server.start(None, PORT)
+        kw = dict(host="127.0.0.1", port=PORT, loop=loop)
+        async with aioftp.ClientSession(**kw) as client:
+
+            async for path in client.list():
+
+                pass
+
+        server.close()
+        await server.wait_closed()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(None)
+    loop.run_until_complete(test())
+
+
 if __name__ == "__main__":
 
     import logging
