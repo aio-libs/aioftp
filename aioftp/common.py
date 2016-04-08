@@ -16,11 +16,21 @@ __all__ = (
     "AbstractAsyncLister",
     "AsyncListerMixin",
     "async_enterable",
+    "DEFAULT_PORT",
+    "DEFAULT_USER",
+    "DEFAULT_PASSWORD",
+    "DEFAULT_ACCOUNT",
+
 )
 
 
 END_OF_LINE = "\r\n"
 DEFAULT_BLOCK_SIZE = 8192
+
+DEFAULT_PORT = 21
+DEFAULT_USER = "anonymous"
+DEFAULT_PASSWORD = "anon@"
+DEFAULT_ACCOUNT = ""
 
 
 def _with_timeout(name):
