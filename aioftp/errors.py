@@ -56,15 +56,11 @@ class PathIsNotFileOrDir(Exception):
         is not a directory.
     """
 
-    pass
-
 
 class PathIsNotAbsolute(Exception):
     """
     Raised when "path" is not absolute.
     """
-
-    pass
 
 
 class PathIOError(Exception):
@@ -93,5 +89,3 @@ class NoAvailablePort(OSError):
     """
     Raised when there's no available data port
     """
-
-    pass
