@@ -19,6 +19,14 @@ Firstly you should create :class:`aioftp.Client` instance and connect to host
     >>> await client.connect("ftp.server.com")
     >>> await client.login("user", "pass")
 
+Or just use :class:`aioftp.ClientSession` async context, which will connect,
+login and quit automatically
+
+::
+
+    >>> async with aioftp.ClientSession("ftp.server.com", "user", "pass") as client:
+    ...     # do
+
 Download and upload paths
 -------------------------
 

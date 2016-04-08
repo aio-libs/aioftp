@@ -111,16 +111,13 @@ Client example
 
     async def get_mp3(host, login, password):
 
-        client = aioftp.Client()
-        await client.connect(host)
-        await client.login(login, password)
-        async for path, info in client.list(recursive=True):
+        async with aioftp.ClientSession(host, login, password) as client:
 
-            if info["type"] == "file" and path.suffix == ".mp3":
+            async for path, info in client.list(recursive=True):
 
-                await client.download(path)
+                if info["type"] == "file" and path.suffix == ".mp3":
 
-        await client.quit()
+                    await client.download(path)
 
 
     loop = asyncio.get_event_loop()
