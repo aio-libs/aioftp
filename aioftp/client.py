@@ -11,6 +11,7 @@ from .common import *  # noqa
 
 __all__ = (
     "Client",
+    "ClientSession",
     "DataConnectionThrottleStreamIO",
     "Code",
 )
@@ -118,7 +119,7 @@ class BaseClient:
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
-    async def connect(self, host, port=21):
+    async def connect(self, host, port=DEFAULT_PORT):
 
         self.server_host = host
         self.server_port = port
@@ -377,7 +378,7 @@ class Client(BaseClient):
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
 
-    async def connect(self, host, port=21):
+    async def connect(self, host, port=DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
 
@@ -393,7 +394,8 @@ class Client(BaseClient):
         code, info = await self.command(None, "220", "120")
         return info
 
-    async def login(self, user="anonymous", password="anon@", account=""):
+    async def login(self, user=DEFAULT_USER, password=DEFAULT_PASSWORD,
+                    account=DEFAULT_ACCOUNT):
         """
         :py:func:`asyncio.coroutine`
 
@@ -917,3 +919,56 @@ class Client(BaseClient):
         else:
 
             await self.command("ABOR")
+
+
+class ClientSession:
+    """
+    :py:class:`aioftp.Client` wrapper to use client as context manager. This
+    make async call to :py:meth:`aioftp.Client.connect`,
+    :py:meth:`aioftp.Client.login` on enter and :py:meth:`aioftp.Client.quit`
+    on exit.
+
+    :param host: host name for connection
+    :type host: :py:class:`str`
+
+    :param port: port number for connection
+    :type port: :py:class:`int`
+
+    :param user: username
+    :type user: :py:class:`str`
+
+    :param password: password
+    :type password: :py:class:`str`
+
+    :param account: account (almost always blank)
+    :type account: :py:class:`str`
+
+    :param **kwargs: keyword arguments, which passed to
+        :py:class:`aioftp.Client`
+
+    ::
+
+        >>> async with aioftp.ClientSession("127.0.0.1") as client:
+        ...     # do
+    """
+
+    def __init__(self, host, port=DEFAULT_PORT, user=DEFAULT_USER,
+                 password=DEFAULT_PASSWORD, account=DEFAULT_ACCOUNT, **kwargs):
+
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.account = account
+        self.kwargs = kwargs
+
+    async def __aenter__(self):
+
+        self.client = Client(**self.kwargs)
+        await self.client.connect(self.host, self.port)
+        await self.client.login(self.user, self.password, self.account)
+        return self.client
+
+    async def __aexit__(self, *exc_info):
+
+        await self.client.quit()
