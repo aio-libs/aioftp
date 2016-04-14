@@ -677,7 +677,7 @@ class Client(BaseClient):
 
                 await self.remove_directory(path)
 
-    def upload_stream(self, destination):
+    def upload_stream(self, destination, *, offset=0):
         """
         Create stream for write data to `destination` file.
 
@@ -686,9 +686,13 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return self.get_stream("STOR " + str(destination), "1xx")
+        return self.get_stream(
+            "STOR " + str(destination),
+            "1xx",
+            offset=offset,
+        )
 
-    def append_stream(self, destination):
+    def append_stream(self, destination, *, offset=0):
         """
         Create stream for append (write) data to `destination` file.
 
@@ -697,7 +701,11 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return self.get_stream("APPE " + str(destination), "1xx")
+        return self.get_stream(
+            "APPE " + str(destination),
+            "1xx",
+            offset=offset,
+        )
 
     async def upload(self, source, destination="", *, write_into=False,
                      block_size=DEFAULT_BLOCK_SIZE):
@@ -768,7 +776,7 @@ class Client(BaseClient):
                             block_size=block_size
                         )
 
-    def download_stream(self, source):
+    def download_stream(self, source, *, offset=0):
         """
         :py:func:`asyncio.coroutine`
 
@@ -777,9 +785,12 @@ class Client(BaseClient):
         :param source: source path of file on server side
         :type source: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
+        :param offset: byte offset for stream start position
+        :type offset: :py:class:`int`
+
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
-        return self.get_stream("RETR " + str(source), "1xx")
+        return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
     async def download(self, source, destination="", *, write_into=False,
                        block_size=DEFAULT_BLOCK_SIZE):
@@ -877,7 +888,7 @@ class Client(BaseClient):
         return reader, writer
 
     @async_enterable
-    async def get_stream(self, *command_args, conn_type="I"):
+    async def get_stream(self, *command_args, conn_type="I", offset=0):
         """
         :py:func:`asyncio.coroutine`
 
@@ -889,9 +900,16 @@ class Client(BaseClient):
         :param conn_type: connection type ("I", "A", "E", "L")
         :type conn_type: :py:class:`str`
 
+        :param offset: byte offset for stream start position
+        :type offset: :py:class:`int`
+
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
         reader, writer = await self.get_passive_connection(conn_type)
+        if offset:
+
+            await self.command("REST " + str(offset), "350")
+
         await self.command(*command_args)
         stream = DataConnectionThrottleStreamIO(
             self,
