@@ -440,6 +440,25 @@ async def test_memory_path_rename_to_exists(loop, client, server):
     nose.tools.eq_(await mp.exists(s), False)
 
 
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
+        {"path_io_factory": aioftp.MemoryPathIO}))
+async def test_memory_path_seek_read(loop, client, server):
+
+    mp = aioftp.MemoryPathIO(loop=loop)
+    tmp_file = pathlib.PurePosixPath("/foo.txt")
+
+    f = await mp.open(tmp_file, "wb")
+    await f.write(b"foobar")
+    await f.close()
+
+    f = await mp.open(tmp_file, "r+b")
+    await f.seek(3)
+    r = await f.read()
+    nose.tools.eq_(r, b"bar")
+
+
 if __name__ == "__main__":
 
     import logging
