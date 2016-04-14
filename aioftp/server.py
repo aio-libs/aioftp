@@ -975,6 +975,7 @@ class Server(AbstractServer):
             extra_workers=set(),
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
+            restart_offset=0,
             _dispatcher=asyncio.Task.current_task(loop=self.loop),
         )
 
@@ -1036,6 +1037,9 @@ class Server(AbstractServer):
                         if hasattr(self, cmd):
 
                             pending.add(getattr(self, cmd)(connection, rest))
+                            if cmd not in ("retr", "stor", "appe"):
+
+                                connection.restart_offset = 0
 
                         else:
 
@@ -1443,8 +1447,20 @@ class Server(AbstractServer):
             stream = connection.data_connection
             del connection.data_connection
 
-            file_out = connection.path_io.open(real_path, mode=mode)
+            if connection.restart_offset:
+
+                file_mode = "r+b"
+
+            else:
+
+                file_mode = mode
+
+            file_out = connection.path_io.open(real_path, mode=file_mode)
             async with file_out, stream:
+
+                if connection.restart_offset:
+
+                    await file_out.seek(connection.restart_offset)
 
                 async for data in stream.iter_by_block(connection.block_size):
 
@@ -1490,6 +1506,10 @@ class Server(AbstractServer):
 
             file_in = connection.path_io.open(real_path, mode="rb")
             async with file_in, stream:
+
+                if connection.restart_offset:
+
+                    await file_in.seek(connection.restart_offset)
 
                 async for data in file_in.iter_by_block(connection.block_size):
 
@@ -1634,3 +1654,18 @@ class Server(AbstractServer):
     async def appe(self, connection, rest):
 
         return await self.stor(connection, rest, "ab")
+
+    async def rest(self, connection, rest):
+
+        if str.isdigit(rest):
+
+            connection.restart_offset = int(rest)
+            connection.response("350", str.format("restarting at {}", rest))
+
+        else:
+
+            connection.restart_offset = 0
+            message = str.format("syntax error, can't restart at '{}'", rest)
+            connection.response("501", message)
+
+        return True
