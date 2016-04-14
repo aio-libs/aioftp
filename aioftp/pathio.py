@@ -53,6 +53,7 @@ class AsyncPathIOContext:
     async def __aenter__(self):
 
         self.file = await self.pathio._open(*self.args, **self.kwargs)
+        self.seek = functools.partial(self.pathio.seek, self.file)
         self.write = functools.partial(self.pathio.write, self.file)
         self.read = functools.partial(self.pathio.read, self.file)
         self.close = functools.partial(self.pathio.close, self.file)
@@ -259,7 +260,7 @@ class AbstractPathIO:
         :type path: :py:class:`pathlib.Path`
 
         :param mode: specifies the mode in which the file is opened ("rb",
-            "wb", "ab" (read, write, append, all binary))
+            "wb", "ab", "r+b" (read, write, append, read/write, all binary))
         :type mode: :py:class:`str`
 
         :return: file-object
@@ -274,6 +275,24 @@ class AbstractPathIO:
         :rtype: :py:class:`aioftp.pathio.AsyncPathIOContext`
         """
         return AsyncPathIOContext(self, args, kwargs)
+
+    @universal_exception
+    async def seek(self, file, offset, whence=io.SEEK_SET):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Change the stream position to the given byte `offset`. Same behaviour
+        as :py:meth:`io.IOBase.seek`
+
+        :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
+
+        :param offset: relative byte offset
+        :type offset: :py:class:`int`
+
+        :param whence: base position for offset
+        :type whence: :py:class:`int`
+        """
+        raise NotImplementedError
 
     @universal_exception
     async def write(self, file, data):
@@ -401,6 +420,11 @@ class PathIO(AbstractPathIO):
         return path.open(*args, **kwargs)
 
     @universal_exception
+    async def seek(self, file, *args, **kwargs):
+
+        return file.seek(*args, **kwargs)
+
+    @universal_exception
     async def write(self, file, *args, **kwargs):
 
         return file.write(*args, **kwargs)
@@ -510,6 +534,13 @@ class AsyncPathIO(AbstractPathIO):
     async def _open(self, path, *args, **kwargs):
 
         f = functools.partial(path.open, *args, **kwargs)
+        return await self.loop.run_in_executor(None, f)
+
+    @universal_exception
+    @with_timeout
+    async def seek(self, file, *args, **kwargs):
+
+        f = functools.partial(file.seek, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
@@ -798,7 +829,7 @@ class MemoryPathIO(AbstractPathIO):
             file_like = node.content
             file_like.seek(0, io.SEEK_SET)
 
-        elif mode in ("wb", "ab"):
+        elif mode in ("wb", "ab", "r+b"):
 
             node = self.get_node(path)
             if node is None:
@@ -822,10 +853,15 @@ class MemoryPathIO(AbstractPathIO):
 
                     file_like = node.content = io.BytesIO()
 
-                else:
+                elif mode == "ab":
 
                     file_like = node.content
                     file_like.seek(0, io.SEEK_END)
+
+                elif mode == "r+b":
+
+                    file_like = node.content
+                    file_like.seek(0, io.SEEK_SET)
 
         else:
 
@@ -834,15 +870,20 @@ class MemoryPathIO(AbstractPathIO):
         return file_like
 
     @universal_exception
-    async def write(self, file, data):
+    async def seek(self, file, *args, **kwargs):
 
-        file.write(data)
+        return file.seek(*args, **kwargs)
+
+    @universal_exception
+    async def write(self, file, *args, **kwargs):
+
+        file.write(*args, **kwargs)
         file.mtime = int(time.time())
 
     @universal_exception
-    async def read(self, file, count=None):
+    async def read(self, file, *args, **kwargs):
 
-        return file.read(count)
+        return file.read(*args, **kwargs)
 
     @universal_exception
     async def close(self, file):
