@@ -459,6 +459,54 @@ async def test_memory_path_seek_read(loop, client, server):
     nose.tools.eq_(r, b"bar")
 
 
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
+        {"path_io_factory": aioftp.MemoryPathIO}))
+async def test_memory_path_seek_write(loop, client, server):
+
+    mp = aioftp.MemoryPathIO(loop=loop)
+    tmp_file = pathlib.PurePosixPath("/foo.txt")
+
+    f = await mp.open(tmp_file, "wb")
+    await f.write(b"foobar")
+    await f.close()
+
+    f = await mp.open(tmp_file, "r+b")
+    await f.seek(3)
+    await f.write(b"foo")
+
+    f = await mp.open(tmp_file, "rb")
+    r = await f.read()
+    await f.close()
+
+    nose.tools.eq_(r, b"foofoo")
+
+
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
+        {"path_io_factory": aioftp.MemoryPathIO}))
+async def test_memory_path_seek_write_over_end(loop, client, server):
+
+    mp = aioftp.MemoryPathIO(loop=loop)
+    tmp_file = pathlib.PurePosixPath("/foo.txt")
+
+    f = await mp.open(tmp_file, "wb")
+    await f.write(b"foobar")
+    await f.close()
+
+    f = await mp.open(tmp_file, "r+b")
+    await f.seek(10)
+    await f.write(b"foo")
+
+    f = await mp.open(tmp_file, "rb")
+    r = await f.read()
+    await f.close()
+
+    nose.tools.eq_(r, b"foobar" + b"\x00" * 4 + b"foo")
+
+
 if __name__ == "__main__":
 
     import logging
