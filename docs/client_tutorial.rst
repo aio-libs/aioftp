@@ -194,8 +194,8 @@ connection.
 
     >>> await client.quit()
 
-Advanced download and upload, abort
------------------------------------
+Advanced download and upload, abort, restart
+--------------------------------------------
 
 File read/write operations are blocking and slow. So if you want just
 parse/calculate something on the fly when receiving file, or generate data
@@ -233,6 +233,58 @@ Or, if you want to abort transfer at some point
     ... else:
     ...
     ...     await stream.finish()
+
+For restarting upload/download at exact byte position (REST command) there is
+`offset` argument for `*_stream` methods:
+
+::
+
+    >>> async with client.download_stream("tmp.py", offset=256) as stream:
+    ...
+    ...     async for block in stream.iter_by_block():
+    ...
+    ...         # do something with data
+
+Or if you want to restore upload/download process:
+
+::
+
+    >>> while True:
+    ...
+    ...     try:
+    ...
+    ...         async with aioftp.ClientSession(HOST, PORT) as client:
+    ...
+    ...             if await client.exists(filename):
+    ...
+    ...                 stat = await client.stat(filename)
+    ...                 size = int(stat["size"])
+    ...
+    ...             else:
+    ...
+    ...                 size = 0
+    ...
+    ...             file_in.seek(size)
+    ...             async with client.upload_stream(filename, offset=size) as stream:
+    ...
+    ...                 while True:
+    ...
+    ...                     data = file_in.read(block_size)
+    ...                     if not data:
+    ...
+    ...                         break
+    ...
+    ...                     await stream.write(data)
+    ...
+    ...         break
+    ...
+    ...     except ConnectionResetError:
+    ...
+    ...         pass
+
+The idea is to seek position of source «file» for upload and start
+upload + offset/append. Opposite situation for download («file» append and
+download + offset)
 
 Throttle
 --------
