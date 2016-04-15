@@ -1,8 +1,9 @@
-x.x.x (xx-xx-xxxx)
+0.6.0 (16-04-2016)
 ------------------
 
 - fix `modifed time` field for `list` command result
 - add `ClientSession` context
+- add `REST` command to server and client
 Thanks to `rsichny <https://github.com/rsichny>`_
 
 0.5.0 (12-02-2016)
