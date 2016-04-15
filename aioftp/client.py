@@ -685,6 +685,9 @@ class Client(BaseClient):
         :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
+        :param offset: byte offset for stream start position
+        :type offset: :py:class:`int`
+
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
         return self.get_stream(
@@ -699,6 +702,9 @@ class Client(BaseClient):
 
         :param destination: destination path of file on server side
         :type destination: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
+
+        :param offset: byte offset for stream start position
+        :type offset: :py:class:`int`
 
         :rtype: :py:class:`aioftp.ThrottleStreamIO`
         """
