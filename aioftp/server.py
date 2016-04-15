@@ -18,11 +18,14 @@ __all__ = (
     "Permission",
     "User",
     "AbstractUserManager",
+    "MemoryUserManager",
     "Connection",
     "AvailableConnections",
     "ConnectionConditions",
     "PathConditions",
     "PathPermissions",
+    "worker",
+    "AbstractServer",
     "Server",
 )
 logger = logging.getLogger("aioftp.server")
