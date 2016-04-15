@@ -10,6 +10,7 @@ from .common import *  # noqa
 
 
 __all__ = (
+    "BaseClient",
     "Client",
     "ClientSession",
     "DataConnectionThrottleStreamIO",
