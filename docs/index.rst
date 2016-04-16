@@ -97,9 +97,9 @@ Client example
     import aioftp
 
 
-    async def get_mp3(host, login, password):
+    async def get_mp3(host, port, login, password):
 
-        async with aioftp.ClientSession(host, login, password) as client:
+        async with aioftp.ClientSession(host, port, login, password) as client:
 
             async for path, info in client.list(recursive=True):
 
@@ -110,9 +110,9 @@ Client example
 
     loop = asyncio.get_event_loop()
     tasks = (
-        get_mp3("server1.com", "login", "password")),
-        get_mp3("server2.com", "login", "password")),
-        get_mp3("server3.com", "login", "password")),
+        get_mp3("server1.com", 21, "login", "password")),
+        get_mp3("server2.com", 21, "login", "password")),
+        get_mp3("server3.com", 21, "login", "password")),
     )
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()
