@@ -56,7 +56,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'aioftp'
-copyright = '2015, pohmelie'
+copyright = '2016, pohmelie'
 author = 'pohmelie'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -136,6 +136,7 @@ html_theme_options = {
     'body_text': '#482C0A',
     'sidebar_text': '#49443E',
     'sidebar_header': '#4B4032',
+    'page_width': "90%",
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
