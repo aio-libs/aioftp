@@ -79,7 +79,7 @@ License
 
 aioftp is offered under the WTFPL license.
 
-Library Installation
+Library installation
 --------------------
 
 ::
