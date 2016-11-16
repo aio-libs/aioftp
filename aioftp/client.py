@@ -93,6 +93,10 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
             await self.finish()
 
+        else:
+
+            self.close()
+
 
 class BaseClient:
 
