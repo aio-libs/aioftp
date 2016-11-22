@@ -994,8 +994,16 @@ class ClientSession:
     async def __aenter__(self):
 
         self.client = Client(**self.kwargs)
-        await self.client.connect(self.host, self.port)
-        await self.client.login(self.user, self.password, self.account)
+        try:
+
+            await self.client.connect(self.host, self.port)
+            await self.client.login(self.user, self.password, self.account)
+
+        except:
+
+            self.client.close()
+            raise
+
         return self.client
 
     async def __aexit__(self, *exc_info):
