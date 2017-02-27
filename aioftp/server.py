@@ -1672,3 +1672,10 @@ class Server(AbstractServer):
             connection.response("501", message)
 
         return True
+
+    async def syst(self, connection, rest):
+        """Return system type (always returns UNIX type: L8)."""
+
+        connection.response("215", "UNIX Type: L8")
+        return True
+
