@@ -531,8 +531,14 @@ class Client(BaseClient):
 
         ::
 
+            >>> # lazy list
             >>> async for path, info in client.list():
-            ...     print(path)
+            ...     # no interaction with client should be here(!)
+
+            >>> # eager list
+            >>> for path, info in (await client.list()):
+            ...     # interaction with client allowed, since all paths are
+            ...     # collected already
 
         ::
 

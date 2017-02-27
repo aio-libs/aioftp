@@ -100,6 +100,23 @@ If you ommit path argument, result will be list for current working directory
     >>> await c.list()
     [(PosixPath('test.py'), {'unique': '801g480a508', 'size': '3102', ...
 
+In case of `async for` be careful, since asynchronous variation of list is lazy.
+It means, that until you leave `async for` block you can't interact with server.
+If you need list and interact with server you should use eager version of list:
+
+::
+
+    >>> for path, info in (await client.list()):
+    ...     await client.download(path, path.name)
+
+If you want to mix lazy `list` and client interaction, you can create two client
+connections to server:
+
+::
+
+    >>> async for path, info in client1.list():
+    ...     await client2.download(path, path.name)
+
 Getting path stats
 ------------------
 

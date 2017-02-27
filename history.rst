@@ -1,3 +1,12 @@
+0.6.2 (27-02-2017)
+------------------
+
+- replace `docopt` with `argparse`
+- add `syst` server command
+- improve client `list` documentation
+Thanks to `thelostt <https://github.com/thelostt>`_ and
+`yieyu <https://github.com/yieyu>`_
+
 0.6.1 (16-04-2016)
 ------------------
 

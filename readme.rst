@@ -112,7 +112,7 @@ Client example
 
         async with aioftp.ClientSession(host, port, login, password) as client:
 
-            async for path, info in client.list(recursive=True):
+            for path, info in (await client.list(recursive=True)):
 
                 if info["type"] == "file" and path.suffix == ".mp3":
 
