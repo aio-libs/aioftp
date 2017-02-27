@@ -1,13 +1,4 @@
-"""Simple aioftp-based server with one user (anonymous or not).
-
-Usage: aioftp [(<login> <password>)] [options]
-
-Options:
-    -q, --quiet             set logging level to "ERROR" instead of "INFO"
-    --host=host             host for binding [default: 0.0.0.0]
-    --port=port             port for binding [default: 2121]
-    --memory                use memory storage
-"""
+"""Simple aioftp-based server with one user (anonymous or not)"""
 import asyncio
 import logging
 
@@ -16,15 +7,24 @@ import argparse
 import aioftp
 
 
-parser = argparse.ArgumentParser(prog="aioftp", usage="%(prog)s [options]", 
-       description='Simple aioftp-based server with one user (anonymous or not).')
-parser.add_argument("--user", metavar="LOGIN", dest="login", help="user name to login")
-parser.add_argument("--pass", metavar="PASSWORD", dest="password", help="password to login")
-parser.add_argument('-d', metavar="DIRECTORY", dest="home", help="the directory to share (default current directory)")
-parser.add_argument("-q", "--quiet", help='set logging level to "ERROR" instead of "INFO"', action="store_true")
-parser.add_argument("--memory", help="use memory storage", action="store_true")
-parser.add_argument("--host", help="host for binding [default: %(default)s]", default="0.0.0.0")
-parser.add_argument("--port", help="port for binding [default: %(default)s]", type=int, default=2121)
+parser = argparse.ArgumentParser(
+    prog="aioftp",
+    usage="%(prog)s [options]",
+    description="Simple aioftp-based server with one user (anonymous or not)."
+)
+parser.add_argument("--user", metavar="LOGIN", dest="login",
+                    help="user name to login")
+parser.add_argument("--pass", metavar="PASSWORD", dest="password",
+                    help="password to login")
+parser.add_argument("-d", metavar="DIRECTORY", dest="home",
+                    help="the directory to share (default current directory)")
+parser.add_argument("-q", "--quiet", action="store_true",
+                    help="set logging level to 'ERROR' instead of 'INFO'")
+parser.add_argument("--memory", action="store_true", help="use memory storage")
+parser.add_argument("--host", default="0.0.0.0",
+                    help="host for binding [default: %(default)s]")
+parser.add_argument("--port", type=int, default=2121,
+                    help="port for binding [default: %(default)s]")
 
 args = parser.parse_args()
 print(str.format("aioftp v{}", aioftp.__version__))
@@ -44,9 +44,13 @@ if args.memory:
 else:
 
     if args.home:
+
         user = aioftp.User(args.login, args.password, base_path=args.home)
+
     else:
+
         user = aioftp.User(args.login, args.password)
+
     path_io_factory = aioftp.PathIO
 
 server = aioftp.Server([user], path_io_factory=path_io_factory)

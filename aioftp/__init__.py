@@ -1,12 +1,13 @@
 """ftp client/server for asyncio"""
+# flake8: noqa
 
-from .client import *  # noqa
-from .server import *  # noqa
-from .errors import *  # noqa
-from .common import *  # noqa
-from .pathio import *  # noqa
+from .client import *
+from .server import *
+from .errors import *
+from .common import *
+from .pathio import *
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 version = tuple(map(int, str.split(__version__, ".")))
 
 __all__ = (

@@ -9,3 +9,4 @@ __pycache__
 .idea
 /.python-version
 /.eggs
+/tags
