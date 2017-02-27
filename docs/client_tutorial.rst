@@ -101,7 +101,7 @@ If you ommit path argument, result will be list for current working directory
     [(PosixPath('test.py'), {'unique': '801g480a508', 'size': '3102', ...
 
 In case of `async for` be careful, since asynchronous variation of list is lazy.
-It means, that until you leave `async for` block you can't interact with server.
+It means that **you can't interact with server until you leave `async for` block.**
 If you need list and interact with server you should use eager version of list:
 
 ::
