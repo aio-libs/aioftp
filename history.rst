@@ -1,3 +1,9 @@
+0.6.3 (02-03-2017)
+------------------
+
+- `stream.read` will read whole data by default (as `asyncio.StreamReader.read`)
+Thanks to `sametmax <https://github.com/sametmax>`_
+
 0.6.2 (27-02-2017)
 ------------------
 

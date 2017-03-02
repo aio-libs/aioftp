@@ -301,7 +301,7 @@ class StreamIO:
         return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    async def read(self, count=DEFAULT_BLOCK_SIZE):
+    async def read(self, count=-1):
         """
         :py:func:`asyncio.coroutine`
 
@@ -555,7 +555,7 @@ class ThrottleStreamIO(StreamIO):
 
             getattr(throttle, name).append(data, start)
 
-    async def read(self, count=DEFAULT_BLOCK_SIZE):
+    async def read(self, count=-1):
         """
         :py:func:`asyncio.coroutine`
 
