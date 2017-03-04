@@ -136,6 +136,8 @@ class BaseClient:
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
+        self.stream = None
+
     async def connect(self, host, port=DEFAULT_PORT):
 
         self.server_host = host
@@ -158,7 +160,8 @@ class BaseClient:
         """
         Close connection.
         """
-        self.stream.close()
+        if self.stream is not None:
+            self.stream.close()
 
     async def parse_line(self):
         """
