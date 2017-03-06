@@ -157,6 +157,46 @@ async def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     files = await client.list()
     nose.tools.eq_(len(files), 0)
 
+# is there a better way than this copy-pasta?
+@aioftp_setup(
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}),
+    client_args=([],{"list_compatibility_level":1}))
+@with_connection
+@with_tmp_dir("foo")
+async def test_rename_non_empty_directory_LIST(loop, client, server, *, tmp_dir):
+    await client.login()
+    await client.make_directory("bar")
+    (path, stat), *_ = files = await client.list()
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.PurePosixPath("bar"))
+    nose.tools.eq_(stat["type"], "dir")
+
+    tmp_file = tmp_dir / "bar" / "foo.txt"
+    tmp_file.touch()
+
+    await client.make_directory("hurr")
+    await client.rename("bar", "hurr/baz")
+    (path, stat), *_ = files = await client.list()
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.PurePosixPath("hurr"))
+    nose.tools.eq_(stat["type"], "dir")
+
+    (path, stat), *_ = files = await client.list("hurr")
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.PurePosixPath("hurr/baz"))
+    nose.tools.eq_(stat["type"], "dir")
+
+    (path, stat), *_ = files = await client.list("/hurr/baz")
+    nose.tools.eq_(len(files), 1)
+    nose.tools.eq_(path, pathlib.PurePosixPath("/hurr/baz/foo.txt"))
+    nose.tools.eq_(stat["type"], "file")
+
+    tmp_file = tmp_dir / "hurr" / "baz" / "foo.txt"
+    tmp_file.unlink()
+    await client.remove_directory("hurr/baz")
+    await client.remove_directory("hurr")
+    files = await client.list()
+    nose.tools.eq_(len(files), 0)
 
 class FakeErrorPathIO(aioftp.PathIO):
 

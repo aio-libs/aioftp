@@ -3,6 +3,7 @@ import re
 import collections
 import pathlib
 import logging
+import time
 
 from . import errors
 from . import pathio
@@ -19,7 +20,6 @@ from .common import (
     AsyncListerMixin,
     async_enterable,
 )
-
 
 __all__ = (
     "BaseClient",
@@ -120,7 +120,8 @@ class BaseClient:
                  read_speed_limit=None,
                  write_speed_limit=None,
                  path_timeout=None,
-                 path_io_factory=pathio.PathIO):
+                 path_io_factory=pathio.PathIO,
+                 list_compatibility_level=2):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
@@ -137,6 +138,8 @@ class BaseClient:
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
         self.stream = None
+        # 2: use MLSD,1:use LIST,0:use NLST/CWD(not implemented)
+        self.list_compatibility_level = list_compatibility_level
 
     async def connect(self, host, port=DEFAULT_PORT):
 
@@ -337,6 +340,188 @@ class BaseClient:
                     directory += ch
 
         return pathlib.PurePosixPath(directory)
+
+    @staticmethod
+    def parse_unix_mode(s):
+        """
+        Parsing unix mode strings("rwxr-x--t") into
+        hexacimal notation
+
+        :param s: mode string
+        :type s: :py:class:`str`
+
+        :return mode:
+        :rtype: :py:class:`int`
+        """
+        def parse_rw(s):
+            mode = 0
+
+            if s[0] == 'r':
+
+                mode |= 4
+
+            elif s[0] != '-':
+
+                raise ValueError
+
+            if s[1] == 'w':
+
+                mode |= 2
+
+            elif s[1] != '-':
+
+                raise ValueError
+
+            return mode
+
+        mode = 0
+        mode |= parse_rw(s[0:2]) << 6
+        mode |= parse_rw(s[3:5]) << 3
+        mode |= parse_rw(s[6:8])
+
+        if s[2] == 's':
+
+            mode |= 0o4100
+
+        elif s[2] == 'x':
+
+            mode |= 0o0100
+
+        elif s[2] != '-':
+
+            raise ValueError
+
+        if s[5] == 's':
+
+            mode |= 0o2010
+
+        elif s[5] == 'x':
+
+            mode |= 0o0010
+
+        elif s[5] != '-':
+
+            raise ValueError
+
+        if s[8] == 't':
+
+            mode |= 0o1000
+
+        elif s[8] == 'x':
+
+            mode |= 0o0001
+
+        elif s[8] != '-':
+
+            raise ValueError
+
+        return mode
+
+    @staticmethod
+    def parse_ls_date(s):
+        """
+        Parsing dates from the ls unix utility
+        ("Nov 18  1958" and "Nov 18 12:29")
+
+        :param s: ls date
+        :type s: :py:class:`str`
+
+        :rtype: :py:class:`str`
+        """
+        if not (s[3] == ' ' and s[6] == ' '):
+
+            raise ValueError
+
+        month = "{0:02d}".format(time.strptime(s[:3], "%b").tm_mon)
+        day = s[4:6]
+
+        if day[0] == ' ':
+
+            day = '0' + day[1:]
+
+        if s[9] == ':':
+
+            year = "0000"
+            hour_min = s[7:9] + s[10:12]
+
+        else:
+
+            hour_min = "0000"
+
+            if s[6] != ' ':
+
+                raise ValueError
+
+            year = s[8:12]
+
+        result = year + month + day + hour_min
+
+        if not result.isdigit():
+
+            raise ValueError
+
+        return result + "00"
+
+    def parse_list_line(self, b):
+        """
+        Attempt to parse a LIST line(similar to unix ls utility)
+
+        :param b: LIST line
+        :type b: :py:class:`bytes` or :py:class:`str`
+
+        :return: (path, info)
+        :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
+        """
+        if isinstance(b, bytes):
+
+            s = str.rstrip(bytes.decode(b, encoding="utf-8"))
+
+        else:
+
+            s = b
+
+        info = {}
+
+        if s[0] == '-':
+
+            info["type"] = "file"
+
+        elif s[0] == 'd':
+
+            info["type"] = "dir"
+
+        else:
+
+            info["type"] = "unknown"
+
+        # TODO: handle symlinks(beware the symlink loop)
+        info["unix.mode"] = self.parse_unix_mode(s[1:10])
+        s = s[10:].lstrip()
+        i = s.index(' ')
+        info["unix.links"] = s[:i]
+
+        if not info["unix.links"].isdigit():
+
+            raise ValueError
+
+        s = s[i:].lstrip()
+        i = s.index(' ')
+        info["unix.owner"] = s[:i]
+        s = s[i:].lstrip()
+        i = s.index(' ')
+        info["unix.group"] = s[:i]
+        s = s[i:].lstrip()
+        i = s.index(' ')
+        info["size"] = s[:i]
+
+        if not info["size"].isdigit():
+
+            raise ValueError
+
+        s = s[i:].lstrip()
+        info["modify"] = self.parse_ls_date(s[:12])
+        s = s[12:].lstrip()
+        return pathlib.PurePosixPath(s.lstrip()), info
 
     def parse_mlsx_line(self, b):
         """
@@ -547,14 +732,7 @@ class Client(BaseClient):
 
             >>> stats = await client.list()
         """
-        class AsyncClientLister(AsyncListerMixin):
-
-            async def _new_stream(cls, local_path):
-
-                cls.path = local_path
-                command = str.strip("MLSD " + str(cls.path))
-                return await self.get_stream(command, "1xx")
-
+        class AsyncListerBase(AsyncListerMixin):
             async def __aiter__(cls):
 
                 cls.stream = await cls._new_stream(path)
@@ -579,7 +757,7 @@ class Client(BaseClient):
 
                             raise StopAsyncIteration
 
-                    name, info = self.parse_mlsx_line(line)
+                    name, info = cls.process_line(line)
                     if info["type"] in ("file", "dir"):
 
                         stat = cls.path / name, info
@@ -589,7 +767,32 @@ class Client(BaseClient):
 
                         return stat
 
-        return AsyncClientLister()
+            def process_line(cls, line):
+                raise NotImplementedError
+
+        class AsyncListerMLSD(AsyncListerBase):
+            async def _new_stream(cls, local_path):
+
+                cls.path = local_path
+                command = str.strip("MLSD " + str(cls.path))
+                return await self.get_stream(command, "1xx")
+
+            def process_line(cls, line):
+                return self.parse_mlsx_line(line)
+
+        class AsyncListerLIST(AsyncListerBase):
+            async def _new_stream(cls, local_path):
+
+                cls.path = local_path
+                command = str.strip("LIST " + str(cls.path))
+                return await self.get_stream(command, "1xx")
+
+            def process_line(cls, line):
+                return self.parse_list_line(line)
+
+        LISTERS = [None, AsyncListerLIST, AsyncListerMLSD]
+
+        return LISTERS[self.list_compatibility_level]()
 
     async def stat(self, path):
         """
