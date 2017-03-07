@@ -353,7 +353,7 @@ class BaseClient:
         :return mode:
         :rtype: :py:class:`int`
         """
-        parse_rw = {"rw" : 6, "r-" : 4, "-w" : 2, "--" : 0}
+        parse_rw = {"rw": 6, "r-": 4, "-w": 2, "--": 0}
 
         mode = 0
         mode |= parse_rw[s[0:2]] << 6
@@ -409,10 +409,10 @@ class BaseClient:
 
         :rtype: :py:class:`str`
         """
-        try: 
-           d = time.strptime(s, "%b %d %H:%M")
+        try:
+            d = time.strptime(s, "%b %d %H:%M")
         except ValueError:
-           d = time.strptime(s, "%b %d  %Y")
+            d = time.strptime(s, "%b %d  %Y")
         return time.strftime("%Y%m%d%H%M00", d)
 
     def parse_list_line(self, b):
@@ -698,34 +698,36 @@ class Client(BaseClient):
             >>> stats = await client.list()
         """
         class AsyncListerClient(AsyncListerMixin):
-            
+
             async def _new_stream(cls, local_path):
 
                 cls.path = local_path
+                str_path = " " + str(cls.path)
                 if self.list_compatibility_level > 0:
-                    
+
                     cls._anext = cls._anext_MSLD_LIST
-                    
+
                     if self.list_compatibility_level == 2:
-                    
+
                         cls.process_line = self.parse_mlsx_line
-                    
+
                         try:
-                    
-                            return await self.get_stream(str.strip("MLSD " + str(cls.path)), "1xx")
-                    
+                            command = str.strip("MLSD" + str_path)
+                            return await self.get_stream(command, "1xx")
+
                         except errors.StatusCodeError as e:
-                    
+
                             if e.received_codes[-1] == "500":
-                    
+
                                 self.list_compatibility_level = 1
-                    
+
                     if self.list_compatibility_level == 1:
-                    
+
                         cls.process_line = self.parse_list_line
-                        return await self.get_stream(str.strip("LIST " + str(cls.path)), "1xx")
+                        command = str.strip("LIST" + str_path)
+                        return await self.get_stream(command, "1xx")
                 else:
-                    #TODO: implement NLST/CWD fallback
+                    # TODO: implement NLST/CWD fallback
                     pass
 
             async def __aiter__(cls):
