@@ -353,31 +353,12 @@ class BaseClient:
         :return mode:
         :rtype: :py:class:`int`
         """
-        def parse_rw(s):
-            mode = 0
-
-            if s[0] == 'r':
-
-                mode |= 4
-
-            elif s[0] != '-':
-
-                raise ValueError
-
-            if s[1] == 'w':
-
-                mode |= 2
-
-            elif s[1] != '-':
-
-                raise ValueError
-
-            return mode
+        parse_rw = {"rw" : 6, "r-" : 4, "-w" : 2, "--" : 0}
 
         mode = 0
-        mode |= parse_rw(s[0:2]) << 6
-        mode |= parse_rw(s[3:5]) << 3
-        mode |= parse_rw(s[6:8])
+        mode |= parse_rw[s[0:2]] << 6
+        mode |= parse_rw[s[3:5]] << 3
+        mode |= parse_rw[s[6:8]]
 
         if s[2] == 's':
 
@@ -428,39 +409,11 @@ class BaseClient:
 
         :rtype: :py:class:`str`
         """
-        if not (s[3] == ' ' and s[6] == ' '):
-
-            raise ValueError
-
-        month = "{0:02d}".format(time.strptime(s[:3], "%b").tm_mon)
-        day = s[4:6]
-
-        if day[0] == ' ':
-
-            day = '0' + day[1:]
-
-        if s[9] == ':':
-
-            year = "0000"
-            hour_min = s[7:9] + s[10:12]
-
-        else:
-
-            hour_min = "0000"
-
-            if s[6] != ' ':
-
-                raise ValueError
-
-            year = s[8:12]
-
-        result = year + month + day + hour_min
-
-        if not result.isdigit():
-
-            raise ValueError
-
-        return result + "00"
+        try: 
+           d = time.strptime(s, "%b %d %H:%M")
+        except ValueError:
+           d = time.strptime(s, "%b %d  %Y")
+        return time.strftime("%Y%m%d%H%M00", d)
 
     def parse_list_line(self, b):
         """
@@ -489,6 +442,10 @@ class BaseClient:
         elif s[0] == 'd':
 
             info["type"] = "dir"
+
+        elif s[0] == 'l':
+
+            info["type"] = "link"
 
         else:
 
@@ -520,8 +477,16 @@ class BaseClient:
 
         s = s[i:].lstrip()
         info["modify"] = self.parse_ls_date(s[:12])
-        s = s[12:].lstrip()
-        return pathlib.PurePosixPath(s.lstrip()), info
+        s = s[12:].strip()
+
+        if info["type"] == "link":
+            i = s.rindex(" -> ")
+            s = s[i:]
+            i = -2 if s[-1] == '\'' or s[-1] == '\"' else -1
+            info["type"] = "dir" if s[i] == '/' else "file"
+            s = s[:i] + s[i + 1:]
+
+        return pathlib.PurePosixPath(s), info
 
     def parse_mlsx_line(self, b):
         """
@@ -732,7 +697,37 @@ class Client(BaseClient):
 
             >>> stats = await client.list()
         """
-        class AsyncListerBase(AsyncListerMixin):
+        class AsyncListerClient(AsyncListerMixin):
+            
+            async def _new_stream(cls, local_path):
+
+                cls.path = local_path
+                if self.list_compatibility_level > 0:
+                    
+                    cls._anext = cls._anext_MSLD_LIST
+                    
+                    if self.list_compatibility_level == 2:
+                    
+                        cls.process_line = self.parse_mlsx_line
+                    
+                        try:
+                    
+                            return await self.get_stream(str.strip("MLSD " + str(cls.path)), "1xx")
+                    
+                        except errors.StatusCodeError as e:
+                    
+                            if e.received_codes[-1] == "500":
+                    
+                                self.list_compatibility_level = 1
+                    
+                    if self.list_compatibility_level == 1:
+                    
+                        cls.process_line = self.parse_list_line
+                        return await self.get_stream(str.strip("LIST " + str(cls.path)), "1xx")
+                else:
+                    #TODO: implement NLST/CWD fallback
+                    pass
+
             async def __aiter__(cls):
 
                 cls.stream = await cls._new_stream(path)
@@ -740,6 +735,9 @@ class Client(BaseClient):
                 return cls
 
             async def __anext__(cls):
+                return await cls._anext()
+
+            async def _anext_MSLD_LIST(cls):
 
                 while True:
 
@@ -758,41 +756,14 @@ class Client(BaseClient):
                             raise StopAsyncIteration
 
                     name, info = cls.process_line(line)
-                    if info["type"] in ("file", "dir"):
+                    stat = cls.path / name, info
+                    if info["type"] == "dir" and recursive:
 
-                        stat = cls.path / name, info
-                        if info["type"] == "dir" and recursive:
+                        cls.directories.append(stat)
 
-                            cls.directories.append(stat)
+                    return stat
 
-                        return stat
-
-            def process_line(cls, line):
-                raise NotImplementedError
-
-        class AsyncListerMLSD(AsyncListerBase):
-            async def _new_stream(cls, local_path):
-
-                cls.path = local_path
-                command = str.strip("MLSD " + str(cls.path))
-                return await self.get_stream(command, "1xx")
-
-            def process_line(cls, line):
-                return self.parse_mlsx_line(line)
-
-        class AsyncListerLIST(AsyncListerBase):
-            async def _new_stream(cls, local_path):
-
-                cls.path = local_path
-                command = str.strip("LIST " + str(cls.path))
-                return await self.get_stream(command, "1xx")
-
-            def process_line(cls, line):
-                return self.parse_list_line(line)
-
-        LISTERS = [None, AsyncListerLIST, AsyncListerMLSD]
-
-        return LISTERS[self.list_compatibility_level]()
+        return AsyncListerClient()
 
     async def stat(self, path):
         """
