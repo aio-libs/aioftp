@@ -447,7 +447,7 @@ class AvailableConnections:
             self.value -= 1
             if self.value < 0:
 
-                raise ValueError("Too much acquires")
+                raise ValueError("Too many acquires")
 
     def release(self):
         """
@@ -458,7 +458,7 @@ class AvailableConnections:
             self.value += 1
             if self.value > self.maximum_value:
 
-                raise ValueError("Too much releases")
+                raise ValueError("Too many releases")
 
 
 class AbstractServer:
