@@ -19,6 +19,7 @@ from .common import (
     DEFAULT_BLOCK_SIZE,
     AsyncListerMixin,
     async_enterable,
+    setlocale
 )
 
 __all__ = (
@@ -120,8 +121,8 @@ class BaseClient:
                  read_speed_limit=None,
                  write_speed_limit=None,
                  path_timeout=None,
-                 path_io_factory=pathio.PathIO,
-                 list_compatibility_level=2):
+                 path_io_factory=pathio.PathIO
+                 ):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
@@ -139,7 +140,7 @@ class BaseClient:
 
         self.stream = None
         # 2: use MLSD,1:use LIST,0:use NLST/CWD(not implemented)
-        self.list_compatibility_level = list_compatibility_level
+        self.cwd = None
 
     async def connect(self, host, port=DEFAULT_PORT):
 
@@ -158,6 +159,7 @@ class BaseClient:
             timeout=self.socket_timeout,
             loop=self.loop
         )
+        self.list_compatibility_level = 2
 
     def close(self):
         """
@@ -409,10 +411,16 @@ class BaseClient:
 
         :rtype: :py:class:`str`
         """
-        try:
-            d = time.strptime(s, "%b %d %H:%M")
-        except ValueError:
-            d = time.strptime(s, "%b %d  %Y")
+        with setlocale("C"):
+
+            try:
+
+                d = time.strptime(s, "%b %d %H:%M")
+
+            except ValueError:
+
+                d = time.strptime(s, "%b %d  %Y")
+
         return time.strftime("%Y%m%d%H%M00", d)
 
     def parse_list_line(self, b):
@@ -516,6 +524,15 @@ class BaseClient:
 
         return pathlib.PurePosixPath(name), entry
 
+    async def ensure_cwd(self):
+        """
+        Ensures the CWD is a valid value when demanded
+        """
+        if self.cwd is None:
+
+            _, cwd_info = await self.command("PWD", "257")
+            self.cwd = self.parse_directory_response(cwd_info[-1])
+
 
 class Client(BaseClient):
     """
@@ -607,9 +624,12 @@ class Client(BaseClient):
 
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
-        code, info = await self.command("PWD", "257")
-        directory = self.parse_directory_response(info[-1])
-        return directory
+
+        #  code, info = await self.command("PWD", "257")
+        #  directory = self.parse_directory_response(info[-1])
+
+        await self.ensure_cwd()
+        return self.cwd
 
     async def change_directory(self, path=".."):
         """
@@ -620,7 +640,13 @@ class Client(BaseClient):
         :param path: new directory, goes «up» if omitted
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        if path in ("..", pathlib.PurePosixPath("..")):
+        self.cwd = None
+
+        if type(path) is str:
+
+            path = pathlib.PurePosixPath(path)
+
+        if path == pathlib.PurePosixPath(".."):
 
             cmd = "CDUP"
 
@@ -697,38 +723,32 @@ class Client(BaseClient):
 
             >>> stats = await client.list()
         """
-        class AsyncListerClient(AsyncListerMixin):
+        class AsyncLister(AsyncListerMixin):
 
             async def _new_stream(cls, local_path):
 
                 cls.path = local_path
                 str_path = " " + str(cls.path)
-                if self.list_compatibility_level > 0:
 
-                    cls._anext = cls._anext_MSLD_LIST
+                if self.list_compatibility_level == 2:
 
-                    if self.list_compatibility_level == 2:
+                    cls.parse_line = self.parse_mlsx_line
 
-                        cls.process_line = self.parse_mlsx_line
-
-                        try:
-                            command = str.strip("MLSD" + str_path)
-                            return await self.get_stream(command, "1xx")
-
-                        except errors.StatusCodeError as e:
-
-                            if e.received_codes[-1] == "500":
-
-                                self.list_compatibility_level = 1
-
-                    if self.list_compatibility_level == 1:
-
-                        cls.process_line = self.parse_list_line
-                        command = str.strip("LIST" + str_path)
+                    try:
+                        command = str.strip("MLSD" + str_path)
                         return await self.get_stream(command, "1xx")
-                else:
-                    # TODO: implement NLST/CWD fallback
-                    pass
+
+                    except errors.StatusCodeError as e:
+
+                        if e.received_codes[-1] == "500":
+
+                            self.list_compatibility_level = 1
+
+                if self.list_compatibility_level == 1:
+
+                    cls.parse_line = self.parse_list_line
+                    command = str.strip("LIST" + str_path)
+                    return await self.get_stream(command, "1xx")
 
             async def __aiter__(cls):
 
@@ -737,9 +757,6 @@ class Client(BaseClient):
                 return cls
 
             async def __anext__(cls):
-                return await cls._anext()
-
-            async def _anext_MSLD_LIST(cls):
 
                 while True:
 
@@ -757,7 +774,7 @@ class Client(BaseClient):
 
                             raise StopAsyncIteration
 
-                    name, info = cls.process_line(line)
+                    name, info = cls.parse_line(line)
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
 
@@ -765,7 +782,7 @@ class Client(BaseClient):
 
                     return stat
 
-        return AsyncListerClient()
+        return AsyncLister()
 
     async def stat(self, path):
         """
@@ -779,9 +796,81 @@ class Client(BaseClient):
         :return: path info
         :rtype: :py:class:`dict`
         """
-        code, info = await self.command("MLST " + str(path), "2xx")
-        name, info = self.parse_mlsx_line(str.lstrip(info[1]))
-        return info
+        await self.ensure_cwd()
+
+        if type(path) is str:
+
+            path = pathlib.PurePosixPath(path)
+
+        if self.list_compatibility_level == 2:
+
+            try:
+
+                code, info = await self.command("MLST " + str(path), "2xx")
+
+            except errors.StatusCodeError as e:
+
+                if e.received_codes[-1] == "500":
+
+                    self.list_compatibility_level = 1
+
+                else:
+
+                    return None
+
+            else:
+
+                name, info = self.parse_mlsx_line(str.lstrip(info[1]))
+
+                return info
+
+        if self.list_compatibility_level == 1:
+
+            try:
+
+                await self.command("CWD " + str(path.parent), "250")
+                directory_listing = self.list()
+
+                async for file, info in directory_listing:
+
+                    if file == path:
+
+                        await directory_listing.stream.finish()
+                        return info
+
+                return None
+
+            finally:
+
+                await self.command("CWD " + str(self.cwd), "250")
+
+        """
+        if self.list_compatibility_level == 0:
+
+            try:
+
+                await self.command("CWD " + str(path), "2xx")
+
+            except errors.StatusCodeError as e:
+
+                if e.received_codes[-1] == "550":
+
+                    return {"type": "file"}
+
+                else:
+
+                    raise
+
+            else:
+
+                return {"type": "dir"}
+
+            finally:
+
+                await self.command("CWD " + str(self.cwd), "2xx")
+        """
+
+        return None  # This should never happen
 
     async def is_file(self, path):
         """

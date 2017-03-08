@@ -157,10 +157,8 @@ async def test_rename_non_empty_directory(loop, client, server, *, tmp_dir):
     files = await client.list()
     nose.tools.eq_(len(files), 0)
 
-# is there a better way than this copy-pasta?
 @aioftp_setup(
-    server_args=([(aioftp.User(base_path="tests/foo"),)], {}),
-    client_args=([],{"list_compatibility_level":1}))
+    server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
 @with_tmp_dir("foo")
 async def test_rename_non_empty_directory_LIST(loop, client, server, *, tmp_dir):
