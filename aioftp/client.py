@@ -807,6 +807,7 @@ class Client(BaseClient):
 
                     await self.command("CWD " + str(path.parent), "250")
                     directory_listing = self.list()
+                    path = pathlib.PurePosixPath(path.parts[-1])
 
                     async for file, info in directory_listing:
 
