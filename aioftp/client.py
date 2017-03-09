@@ -159,7 +159,6 @@ class BaseClient:
             timeout=self.socket_timeout,
             loop=self.loop
         )
-        self.list_compatibility_level = 2
 
     def close(self):
         """
@@ -488,11 +487,13 @@ class BaseClient:
         s = s[12:].strip()
 
         if info["type"] == "link":
+
             i = s.rindex(" -> ")
-            s = s[i:]
-            i = -2 if s[-1] == '\'' or s[-1] == '\"' else -1
-            info["type"] = "dir" if s[i] == '/' else "file"
-            s = s[:i] + s[i + 1:]
+            link_dst = s[i + 4:]
+            link_src = s[:i]
+            i = -2 if link_dst[-1] == '\'' or link_dst[-1] == '\"' else -1
+            info["type"] = "dir" if link_dst[i] == '/' else "file"
+            s = link_src
 
         return pathlib.PurePosixPath(s), info
 
@@ -642,9 +643,7 @@ class Client(BaseClient):
         """
         self.cwd = None
 
-        if type(path) is str:
-
-            path = pathlib.PurePosixPath(path)
+        path = pathlib.PurePosixPath(path)
 
         if path == pathlib.PurePosixPath(".."):
 
@@ -730,25 +729,19 @@ class Client(BaseClient):
                 cls.path = local_path
                 str_path = " " + str(cls.path)
 
-                if self.list_compatibility_level == 2:
+                cls.parse_line = self.parse_mlsx_line
 
-                    cls.parse_line = self.parse_mlsx_line
-
-                    try:
-                        command = str.strip("MLSD" + str_path)
-                        return await self.get_stream(command, "1xx")
-
-                    except errors.StatusCodeError as e:
-
-                        if e.received_codes[-1] == "500":
-
-                            self.list_compatibility_level = 1
-
-                if self.list_compatibility_level == 1:
-
-                    cls.parse_line = self.parse_list_line
-                    command = str.strip("LIST" + str_path)
+                try:
+                    command = str.strip("MLSD" + str_path)
                     return await self.get_stream(command, "1xx")
+
+                except errors.StatusCodeError as e:
+
+                    if e.received_codes[-1] == "500":
+
+                        cls.parse_line = self.parse_list_line
+                        command = str.strip("LIST" + str_path)
+                        return await self.get_stream(command, "1xx")
 
             async def __aiter__(cls):
 
@@ -802,75 +795,39 @@ class Client(BaseClient):
 
             path = pathlib.PurePosixPath(path)
 
-        if self.list_compatibility_level == 2:
+        try:
 
-            try:
+            code, info = await self.command("MLST " + str(path), "2xx")
 
-                code, info = await self.command("MLST " + str(path), "2xx")
+        except errors.StatusCodeError as e:
 
-            except errors.StatusCodeError as e:
+            if e.received_codes[-1] == "500":
 
-                if e.received_codes[-1] == "500":
+                try:
 
-                    self.list_compatibility_level = 1
+                    await self.command("CWD " + str(path.parent), "250")
+                    directory_listing = self.list()
 
-                else:
+                    async for file, info in directory_listing:
+
+                        if file == path:
+
+                            await directory_listing.stream.finish()
+                            return info
 
                     return None
 
+                finally:
+
+                    await self.command("CWD " + str(self.cwd), "250")
+
             else:
-
-                name, info = self.parse_mlsx_line(str.lstrip(info[1]))
-
-                return info
-
-        if self.list_compatibility_level == 1:
-
-            try:
-
-                await self.command("CWD " + str(path.parent), "250")
-                directory_listing = self.list()
-
-                async for file, info in directory_listing:
-
-                    if file == path:
-
-                        await directory_listing.stream.finish()
-                        return info
 
                 return None
 
-            finally:
+        name, info = self.parse_mlsx_line(str.lstrip(info[1]))
 
-                await self.command("CWD " + str(self.cwd), "250")
-
-        """
-        if self.list_compatibility_level == 0:
-
-            try:
-
-                await self.command("CWD " + str(path), "2xx")
-
-            except errors.StatusCodeError as e:
-
-                if e.received_codes[-1] == "550":
-
-                    return {"type": "file"}
-
-                else:
-
-                    raise
-
-            else:
-
-                return {"type": "dir"}
-
-            finally:
-
-                await self.command("CWD " + str(self.cwd), "2xx")
-        """
-
-        return None  # This should never happen
+        return info
 
     async def is_file(self, path):
         """
