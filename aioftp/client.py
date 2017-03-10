@@ -121,8 +121,7 @@ class BaseClient:
                  read_speed_limit=None,
                  write_speed_limit=None,
                  path_timeout=None,
-                 path_io_factory=pathio.PathIO
-                 ):
+                 path_io_factory=pathio.PathIO):
 
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
@@ -343,8 +342,7 @@ class BaseClient:
     @staticmethod
     def parse_unix_mode(s):
         """
-        Parsing unix mode strings("rwxr-x--t") into
-        hexacimal notation
+        Parsing unix mode strings("rwxr-x--t") into hexacimal notation.
 
         :param s: mode string
         :type s: :py:class:`str`
@@ -400,8 +398,8 @@ class BaseClient:
     @staticmethod
     def parse_ls_date(s):
         """
-        Parsing dates from the ls unix utility
-        ("Nov 18  1958" and "Nov 18 12:29")
+        Parsing dates from the ls unix utility. For example,
+        "Nov 18  1958" and "Nov 18 12:29".
 
         :param s: ls date
         :type s: :py:class:`str`
@@ -422,9 +420,9 @@ class BaseClient:
 
     def parse_list_line(self, b):
         """
-        Attempt to parse a LIST line(similar to unix ls utility)
+        Attempt to parse a LIST line (similar to unix ls utility).
 
-        :param b: LIST line
+        :param b: response line
         :type b: :py:class:`bytes` or :py:class:`str`
 
         :return: (path, info)
@@ -432,14 +430,14 @@ class BaseClient:
         """
         if isinstance(b, bytes):
 
-            s = str.rstrip(bytes.decode(b, encoding="utf-8"))
+            s = bytes.decode(b, encoding="utf-8")
 
         else:
 
             s = b
 
+        s = str.rstrip(s)
         info = {}
-
         if s[0] == '-':
 
             info["type"] = "file"
@@ -507,7 +505,7 @@ class BaseClient:
         """
         if isinstance(b, bytes):
 
-            s = str.rstrip(bytes.decode(b, encoding="utf-8"))
+            s = bytes.decode(b, encoding="utf-8")
 
         else:
 
@@ -614,10 +612,8 @@ class Client(BaseClient):
 
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
-
         code, info = await self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
-
         return directory
 
     async def change_directory(self, path=".."):
@@ -629,9 +625,7 @@ class Client(BaseClient):
         :param path: new directory, goes «up» if omitted
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-
         path = pathlib.PurePosixPath(path)
-
         if path == pathlib.PurePosixPath(".."):
 
             cmd = "CDUP"
@@ -714,12 +708,10 @@ class Client(BaseClient):
             async def _new_stream(cls, local_path):
 
                 cls.path = local_path
-                str_path = " " + str(cls.path)
-
                 cls.parse_line = self.parse_mlsx_line
-
                 try:
-                    command = str.strip("MLSD" + str_path)
+
+                    command = str.strip("MLSD " + str(cls.path))
                     return await self.get_stream(command, "1xx")
 
                 except errors.StatusCodeError as e:
@@ -729,7 +721,7 @@ class Client(BaseClient):
                         raise
 
                 cls.parse_line = self.parse_list_line
-                command = str.strip("LIST" + str_path)
+                command = str.strip("LIST " + str(cls.path))
                 return await self.get_stream(command, "1xx")
 
             async def __aiter__(cls):
@@ -778,13 +770,12 @@ class Client(BaseClient):
         :return: path info
         :rtype: :py:class:`dict`
         """
-        if type(path) is str:
-
-            path = pathlib.PurePosixPath(path)
-
+        path = pathlib.PurePosixPath(path)
         try:
 
             code, info = await self.command("MLST " + str(path), "2xx")
+            name, info = self.parse_mlsx_line(str.lstrip(info[1]))
+            return info
 
         except errors.StatusCodeError as e:
 
@@ -792,12 +783,7 @@ class Client(BaseClient):
 
                 raise
 
-        else:
-
-            name, info = self.parse_mlsx_line(str.lstrip(info[1]))
-            return info
-
-        (_, info), *_ = self.list(path)
+        (_, info), *_ = await self.list(path)
         return info
 
     async def is_file(self, path):
