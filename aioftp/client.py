@@ -807,6 +807,12 @@ class Client(BaseClient):
 
                 return None
 
+        else:
+
+            name, info = self.parse_mlsx_line(str.lstrip(info[1]))
+
+            return info
+
         try:
 
             await self.command("CWD " + str(path.parent), "250")
@@ -825,10 +831,6 @@ class Client(BaseClient):
         finally:
 
             await self.command("CWD " + str(self.cwd), "250")
-
-        name, info = self.parse_mlsx_line(str.lstrip(info[1]))
-
-        return info
 
     async def is_file(self, path):
         """
