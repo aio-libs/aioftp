@@ -165,6 +165,16 @@ for server to stop use :py:meth:`aioftp.Server.wait_closed`
     >>> server.close()
     >>> await server.wait_closed()
 
+WARNING
+-------
+
+:py:meth:`aioftp.Server.list` use :py:meth:`aioftp.Server.build_list_string`,
+which should produce `LIST` strings with :py:meth:`datetime.datetime.strftime`.
+For proper work (in part of formatting month abbreviation) locale should be
+setted to "C". For this reason if you use multithreaded app, and use some
+locale-dependent stuff, you should use :py:meth:`aioftp.setlocale` context
+manager when you dealing with locale in another thread.
+
 Futher reading
 --------------
 :doc:`server_api`

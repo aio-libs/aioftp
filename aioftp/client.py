@@ -342,7 +342,7 @@ class BaseClient:
     @staticmethod
     def parse_unix_mode(s):
         """
-        Parsing unix mode strings("rwxr-x--t") into hexacimal notation.
+        Parsing unix mode strings ("rwxr-x--t") into hexacimal notation.
 
         :param s: mode string
         :type s: :py:class:`str`

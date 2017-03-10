@@ -633,7 +633,15 @@ LOCALE_LOCK = threading.Lock()
 
 @contextmanager
 def setlocale(name):
+    """
+    Context manager with threading lock for set locale on enter, and set it
+    back to original state on exit.
 
+    ::
+
+        >>> with setlocale("C"):
+        ...     ...
+    """
     with LOCALE_LOCK:
 
         old_locale = locale.setlocale(locale.LC_ALL)

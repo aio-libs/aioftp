@@ -117,6 +117,18 @@ connections to server:
     >>> async for path, info in client1.list():
     ...     await client2.download(path, path.name)
 
+WARNING
+^^^^^^^
+
+:py:meth:`aioftp.Client.list` in general use `MLSD` command, but some nasty
+servers does not support this command. Then client will try to use `LIST`
+command, and parse server response. For proper work of
+:py:meth:`datetime.datetime.strptime` (in part of parsing month abbreviation)
+locale should be setted to "C". For this reason if you use multithreaded app,
+and use some locale-dependent stuff, you should use
+:py:meth:`aioftp.setlocale` context manager when you dealing with locale in
+another thread.
+
 Getting path stats
 ------------------
 
@@ -149,6 +161,18 @@ If you need just to check path for is it file, directory or exists you can use
     True
     >>> await client.exists("naked-guido.png")
     False
+
+WARNING
+^^^^^^^
+
+:py:meth:`aioftp.Client.stat` in general use `MLST` command, but some nasty
+servers does not support this command. Then client will try to use `LIST`
+command, and parse server response. For proper work of
+:py:meth:`datetime.datetime.strptime` (in part of parsing month abbreviation)
+locale should be setted to "C". For this reason if you use multithreaded app,
+and use some locale-dependent stuff, you should use
+:py:meth:`aioftp.setlocale` context manager when you dealing with locale in
+another thread.
 
 Remove path
 -----------
@@ -382,6 +406,18 @@ with this library in mind.
     ... }
     tunnel = twunnel3.proxy_server.create_tunnel(configuration)
     client = aioftp.Client(create_connection=tunnel.create_connection)
+
+WARNING
+-------
+
+:py:meth:`aioftp.Client.list` and :py:meth:`aioftp.Client.stat` in general
+use `MLSD` and `MLST`, but some nasty servers does not support this commands.
+Then client will try to use `LIST` command, and parse server response.
+For proper work of :py:meth:`datetime.datetime.strptime` (in part of parsing
+month abbreviation) locale should be setted to "C". For this reason if you use
+multithreaded app, and use some locale-dependent stuff, you should use
+:py:meth:`aioftp.setlocale` context manager when you dealing with locale in
+another thread.
 
 Futher reading
 --------------
