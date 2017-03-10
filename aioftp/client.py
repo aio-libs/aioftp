@@ -737,11 +737,13 @@ class Client(BaseClient):
 
                 except errors.StatusCodeError as e:
 
-                    if e.received_codes[-1] == "500":
+                    if e.received_codes[-1].matches("50x"):
 
                         cls.parse_line = self.parse_list_line
                         command = str.strip("LIST" + str_path)
                         return await self.get_stream(command, "1xx")
+
+                    raise
 
             async def __aiter__(cls):
 
@@ -801,7 +803,7 @@ class Client(BaseClient):
 
         except errors.StatusCodeError as e:
 
-            if e.received_codes[-1] == "500":
+            if e.received_codes[-1].matches("50x"):
 
                 try:
 
