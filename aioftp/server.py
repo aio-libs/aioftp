@@ -17,6 +17,7 @@ from .common import (
     DEFAULT_BLOCK_SIZE,
     StreamThrottle,
     ThrottleStreamIO,
+    setlocale,
 )
 
 
@@ -447,7 +448,7 @@ class AvailableConnections:
             self.value -= 1
             if self.value < 0:
 
-                raise ValueError("Too much acquires")
+                raise ValueError("Too many acquires")
 
     def release(self):
         """
@@ -458,7 +459,7 @@ class AvailableConnections:
             self.value += 1
             if self.value > self.maximum_value:
 
-                raise ValueError("Too much releases")
+                raise ValueError("Too many releases")
 
 
 class AbstractServer:
@@ -1337,13 +1338,15 @@ class Server(AbstractServer):
         now = time.time()
         mtime = time.localtime(stats.st_mtime)
 
-        if now - 365 * 24 * 60 * 60 / 2 < stats.st_mtime <= now:
+        with setlocale("C"):
 
-            mtime = time.strftime('%b %e %H:%M', mtime)
+            if now - 365 * 24 * 60 * 60 / 2 < stats.st_mtime <= now:
 
-        else:
+                mtime = time.strftime('%b %e %H:%M', mtime)
 
-            mtime = time.strftime('%b %e  %Y', mtime)
+            else:
+
+                mtime = time.strftime('%b %e  %Y', mtime)
 
         fields = (
             stat.filemode(stats.st_mode),
