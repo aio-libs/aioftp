@@ -139,8 +139,6 @@ class BaseClient:
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
 
         self.stream = None
-        # 2: use MLSD,1:use LIST,0:use NLST/CWD(not implemented)
-        self.cwd = None
 
     async def connect(self, host, port=DEFAULT_PORT):
 
@@ -525,15 +523,6 @@ class BaseClient:
 
         return pathlib.PurePosixPath(name), entry
 
-    async def ensure_cwd(self):
-        """
-        Ensures the CWD is a valid value when demanded
-        """
-        if self.cwd is None:
-
-            _, cwd_info = await self.command("PWD", "257")
-            self.cwd = self.parse_directory_response(cwd_info[-1])
-
 
 class Client(BaseClient):
     """
@@ -626,11 +615,10 @@ class Client(BaseClient):
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
 
-        #  code, info = await self.command("PWD", "257")
-        #  directory = self.parse_directory_response(info[-1])
+        code, info = await self.command("PWD", "257")
+        directory = self.parse_directory_response(info[-1])
 
-        await self.ensure_cwd()
-        return self.cwd
+        return directory
 
     async def change_directory(self, path=".."):
         """
@@ -641,7 +629,6 @@ class Client(BaseClient):
         :param path: new directory, goes «up» if omitted
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        self.cwd = None
 
         path = pathlib.PurePosixPath(path)
 
@@ -791,8 +778,6 @@ class Client(BaseClient):
         :return: path info
         :rtype: :py:class:`dict`
         """
-        await self.ensure_cwd()
-
         if type(path) is str:
 
             path = pathlib.PurePosixPath(path)
@@ -805,32 +790,15 @@ class Client(BaseClient):
 
             if not e.received_codes[-1].matches("50x"):
 
-                return None
+                raise
 
         else:
 
             name, info = self.parse_mlsx_line(str.lstrip(info[1]))
-
             return info
 
-        try:
-
-            await self.command("CWD " + str(path.parent), "250")
-            directory_listing = self.list()
-            path = pathlib.PurePosixPath(path.parts[-1])
-
-            async for file, info in directory_listing:
-
-                if file == path:
-
-                    await directory_listing.stream.finish()
-                    return info
-
-            return None
-
-        finally:
-
-            await self.command("CWD " + str(self.cwd), "250")
+        (_, info), *_ = self.list(path)
+        return info
 
     async def is_file(self, path):
         """
