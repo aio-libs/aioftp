@@ -803,30 +803,28 @@ class Client(BaseClient):
 
         except errors.StatusCodeError as e:
 
-            if e.received_codes[-1].matches("50x"):
-
-                try:
-
-                    await self.command("CWD " + str(path.parent), "250")
-                    directory_listing = self.list()
-                    path = pathlib.PurePosixPath(path.parts[-1])
-
-                    async for file, info in directory_listing:
-
-                        if file == path:
-
-                            await directory_listing.stream.finish()
-                            return info
-
-                    return None
-
-                finally:
-
-                    await self.command("CWD " + str(self.cwd), "250")
-
-            else:
+            if not e.received_codes[-1].matches("50x"):
 
                 return None
+
+        try:
+
+            await self.command("CWD " + str(path.parent), "250")
+            directory_listing = self.list()
+            path = pathlib.PurePosixPath(path.parts[-1])
+
+            async for file, info in directory_listing:
+
+                if file == path:
+
+                    await directory_listing.stream.finish()
+                    return info
+
+            return None
+
+        finally:
+
+            await self.command("CWD " + str(self.cwd), "250")
 
         name, info = self.parse_mlsx_line(str.lstrip(info[1]))
 
