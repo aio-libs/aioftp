@@ -162,6 +162,7 @@ class BaseClient:
         Close connection.
         """
         if self.stream is not None:
+
             self.stream.close()
 
     async def parse_line(self):
