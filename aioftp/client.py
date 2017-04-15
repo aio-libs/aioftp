@@ -784,8 +784,19 @@ class Client(BaseClient):
 
                 raise
 
-        (_, info), *_ = await self.list(path)
-        return info
+        for p, info in await self.list(path.parent):
+
+            if p.name == path.name:
+
+                return info
+
+        else:
+
+            raise errors.StatusCodeError(
+                Code("2xx"),
+                Code("550"),
+                "path does not exists",
+            )
 
     async def is_file(self, path):
         """
@@ -826,9 +837,18 @@ class Client(BaseClient):
 
         :rtype: :py:class:`bool`
         """
-        code, info = await self.command("MLST " + str(path), ("2xx", "550"))
-        exists = code.matches("2xx")
-        return exists
+        try:
+
+            await self.stat(path)
+            return True
+
+        except errors.StatusCodeError as e:
+
+            if e.received_codes[-1].matches("550"):
+
+                return False
+
+            raise
 
     async def rename(self, source, destination):
         """
