@@ -49,7 +49,7 @@ async def test_type_not_implemented(loop, client, server):
 
 
 @nose.tools.timed(2)
-@nose.tools.raises(ConnectionResetError)
+@nose.tools.raises(ConnectionResetError, BrokenPipeError)
 @aioftp_setup()
 @with_connection
 async def test_extra_pasv_connection(loop, client, server):
@@ -59,9 +59,9 @@ async def test_extra_pasv_connection(loop, client, server):
     er, ew = await client.get_passive_connection()
     while True:
 
-        ew.write(b"-" * 8192)
+        w.write(b"-" * 8192)
         await asyncio.sleep(0.1, loop=loop)
-        await ew.drain()
+        await w.drain()
 
     await client.quit()
 

@@ -1645,6 +1645,11 @@ class Server(AbstractServer):
         nums = tuple(map(int, str.split(host, "."))) + (port >> 8, port & 0xff)
         info.append(str.format("({})", str.join(",", map(str, nums))))
 
+        if connection.future.data_connection.done():
+
+            connection.data_connection.close()
+            del connection.data_connection
+
         connection.response(code, info)
         return True
 
