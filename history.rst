@@ -1,3 +1,15 @@
+0.7.0 (xx-xx-xxxx)
+------------------
+
+- client: add base `LIST` parsing
+- client: add `client.list` fallback on `MLSD` «not implemented» status code to `LIST`
+- client: add `client.stat` fallback on `MLST` «not implemented» status code to `LIST`
+- common: add `setlocale` context manager for `LIST` parsing, formatting and thread-safe usage of locale
+- server: add `LIST` support for non-english locales
+- server: fix `PASV` sequencies before data transfer (latest `PASV` win)
+Thanks to `jw4js <https://github.com/jw4js>`_ and
+    `rsichny <https://github.com/rsichny>`_
+
 0.6.3 (02-03-2017)
 ------------------
 
