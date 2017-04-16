@@ -10,3 +10,5 @@ __pycache__
 /.python-version
 /.eggs
 /tags
+/*.py
+.vscode
