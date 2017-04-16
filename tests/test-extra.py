@@ -1,9 +1,10 @@
-import string
 import asyncio
+import contextlib
 
 import nose
 
 import aioftp
+from common import *
 
 
 class MyClient(aioftp.Client):
@@ -70,8 +71,52 @@ def test_stream_iter_by_line():
         expect = list(map(lambda i: str.encode(str(i) + "\n"), range(count)))
         collected = await client.collect(count)
         nose.tools.eq_(collected, expect)
+        await client.quit()
+        client.close()
+        server.close()
+        await server.wait_closed()
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
 
     loop.run_until_complete(worker())
+
+
+class CustomException(Exception):
+
+    pass
+
+
+@aioftp_setup()
+@with_connection
+async def test_stream_close_without_finish(loop, client, server):
+
+    def fake_finish(*args, **kwargs):
+
+        raise Exception("Finish called")
+
+    await client.login()
+    with contextlib.suppress(CustomException):
+
+        async with client.get_stream() as stream:
+
+            stream.finish = fake_finish
+            raise CustomException()
+
+
+@nose.tools.raises(ConnectionRefusedError)
+@aioftp_setup()
+async def test_no_server(*args, **kwargs):
+
+    async with aioftp.ClientSession("127.0.0.1"):
+
+        pass
+
+
+@aioftp_setup()
+@with_connection
+async def test_syst_command(loop, client, server):
+
+    await client.login()
+    code, info = await client.command("syst", "215")
+    nose.tools.eq_(info, [" UNIX Type: L8"])
