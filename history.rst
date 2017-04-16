@@ -1,4 +1,4 @@
-0.7.0 (xx-xx-xxxx)
+0.7.0 (17-04-2017)
 ------------------
 
 - client: add base `LIST` parsing
