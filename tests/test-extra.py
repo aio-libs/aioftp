@@ -106,9 +106,9 @@ async def test_stream_close_without_finish(loop, client, server):
 
 @nose.tools.raises(ConnectionRefusedError)
 @aioftp_setup()
-async def test_no_server(*args, **kwargs):
+async def test_no_server(loop, *args, **kwargs):
 
-    async with aioftp.ClientSession("127.0.0.1"):
+    async with aioftp.ClientSession("127.0.0.1", loop=loop):
 
         pass
 
