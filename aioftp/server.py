@@ -954,6 +954,7 @@ class Server(AbstractServer):
     async def dispatcher(self, reader, writer):
 
         host, port = writer.transport.get_extra_info("peername", ("", ""))
+        server_host = writer.transport.get_extra_info("sockname")[0]
         message = str.format("new connection from {}:{}", host, port)
         logger.info(message)
 
@@ -972,7 +973,7 @@ class Server(AbstractServer):
         connection = Connection(
             client_host=host,
             client_port=port,
-            server_host=self.server_host,
+            server_host=server_host or self.server_host,
             passive_server_port=0,
             server_port=self.server_port,
             command_connection=stream,
@@ -1626,14 +1627,14 @@ class Server(AbstractServer):
 
             except errors.NoAvailablePort:
 
-                connection.response("421", ["no free ports"])
+                connection.response("421", "no free ports")
                 return False
 
-            code, info = "227", ["listen socket created"]
+            code, info = "227", "listen socket created"
 
         else:
 
-            code, info = "227", ["listen socket already exists"]
+            code, info = "227", "listen socket already exists"
 
         for sock in connection.passive_server.sockets:
 
@@ -1643,7 +1644,7 @@ class Server(AbstractServer):
                 break
 
         nums = tuple(map(int, str.split(host, "."))) + (port >> 8, port & 0xff)
-        info.append(str.format("({})", str.join(",", map(str, nums))))
+        info += str.format(" ({})", str.join(",", map(str, nums)))
 
         if connection.future.data_connection.done():
 
