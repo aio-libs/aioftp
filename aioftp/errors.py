@@ -34,12 +34,9 @@ class StatusCodeError(Exception):
 
     Exception members are tuples, even for one code.
     """
-
     def __init__(self, expected_codes, received_codes, info):
-
         super().__init__(
-            str.format(
-                "Waiting for {} but got {} {}",
+            "Waiting for {} but got {} {}".format(
                 expected_codes,
                 received_codes,
                 repr(info),
@@ -78,9 +75,7 @@ class PathIOError(Exception):
         ...     elif ...
         ...         # handle
     """
-
     def __init__(self, *args, reason=None, **kwargs):
-
         super().__init__(*args, **kwargs)
         self.reason = reason
 

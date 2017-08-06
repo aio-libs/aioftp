@@ -33,7 +33,6 @@ logger = logging.getLogger("aioftp.client")
 
 
 async def open_connection(host, port, loop, create_connection):
-
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
     transport, _ = await create_connection(lambda: protocol, host, port)
@@ -45,7 +44,6 @@ class Code(str):
     """
     Representation of server status code.
     """
-
     def matches(self, mask):
         """
         :param mask: Template for comparision. If mask symbol is not digit
@@ -59,7 +57,7 @@ class Code(str):
             >>> Code("123").matches("1x3")
             True
         """
-        return all(map(lambda m, c: not str.isdigit(m) or m == c, mask, self))
+        return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
 
 
 class DataConnectionThrottleStreamIO(ThrottleStreamIO):
@@ -76,9 +74,7 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
     :param **kwargs: keyword arguments passed to
         :py:class:`aioftp.ThrottleStreamIO`
     """
-
     def __init__(self, client, *args, **kwargs):
-
         super().__init__(*args, **kwargs)
         self.client = client
 
@@ -101,33 +97,22 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         await self.client.command(None, expected_codes, wait_codes)
 
     async def __aexit__(self, exc_type, exc, tb):
-
         if exc is None:
-
             await self.finish()
-
         else:
-
             self.close()
 
 
 class BaseClient:
 
-    def __init__(self,
-                 *,
-                 loop=None,
-                 create_connection=None,
-                 socket_timeout=None,
-                 read_speed_limit=None,
-                 write_speed_limit=None,
-                 path_timeout=None,
+    def __init__(self, *, loop=None, create_connection=None,
+                 socket_timeout=None, read_speed_limit=None,
+                 write_speed_limit=None, path_timeout=None,
                  path_io_factory=pathio.PathIO):
-
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
         self.socket_timeout = socket_timeout
-
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
@@ -136,25 +121,23 @@ class BaseClient:
 
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
-
         self.stream = None
 
     async def connect(self, host, port=DEFAULT_PORT):
-
         self.server_host = host
         self.server_port = port
         reader, writer = await open_connection(
             host,
             port,
             self.loop,
-            self.create_connection
+            self.create_connection,
         )
         self.stream = ThrottleStreamIO(
             reader,
             writer,
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
-            loop=self.loop
+            loop=self.loop,
         )
 
     def close(self):
@@ -162,7 +145,6 @@ class BaseClient:
         Close connection.
         """
         if self.stream is not None:
-
             self.stream.close()
 
     async def parse_line(self):
@@ -181,11 +163,9 @@ class BaseClient:
         """
         line = await self.stream.readline()
         if not line:
-
             self.stream.close()
             raise ConnectionResetError
-
-        s = str.rstrip(bytes.decode(line, encoding="utf-8"))
+        s = line.decode(encoding="utf-8").rstrip()
         logger.info(s)
         return Code(s[:3]), s[3:]
 
@@ -204,20 +184,14 @@ class BaseClient:
         code, rest = await self.parse_line()
         info = [rest]
         curr_code = code
-        while str.startswith(rest, "-") or not str.isdigit(curr_code):
-
+        while rest.startswith("-") or not curr_code.isdigit():
             curr_code, rest = await self.parse_line()
-            if str.isdigit(curr_code):
-
+            if curr_code.isdigit():
                 info.append(rest)
                 if curr_code != code:
-
                     raise errors.StatusCodeError(code, curr_code, info)
-
             else:
-
                 info.append(curr_code + rest)
-
         return code, info
 
     def check_codes(self, expected_codes, received_code, info):
@@ -237,7 +211,6 @@ class BaseClient:
             expected code
         """
         if not any(map(received_code.matches, expected_codes)):
-
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
     async def command(self, command=None, expected_codes=(), wait_codes=()):
@@ -263,24 +236,16 @@ class BaseClient:
         """
         expected_codes = wrap_with_container(expected_codes)
         wait_codes = wrap_with_container(wait_codes)
-
         if command:
-
             logger.info(command)
             message = command + END_OF_LINE
-            await self.stream.write(str.encode(message, encoding="utf-8"))
-
+            await self.stream.write(message.encode(encoding="utf-8"))
         if expected_codes or wait_codes:
-
             code, info = await self.parse_response()
             while any(map(code.matches, wait_codes)):
-
                 code, info = await self.parse_response()
-
             if expected_codes:
-
                 self.check_codes(expected_codes, code, info)
-
             return code, info
 
     def parse_address_response(self, s):
@@ -294,8 +259,8 @@ class BaseClient:
         :rtype: (:py:class:`str`, :py:class:`int`)
         """
         sub, *_ = re.findall(r"[^(]*\(([^)]*)", s)
-        nums = tuple(map(int, str.split(sub, ",")))
-        ip = str.join(".", map(str, nums[:4]))
+        nums = tuple(map(int, sub.split(",")))
+        ip = ".".join(map(str, nums[:4]))
         port = (nums[4] << 8) | nums[5]
         return ip, port
 
@@ -312,32 +277,19 @@ class BaseClient:
         start = False
         directory = ""
         for ch in s:
-
             if not start:
-
-                if ch == '"':
-
+                if ch == "\"":
                     start = True
-
             else:
-
-                if ch == '"':
-
+                if ch == "\"":
                     seq_quotes += 1
-
                 else:
-
                     if seq_quotes == 1:
-
                         break
-
                     elif seq_quotes == 2:
-
                         seq_quotes = 0
                         directory += '"'
-
                     directory += ch
-
         return pathlib.PurePosixPath(directory)
 
     @staticmethod
@@ -352,46 +304,29 @@ class BaseClient:
         :rtype: :py:class:`int`
         """
         parse_rw = {"rw": 6, "r-": 4, "-w": 2, "--": 0}
-
         mode = 0
         mode |= parse_rw[s[0:2]] << 6
         mode |= parse_rw[s[3:5]] << 3
         mode |= parse_rw[s[6:8]]
-
-        if s[2] == 's':
-
+        if s[2] == "s":
             mode |= 0o4100
-
-        elif s[2] == 'x':
-
+        elif s[2] == "x":
             mode |= 0o0100
-
-        elif s[2] != '-':
-
+        elif s[2] != "-":
             raise ValueError
 
-        if s[5] == 's':
-
+        if s[5] == "s":
             mode |= 0o2010
-
-        elif s[5] == 'x':
-
+        elif s[5] == "x":
             mode |= 0o0010
-
-        elif s[5] != '-':
-
+        elif s[5] != "-":
             raise ValueError
 
-        if s[8] == 't':
-
+        if s[8] == "t":
             mode |= 0o1000
-
-        elif s[8] == 'x':
-
+        elif s[8] == "x":
             mode |= 0o0001
-
-        elif s[8] != '-':
-
+        elif s[8] != "-":
             raise ValueError
 
         return mode
@@ -408,15 +343,10 @@ class BaseClient:
         :rtype: :py:class:`str`
         """
         with setlocale("C"):
-
             try:
-
                 d = time.strptime(s, "%b %d %H:%M")
-
             except ValueError:
-
                 d = time.strptime(s, "%b %d  %Y")
-
         return time.strftime("%Y%m%d%H%M00", d)
 
     def parse_list_line(self, b):
@@ -430,68 +360,52 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-
-            s = bytes.decode(b, encoding="utf-8")
-
+            s = b.decode(encoding="utf-8")
         else:
-
             s = b
-
-        s = str.rstrip(s)
+        s = s.rstrip()
         info = {}
-        if s[0] == '-':
-
+        if s[0] == "-":
             info["type"] = "file"
-
-        elif s[0] == 'd':
-
+        elif s[0] == "d":
             info["type"] = "dir"
-
-        elif s[0] == 'l':
-
+        elif s[0] == "l":
             info["type"] = "link"
-
         else:
-
             info["type"] = "unknown"
 
         # TODO: handle symlinks(beware the symlink loop)
         info["unix.mode"] = self.parse_unix_mode(s[1:10])
         s = s[10:].lstrip()
-        i = s.index(' ')
+        i = s.index(" ")
         info["unix.links"] = s[:i]
 
         if not info["unix.links"].isdigit():
-
             raise ValueError
 
         s = s[i:].lstrip()
-        i = s.index(' ')
+        i = s.index(" ")
         info["unix.owner"] = s[:i]
         s = s[i:].lstrip()
-        i = s.index(' ')
+        i = s.index(" ")
         info["unix.group"] = s[:i]
         s = s[i:].lstrip()
-        i = s.index(' ')
+        i = s.index(" ")
         info["size"] = s[:i]
 
         if not info["size"].isdigit():
-
             raise ValueError
 
         s = s[i:].lstrip()
         info["modify"] = self.parse_ls_date(s[:12])
         s = s[12:].strip()
-
         if info["type"] == "link":
-
             i = s.rindex(" -> ")
             link_dst = s[i + 4:]
             link_src = s[:i]
-            i = -2 if link_dst[-1] == '\'' or link_dst[-1] == '\"' else -1
-            info["type"] = "dir" if link_dst[i] == '/' else "file"
+            i = -2 if link_dst[-1] == "\'" or link_dst[-1] == "\"" else -1
+            info["type"] = "dir" if link_dst[i] == "/" else "file"
             s = link_src
-
         return pathlib.PurePosixPath(s), info
 
     def parse_mlsx_line(self, b):
@@ -505,21 +419,15 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-
-            s = bytes.decode(b, encoding="utf-8")
-
+            s = b.decode(encoding="utf-8")
         else:
-
             s = b
-
-        line = str.rstrip(s)
-        facts_found, _, name = str.partition(line, " ")
+        line = s.rstrip()
+        facts_found, _, name = line.partition(" ")
         entry = {}
-        for fact in str.split(facts_found[:-1], ";"):
-
-            key, _, value = str.partition(fact, "=")
+        for fact in facts_found[:-1].split(";"):
+            key, _, value = fact.partition("=")
             entry[key.lower()] = value
-
         return pathlib.PurePosixPath(name), entry
 
 
@@ -553,7 +461,6 @@ class Client(BaseClient):
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
     """
-
     async def connect(self, host, port=DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
@@ -590,19 +497,12 @@ class Client(BaseClient):
         """
         code, info = await self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
-
             if code == "331":
-
                 cmd = "PASS " + password
-
             elif code == "332":
-
                 cmd = "ACCT " + account
-
             else:
-
                 raise errors.StatusCodeError("33x", code, info)
-
             code, info = await self.command(cmd, ("230", "33x"))
 
     async def get_current_directory(self):
@@ -628,13 +528,9 @@ class Client(BaseClient):
         """
         path = pathlib.PurePosixPath(path)
         if path == pathlib.PurePosixPath(".."):
-
             cmd = "CDUP"
-
         else:
-
             cmd = "CWD " + str(path)
-
         await self.command(cmd, "2xx")
 
     async def make_directory(self, path, *, parents=True):
@@ -652,16 +548,12 @@ class Client(BaseClient):
         path = pathlib.PurePosixPath(path)
         need_create = []
         while path.name and not await self.exists(path):
-
             need_create.append(path)
             path = path.parent
             if not parents:
-
                 break
-
         need_create.reverse()
         for path in need_create:
-
             await self.command("MKD " + str(path), "257")
 
     async def remove_directory(self, path):
@@ -707,54 +599,38 @@ class Client(BaseClient):
         class AsyncLister(AsyncListerMixin):
 
             async def _new_stream(cls, local_path):
-
                 cls.path = local_path
                 cls.parse_line = self.parse_mlsx_line
                 try:
-
-                    command = str.strip("MLSD " + str(cls.path))
+                    command = ("MLSD " + str(cls.path)).strip()
                     return await self.get_stream(command, "1xx")
-
                 except errors.StatusCodeError as e:
-
                     if not e.received_codes[-1].matches("50x"):
-
                         raise
-
                 cls.parse_line = self.parse_list_line
-                command = str.strip("LIST " + str(cls.path))
+                command = ("LIST " + str(cls.path)).strip()
                 return await self.get_stream(command, "1xx")
 
             async def __aiter__(cls):
-
                 cls.stream = await cls._new_stream(path)
                 cls.directories = collections.deque()
                 return cls
 
             async def __anext__(cls):
-
                 while True:
-
                     line = await cls.stream.readline()
                     while not line:
-
                         await cls.stream.finish()
                         if cls.directories:
-
                             current_path, info = cls.directories.popleft()
                             cls.stream = await cls._new_stream(current_path)
                             line = await cls.stream.readline()
-
                         else:
-
                             raise StopAsyncIteration
-
                     name, info = cls.parse_line(line)
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
-
                         cls.directories.append(stat)
-
                     return stat
 
         return AsyncLister()
@@ -773,25 +649,17 @@ class Client(BaseClient):
         """
         path = pathlib.PurePosixPath(path)
         try:
-
             code, info = await self.command("MLST " + str(path), "2xx")
-            name, info = self.parse_mlsx_line(str.lstrip(info[1]))
+            name, info = self.parse_mlsx_line(info[1].lstrip())
             return info
-
         except errors.StatusCodeError as e:
-
             if not e.received_codes[-1].matches("50x"):
-
                 raise
 
         for p, info in await self.list(path.parent):
-
             if p.name == path.name:
-
                 return info
-
         else:
-
             raise errors.StatusCodeError(
                 Code("2xx"),
                 Code("550"),
@@ -838,16 +706,11 @@ class Client(BaseClient):
         :rtype: :py:class:`bool`
         """
         try:
-
             await self.stat(path)
             return True
-
         except errors.StatusCodeError as e:
-
             if e.received_codes[-1].matches("550"):
-
                 return False
-
             raise
 
     async def rename(self, source, destination):
@@ -887,20 +750,13 @@ class Client(BaseClient):
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
         if await self.exists(path):
-
             info = await self.stat(path)
             if info["type"] == "file":
-
                 await self.remove_file(path)
-
             elif info["type"] == "dir":
-
                 for name, info in (await self.list(path)):
-
                     if info["type"] in ("dir", "file"):
-
                         await self.remove(name)
-
                 await self.remove_directory(path)
 
     def upload_stream(self, destination, *, offset=0):
@@ -964,43 +820,27 @@ class Client(BaseClient):
         source = pathlib.Path(source)
         destination = pathlib.PurePosixPath(destination)
         if not write_into:
-
             destination = destination / source.name
-
         if await self.path_io.is_file(source):
-
             await self.make_directory(destination.parent)
             async with self.path_io.open(source, mode="rb") as file_in, \
                     self.upload_stream(destination) as stream:
-
                 async for block in file_in.iter_by_block(block_size):
-
                     await stream.write(block)
-
         elif await self.path_io.is_dir(source):
-
             await self.make_directory(destination)
             sources = collections.deque([source])
             while sources:
-
                 src = sources.popleft()
                 async for path in self.path_io.list(src):
-
                     if write_into:
-
                         relative = destination.name / path.relative_to(source)
-
                     else:
-
                         relative = path.relative_to(source.parent)
-
                     if await self.path_io.is_dir(path):
-
                         await self.make_directory(relative)
                         sources.append(path)
-
                     else:
-
                         await self.upload(
                             path,
                             relative,
@@ -1049,33 +889,20 @@ class Client(BaseClient):
         source = pathlib.PurePosixPath(source)
         destination = pathlib.Path(destination)
         if not write_into:
-
             destination = destination / source.name
-
         if await self.is_file(source):
-
             if not await self.path_io.exists(destination.parent):
-
                 await self.path_io.mkdir(destination.parent)
-
             async with self.path_io.open(destination, mode="wb") as file_out, \
                     self.download_stream(source) as stream:
-
                 async for block in stream.iter_by_block(block_size):
-
                     await file_out.write(block)
-
         elif await self.is_dir(source):
-
             if not await self.path_io.exists(destination):
-
                 await self.path_io.mkdir(destination, parents=True)
-
             for name, info in (await self.list(source)):
-
                 full = destination / name.relative_to(source)
                 if info["type"] in ("file", "dir"):
-
                     await self.download(
                         name,
                         full,
@@ -1108,9 +935,7 @@ class Client(BaseClient):
         code, info = await self.command("PASV", "227")
         ip, port = self.parse_address_response(info[-1])
         if ip == "0.0.0.0":
-
             ip = self.server_host
-
         reader, writer = await open_connection(
             ip,
             port,
@@ -1139,9 +964,7 @@ class Client(BaseClient):
         """
         reader, writer = await self.get_passive_connection(conn_type)
         if offset:
-
             await self.command("REST " + str(offset), "350")
-
         await self.command(*command_args)
         stream = DataConnectionThrottleStreamIO(
             self,
@@ -1163,11 +986,8 @@ class Client(BaseClient):
         :type wait: :py:class:`bool`
         """
         if wait:
-
             await self.command("ABOR", "226", "426")
-
         else:
-
             await self.command("ABOR")
 
 
@@ -1204,7 +1024,6 @@ class ClientSession:
 
     def __init__(self, host, port=DEFAULT_PORT, user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD, account=DEFAULT_ACCOUNT, **kwargs):
-
         self.host = host
         self.port = port
         self.user = user
@@ -1213,20 +1032,14 @@ class ClientSession:
         self.kwargs = kwargs
 
     async def __aenter__(self):
-
         self.client = Client(**self.kwargs)
         try:
-
             await self.client.connect(self.host, self.port)
             await self.client.login(self.user, self.password, self.account)
-
         except:
-
             self.client.close()
             raise
-
         return self.client
 
     async def __aexit__(self, *exc_info):
-
         await self.client.quit()

@@ -27,30 +27,22 @@ parser.add_argument("--port", type=int, default=2121,
                     help="port for binding [default: %(default)s]")
 
 args = parser.parse_args()
-print(str.format("aioftp v{}", aioftp.__version__))
+print("aioftp v{}".format(aioftp.__version__))
 
 if not args.quiet:
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(message)s",
         datefmt="[%H:%M:%S]:",
     )
 if args.memory:
-
     user = aioftp.User(args.login, args.password, base_path="/")
     path_io_factory = aioftp.MemoryPathIO
-
 else:
-
     if args.home:
-
         user = aioftp.User(args.login, args.password, base_path=args.home)
-
     else:
-
         user = aioftp.User(args.login, args.password)
-
     path_io_factory = aioftp.PathIO
 
 server = aioftp.Server([user], path_io_factory=path_io_factory)
@@ -58,11 +50,8 @@ server = aioftp.Server([user], path_io_factory=path_io_factory)
 loop = asyncio.get_event_loop()
 loop.run_until_complete(server.start(args.host, args.port))
 try:
-
     loop.run_forever()
-
 except KeyboardInterrupt:
-
     server.close()
     loop.run_until_complete(server.wait_closed())
     loop.close()

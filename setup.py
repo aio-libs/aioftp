@@ -5,45 +5,34 @@ from setuptools.command.test import test as TestCommand
 
 
 def read(f):
-
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
 
 try:
-
     version = re.findall(r"""^__version__ = "([^']+)"\r?$""",
                          read(os.path.join("aioftp", "__init__.py")), re.M)[0]
-
 except IndexError:
-
     raise RuntimeError("Unable to determine version.")
 
 
 class NoseTestCommand(TestCommand):
 
     def finalize_options(self):
-
         TestCommand.finalize_options(self)
         self.test_args = []
         self.test_suite = True
 
     def run_tests(self):
-
         import pathlib
         import shutil
         import nose
 
         for path in pathlib.Path("tests").glob("*"):
-
             if path.is_dir():
-
                 shutil.rmtree(str(path))
-
         cov = pathlib.Path(".coverage")
         if cov.exists():
-
             cov.unlink()
-
         nose.run(argv=["nosetests"])
 
 

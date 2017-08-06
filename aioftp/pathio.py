@@ -28,9 +28,7 @@ class AsyncPathIOContext:
     ::
 
         >>> async with pathio.open(filename) as file_in:
-        ...
         ...     async for block in file_in.iter_by_block(size):
-        ...
         ...         # do
 
     or borring:
@@ -42,16 +40,13 @@ class AsyncPathIOContext:
         ... await file.close()
 
     """
-
     def __init__(self, pathio, args, kwargs):
-
         self.close = None
         self.pathio = pathio
         self.args = args
         self.kwargs = kwargs
 
     async def __aenter__(self):
-
         self.file = await self.pathio._open(*self.args, **self.kwargs)
         self.seek = functools.partial(self.pathio.seek, self.file)
         self.write = functools.partial(self.pathio.write, self.file)
@@ -60,17 +55,13 @@ class AsyncPathIOContext:
         return self
 
     async def __aexit__(self, *args):
-
         if self.close is not None:
-
             await self.close()
 
     def __await__(self):
-
         return self.__aenter__().__await__()
 
     def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
-
         return AsyncStreamIterator(lambda: self.read(count))
 
 
@@ -82,25 +73,12 @@ def universal_exception(coro):
     """
     @functools.wraps(coro)
     async def wrapper(*args, **kwargs):
-
         try:
-
             return await coro(*args, **kwargs)
-
-        except asyncio.CancelledError:
-
+        except (asyncio.CancelledError, NotImplementedError,
+                StopAsyncIteration):
             raise
-
-        except NotImplementedError:
-
-            raise
-
-        except StopAsyncIteration:
-
-            raise
-
         except:
-
             raise errors.PathIOError(reason=sys.exc_info())
 
     return wrapper
@@ -116,9 +94,7 @@ class AbstractPathIO:
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
-
     def __init__(self, timeout=None, loop=None):
-
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
@@ -358,32 +334,26 @@ class PathIO(AbstractPathIO):
 
     @universal_exception
     async def exists(self, path):
-
         return path.exists()
 
     @universal_exception
     async def is_dir(self, path):
-
         return path.is_dir()
 
     @universal_exception
     async def is_file(self, path):
-
         return path.is_file()
 
     @universal_exception
     async def mkdir(self, path, *, parents=False):
-
         return path.mkdir(parents=parents)
 
     @universal_exception
     async def rmdir(self, path):
-
         return path.rmdir()
 
     @universal_exception
     async def unlink(self, path):
-
         return path.unlink()
 
     def list(self, path):
@@ -392,56 +362,44 @@ class PathIO(AbstractPathIO):
 
             @universal_exception
             async def __aiter__(self):
-
                 self.iter = path.glob("*")
                 return self
 
             @universal_exception
             async def __anext__(self):
-
                 try:
-
                     return next(self.iter)
-
                 except StopIteration:
-
                     raise StopAsyncIteration
 
         return Lister(timeout=self.timeout, loop=self.loop)
 
     @universal_exception
     async def stat(self, path):
-
         return path.stat()
 
     @universal_exception
     async def _open(self, path, *args, **kwargs):
-
         return path.open(*args, **kwargs)
 
     @universal_exception
     async def seek(self, file, *args, **kwargs):
-
         return file.seek(*args, **kwargs)
 
     @universal_exception
     async def write(self, file, *args, **kwargs):
-
         return file.write(*args, **kwargs)
 
     @universal_exception
     async def read(self, file, *args, **kwargs):
-
         return file.read(*args, **kwargs)
 
     @universal_exception
     async def close(self, file):
-
         return file.close()
 
     @universal_exception
     async def rename(self, source, destination):
-
         return source.rename(destination)
 
 
@@ -456,38 +414,32 @@ class AsyncPathIO(AbstractPathIO):
     @universal_exception
     @with_timeout
     async def exists(self, path):
-
         return await self.loop.run_in_executor(None, path.exists)
 
     @universal_exception
     @with_timeout
     async def is_dir(self, path):
-
         return await self.loop.run_in_executor(None, path.is_dir)
 
     @universal_exception
     @with_timeout
     async def is_file(self, path):
-
         return await self.loop.run_in_executor(None, path.is_file)
 
     @universal_exception
     @with_timeout
     async def mkdir(self, path, *, parents=False):
-
         f = functools.partial(path.mkdir, parents=parents)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
     @with_timeout
     async def rmdir(self, path):
-
         return await self.loop.run_in_executor(None, path.rmdir)
 
     @universal_exception
     @with_timeout
     async def unlink(self, path):
-
         return await self.loop.run_in_executor(None, path.unlink)
 
     def list(self, path):
@@ -495,30 +447,21 @@ class AsyncPathIO(AbstractPathIO):
         class Lister(AbstractAsyncLister):
 
             def worker(self):
-
                 try:
-
                     return next(self.iter)
-
                 except StopIteration:
-
                     raise StopAsyncIteration
 
             @universal_exception
             @with_timeout
             async def __aiter__(self):
-
-                def f():
-
-                    return path.glob("*")
-
+                f = functools.partial(path.glob, "*")
                 self.iter = await self.loop.run_in_executor(None, f)
                 return self
 
             @universal_exception
             @with_timeout
             async def __anext__(self):
-
                 return await self.loop.run_in_executor(None, self.worker)
 
         return Lister(timeout=self.timeout, loop=self.loop)
@@ -526,47 +469,40 @@ class AsyncPathIO(AbstractPathIO):
     @universal_exception
     @with_timeout
     async def stat(self, path):
-
         return await self.loop.run_in_executor(None, path.stat)
 
     @universal_exception
     @with_timeout
     async def _open(self, path, *args, **kwargs):
-
         f = functools.partial(path.open, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
     @with_timeout
     async def seek(self, file, *args, **kwargs):
-
         f = functools.partial(file.seek, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
     @with_timeout
     async def write(self, file, *args, **kwargs):
-
         f = functools.partial(file.write, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
     @with_timeout
     async def read(self, file, *args, **kwargs):
-
         f = functools.partial(file.read, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
     @with_timeout
     async def close(self, file):
-
         return await self.loop.run_in_executor(None, file.close)
 
     @universal_exception
     @with_timeout
     async def rename(self, source, destination):
-
         f = functools.partial(source.rename, destination)
         return await self.loop.run_in_executor(None, f)
 
@@ -574,7 +510,6 @@ class AsyncPathIO(AbstractPathIO):
 class Node:
 
     def __init__(self, type, name, ctime=None, mtime=None, *, content):
-
         self.type = type
         self.name = name
         self.ctime = ctime or int(time.time())
@@ -582,9 +517,8 @@ class Node:
         self.content = content
 
     def __repr__(self):
-
-        return str.format(
-            "{}(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})",
+        t = "{}(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})"
+        return t.format(
             self.__class__.__name__,
             self.type,
             self.name,
@@ -612,147 +546,95 @@ class MemoryPathIO(AbstractPathIO):
     )
 
     def __init__(self, *args, **kwargs):
-
         super().__init__(*args, **kwargs)
         self.fs = [Node("dir", "/", content=[])]
 
     def __repr__(self):
-
         return repr(self.fs)
 
     def get_node(self, path):
-
         nodes = self.fs
         node = None
         for part in path.parts:
-
             if not isinstance(nodes, list):
-
                 return
-
             for node in nodes:
-
                 if node.name == part:
-
                     nodes = node.content
                     break
-
             else:
-
                 return
-
         return node
 
     @universal_exception
     async def exists(self, path):
-
         return self.get_node(path) is not None
 
     @universal_exception
     async def is_dir(self, path):
-
         node = self.get_node(path)
         return not (node is None or node.type != "dir")
 
     @universal_exception
     async def is_file(self, path):
-
         node = self.get_node(path)
         return not (node is None or node.type != "file")
 
     @universal_exception
     async def mkdir(self, path, *, parents=False):
-
         if self.get_node(path):
-
             raise FileExistsError
-
         elif not parents:
-
             parent = self.get_node(path.parent)
             if parent is None:
-
                 raise FileNotFoundError
-
             elif parent.type != "dir":
-
                 raise FileExistsError
-
             node = Node("dir", path.name, content=[])
             parent.content.append(node)
-
         else:
-
             nodes = self.fs
             for part in path.parts:
-
                 if isinstance(nodes, list):
-
                     for node in nodes:
-
                         if node.name == part:
-
                             nodes = node.content
                             break
-
                     else:
-
                         node = Node("dir", part, content=[])
                         nodes.append(node)
                         nodes = node.content
-
                 else:
-
                     raise FileExistsError
 
     @universal_exception
     async def rmdir(self, path):
-
         node = self.get_node(path)
         if node is None:
-
             raise FileNotFoundError
-
         elif node.type != "dir":
-
             raise NotADirectoryError
-
         elif node.content:
-
             raise OSError("Directory not empty")
-
         else:
-
             parent = self.get_node(path.parent)
             for i, node in enumerate(parent.content):
-
                 if node.name == path.name:
-
                     break
-
             parent.content.pop(i)
 
     @universal_exception
     async def unlink(self, path):
-
         node = self.get_node(path)
         if node is None:
-
             raise FileNotFoundError
-
         elif node.type != "file":
-
             raise IsADirectoryError
-
         else:
-
             parent = self.get_node(path.parent)
             for i, node in enumerate(parent.content):
-
                 if node.name == path.name:
-
                     break
-
             parent.content.pop(i)
 
     def list(self, path):
@@ -761,53 +643,36 @@ class MemoryPathIO(AbstractPathIO):
 
             @universal_exception
             async def __aiter__(cls):
-
                 node = self.get_node(path)
                 if node is None or node.type != "dir":
-
                     cls.iter = iter(())
-
                 else:
-
                     names = map(operator.attrgetter("name"), node.content)
                     paths = map(lambda name: path / name, names)
                     cls.iter = iter(paths)
-
                 return cls
 
             @universal_exception
             async def __anext__(cls):
-
                 try:
-
                     return next(cls.iter)
-
                 except StopIteration:
-
                     raise StopAsyncIteration
 
         return Lister(timeout=self.timeout, loop=self.loop)
 
     @universal_exception
     async def stat(self, path):
-
         node = self.get_node(path)
         if node is None:
-
             raise FileNotFoundError
-
         else:
-
             if node.type == "file":
-
                 size = len(node.content.getbuffer())
                 mode = stat.S_IFREG | 0o666
-
             else:
-
                 size = 0
                 mode = stat.S_IFDIR | 0o777
-
             return MemoryPathIO.Stats(
                 size,
                 node.ctime,
@@ -818,104 +683,68 @@ class MemoryPathIO(AbstractPathIO):
 
     @universal_exception
     async def _open(self, path, mode="rb", *args, **kwargs):
-
         if mode == "rb":
-
             node = self.get_node(path)
             if node is None:
-
                 raise FileNotFoundError
-
             file_like = node.content
             file_like.seek(0, io.SEEK_SET)
-
         elif mode in ("wb", "ab", "r+b"):
-
             node = self.get_node(path)
             if node is None:
-
                 parent = self.get_node(path.parent)
                 if parent is None or parent.type != "dir":
-
                     raise FileNotFoundError
-
                 new_node = Node("file", path.name, content=io.BytesIO())
                 parent.content.append(new_node)
                 file_like = new_node.content
-
             elif node.type != "file":
-
                 raise IsADirectoryError
-
             else:
-
                 if mode == "wb":
-
                     file_like = node.content = io.BytesIO()
-
                 elif mode == "ab":
-
                     file_like = node.content
                     file_like.seek(0, io.SEEK_END)
-
                 elif mode == "r+b":
-
                     file_like = node.content
                     file_like.seek(0, io.SEEK_SET)
-
         else:
-
-            raise ValueError(str.format("invalid mode: {}", mode))
-
+            raise ValueError("invalid mode: {}".format(mode))
         return file_like
 
     @universal_exception
     async def seek(self, file, *args, **kwargs):
-
         return file.seek(*args, **kwargs)
 
     @universal_exception
     async def write(self, file, *args, **kwargs):
-
         file.write(*args, **kwargs)
         file.mtime = int(time.time())
 
     @universal_exception
     async def read(self, file, *args, **kwargs):
-
         return file.read(*args, **kwargs)
 
     @universal_exception
     async def close(self, file):
-
         pass
 
     @universal_exception
     async def rename(self, source, destination):
-
         if source != destination:
-
             sparent = self.get_node(source.parent)
             dparent = self.get_node(destination.parent)
             snode = self.get_node(source)
             if None in (snode, dparent):
-
                 raise FileNotFoundError
-
             for i, node in enumerate(sparent.content):
-
                 if node.name == source.name:
-
                     sparent.content.pop(i)
-
             snode.name = destination.name
             for i, node in enumerate(dparent.content):
-
                 if node.name == destination.name:
-
                     dparent.content[i] = snode
                     break
-
             else:
-
                 dparent.content.append(snode)

@@ -17,9 +17,7 @@ nothing:
 ::
 
     class MyClient(aioftp.Client):
-
         async def noop(self):
-
             await self.command("NOOP", "2xx")
 
 Lets take a look to a more complex example. Say, we want to collect some data
@@ -35,16 +33,12 @@ retrieve some data via extra connection. And the size of data is equal to «x».
     class MyClient(aioftp.Client):
 
         async def collect(self, count):
-
             collected = []
             async with self.get_stream("COLL " + str(count), "1xx") as stream:
-
                 async for block in stream.iter_by_block(8):
-
                     i = int.from_bytes(block, "big")
                     print("received:", block, i)
                     collected.append(i)
-
             return collected
 
 Client retrieve passive (or active in future versions) via `get_stream` and
@@ -68,7 +62,6 @@ Lets say we want implement «NOOP» command for server again:
     class MyServer(aioftp.Server):
 
         async def noop(self, connection, rest):
-
             connection.response("200", "boring")
             return True
 
@@ -106,17 +99,12 @@ For more complex example lets try same client «COLL x» command.
                 fail_info="Can't open data connection")
             @aioftp.server.worker
             async def coll_worker(self, connection, rest):
-
                 stream = connection.data_connection
                 del connection.data_connection
-
                 async with stream:
-
                     for i in range(count):
-
                         binary = i.to_bytes(8, "big")
                         await stream.write(binary)
-
                 connection.response("200", "coll transfer done")
                 return True
 
@@ -137,24 +125,19 @@ Lets see what we have.
 ::
 
     async def test():
-
         server = MyServer()
         client = MyClient()
-
         await server.start("127.0.0.1", 8021)
         await client.connect("127.0.0.1", 8021)
         await client.login()
-
         collected = await client.collect(20)
         print(collected)
-
         await client.quit()
         server.close()
         await server.wait_closed()
 
 
     if __name__ == "__main__":
-
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(name)s] %(message)s",

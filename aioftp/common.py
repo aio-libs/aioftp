@@ -37,18 +37,13 @@ DEFAULT_ACCOUNT = ""
 
 
 def _with_timeout(name):
-
     def decorator(f):
-
         @functools.wraps(f)
         def wrapper(cls, *args, **kwargs):
-
             coro = f(cls, *args, **kwargs)
             timeout = getattr(cls, name)
             return asyncio.wait_for(coro, timeout, loop=cls.loop)
-
         return wrapper
-
     return decorator
 
 
@@ -89,33 +84,24 @@ def with_timeout(name):
     """
 
     if isinstance(name, str):
-
         return _with_timeout(name)
-
     else:
-
         return _with_timeout("timeout")(name)
 
 
 class AsyncStreamIterator:
 
     def __init__(self, read_coro):
-
         self.read_coro = read_coro
 
     async def __aiter__(self):
-
         return self
 
     async def __anext__(self):
-
         data = await self.read_coro()
         if data:
-
             return data
-
         else:
-
             raise StopAsyncIteration
 
 
@@ -130,16 +116,12 @@ class AsyncListerMixin:
         >>> results = await Context(...)
     """
     async def _to_list(self):
-
         items = []
         async for item in self:
-
             items.append(item)
-
         return items
 
     def __await__(self):
-
         return self._to_list().__await__()
 
 
@@ -179,18 +161,15 @@ class AbstractAsyncLister(AsyncListerMixin):
         [block, block, block, ...]
     """
     def __init__(self, *, timeout=None, loop=None):
-
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
     @with_timeout
     async def __aiter__(self):
-
         raise NotImplementedError
 
     @with_timeout
     async def __anext__(self):
-
         raise NotImplementedError
 
 
@@ -234,16 +213,13 @@ def async_enterable(f):
         class AsyncEnterableInstance:
 
             async def __aenter__(self):
-
                 self.context = await f(*args, **kwargs)
                 return await self.context.__aenter__()
 
             async def __aexit__(self, *args, **kwargs):
-
                 await self.context.__aexit__(*args, **kwargs)
 
             def __await__(self):
-
                 return f(*args, **kwargs).__await__()
 
         return AsyncEnterableInstance()
@@ -252,11 +228,8 @@ def async_enterable(f):
 
 
 def wrap_with_container(o):
-
     if isinstance(o, str):
-
         o = (o,)
-
     return o
 
 
@@ -284,10 +257,8 @@ class StreamIO:
     :param loop: loop to use for creating connection and binding with streams
     :type loop: :py:class:`asyncio.BaseEventLoop`
     """
-
     def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
                  write_timeout=None, loop=None):
-
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
@@ -352,7 +323,6 @@ class Throttle:
     """
 
     def __init__(self, *, loop=None, limit=None, reset_rate=10):
-
         self.loop = loop or asyncio.get_event_loop()
         self._limit = limit
         self.reset_rate = reset_rate
@@ -384,16 +354,11 @@ class Throttle:
         :type start: :py:class:`float`
         """
         if self._limit is not None and self._limit > 0:
-
             if self._start is None:
-
                 self._start = start
-
             if start - self._start > self.reset_rate:
-
                 self._sum -= round((start - self._start) * self._limit)
                 self._start = start
-
             self._sum += len(data)
 
     @property
@@ -426,9 +391,7 @@ class Throttle:
         )
 
     def __repr__(self):
-
-        return str.format(
-            "{}(loop={!r}, limit={!r}, reset_rate={!r})",
+        return "{}(loop={!r}, limit={!r}, reset_rate={!r})".format(
             self.__class__.__name__,
             self.loop,
             self._limit,
@@ -446,7 +409,6 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :param write: stream write throttle
     :type write: :py:class:`aioftp.Throttle`
     """
-
     def clone(self):
         """
         Clone throttles without memory
@@ -515,7 +477,6 @@ class ThrottleStreamIO(StreamIO):
     """
 
     def __init__(self, *args, throttles={}, **kwargs):
-
         super().__init__(*args, **kwargs)
         self.throttles = throttles
 
@@ -530,14 +491,10 @@ class ThrottleStreamIO(StreamIO):
         """
         waiters = []
         for throttle in self.throttles.values():
-
             curr_throttle = getattr(throttle, name)
             if curr_throttle.limit:
-
                 waiters.append(curr_throttle.wait())
-
         if waiters:
-
             await asyncio.wait(waiters, loop=self.loop)
 
     def append(self, name, data, start):
@@ -555,7 +512,6 @@ class ThrottleStreamIO(StreamIO):
         :type start: :py:class:`float`
         """
         for throttle in self.throttles.values():
-
             getattr(throttle, name).append(data, start)
 
     async def read(self, count=-1):
@@ -594,11 +550,9 @@ class ThrottleStreamIO(StreamIO):
         self.append("write", data, start)
 
     async def __aenter__(self):
-
         return self
 
     async def __aexit__(self, *args):
-
         self.close()
 
     def iter_by_line(self):
@@ -643,12 +597,8 @@ def setlocale(name):
         ...     ...
     """
     with LOCALE_LOCK:
-
         old_locale = locale.setlocale(locale.LC_ALL)
         try:
-
             yield locale.setlocale(locale.LC_ALL, name)
-
         finally:
-
             locale.setlocale(locale.LC_ALL, old_locale)

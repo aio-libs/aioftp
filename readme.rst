@@ -110,13 +110,9 @@ Client example
 
 
     async def get_mp3(host, port, login, password):
-
         async with aioftp.ClientSession(host, port, login, password) as client:
-
             for path, info in (await client.list(recursive=True)):
-
                 if info["type"] == "file" and path.suffix == ".mp3":
-
                     await client.download(path)
 
 
@@ -141,11 +137,8 @@ Server example
     server = aioftp.Server()
     loop.run_until_complete(server.start(None, 8021))
     try:
-
         loop.run_forever()
-
     except KeyboardInterrupt:
-
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()
