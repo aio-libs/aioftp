@@ -108,7 +108,7 @@ class BaseClient:
     def __init__(self, *, loop=None, create_connection=None,
                  socket_timeout=None, read_speed_limit=None,
                  write_speed_limit=None, path_timeout=None,
-                 path_io_factory=pathio.PathIO):
+                 path_io_factory=pathio.PathIO, encoding="utf-8"):
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
@@ -118,9 +118,9 @@ class BaseClient:
             write_speed_limit,
             loop=self.loop
         )
-
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
+        self.encoding = encoding
         self.stream = None
 
     async def connect(self, host, port=DEFAULT_PORT):
@@ -165,7 +165,7 @@ class BaseClient:
         if not line:
             self.stream.close()
             raise ConnectionResetError
-        s = line.decode(encoding="utf-8").rstrip()
+        s = line.decode(encoding=self.encoding).rstrip()
         logger.info(s)
         return Code(s[:3]), s[3:]
 
@@ -239,7 +239,7 @@ class BaseClient:
         if command:
             logger.info(command)
             message = command + END_OF_LINE
-            await self.stream.write(message.encode(encoding="utf-8"))
+            await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
             code, info = await self.parse_response()
             while any(map(code.matches, wait_codes)):
@@ -360,7 +360,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-            s = b.decode(encoding="utf-8")
+            s = b.decode(encoding=self.encoding)
         else:
             s = b
         s = s.rstrip()
@@ -419,7 +419,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-            s = b.decode(encoding="utf-8")
+            s = b.decode(encoding=self.encoding)
         else:
             s = b
         line = s.rstrip()
@@ -460,6 +460,9 @@ class Client(BaseClient):
 
     :param path_io_factory: factory of «path abstract layer»
     :type path_io_factory: :py:class:`aioftp.AbstractPathIO`
+
+    :param encoding: encoding to use for convertion strings to bytes
+    :type encoding: :py:class:`str`
     """
     async def connect(self, host, port=DEFAULT_PORT):
         """

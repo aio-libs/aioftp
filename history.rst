@@ -1,3 +1,9 @@
+0.8.0 (06-08-2017)
+------------------
+
+- client/server: add explicit encoding
+Thanks to `anan-lee <https://github.com/anan-lee>`_
+
 0.7.0 (17-04-2017)
 ------------------
 

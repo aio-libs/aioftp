@@ -450,9 +450,9 @@ class AbstractServer:
         """
         await self.server.wait_closed()
 
-    async def write_line(self, stream, line, encoding="utf-8"):
+    async def write_line(self, stream, line):
         logger.info(line)
-        await stream.write((line + END_OF_LINE).encode(encoding=encoding))
+        await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
 
     async def write_response(self, stream, code, lines="", list=False):
         """
@@ -502,7 +502,7 @@ class AbstractServer:
         line = await stream.readline()
         if not line:
             raise ConnectionResetError
-        s = line.decode(encoding="utf-8").rstrip()
+        s = line.decode(encoding=self.encoding).rstrip()
         logger.info(s)
         cmd, _, rest = s.partition(" ")
         return cmd.lower(), rest
@@ -775,6 +775,9 @@ class Server(AbstractServer):
 
     :param data_ports: port numbers that are available for passive connections
     :type data_ports: :py:class:`collections.Iterable` or :py:class:`None`
+
+    :param encoding: encoding to use for convertion strings to bytes
+    :type encoding: :py:class:`str`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -797,7 +800,8 @@ class Server(AbstractServer):
                  write_speed_limit=None,
                  read_speed_limit_per_connection=None,
                  write_speed_limit_per_connection=None,
-                 data_ports=None):
+                 data_ports=None,
+                 encoding="utf-8"):
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -828,6 +832,7 @@ class Server(AbstractServer):
             loop=self.loop
         )
         self.throttle_per_user = {}
+        self.encoding = encoding
 
     async def dispatcher(self, reader, writer):
         host, port = writer.transport.get_extra_info("peername", ("", ""))
@@ -1101,7 +1106,7 @@ class Server(AbstractServer):
             async with stream:
                 async for path in connection.path_io.list(real_path):
                     s = await self.build_mlsx_string(connection, path)
-                    b = (s + END_OF_LINE).encode(encoding="utf-8")
+                    b = (s + END_OF_LINE).encode(encoding=self.encoding)
                     await stream.write(b)
             connection.response("200", "mlsd transfer done")
             return True
@@ -1154,7 +1159,7 @@ class Server(AbstractServer):
             async with stream:
                 async for path in connection.path_io.list(real_path):
                     s = await self.build_list_string(connection, path)
-                    b = (s + END_OF_LINE).encode(encoding="utf-8")
+                    b = (s + END_OF_LINE).encode(encoding=self.encoding)
                     await stream.write(b)
             connection.response("226", "list transfer done")
             return True
