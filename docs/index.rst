@@ -41,32 +41,30 @@ Server benchmark
 Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>`_ and
 checked with its ftpbench script.
 
-aioftp 0.4.1
+aioftp 0.8.0
 
 ::
 
-    $ ./ftpbench -u anonymous -p none -P 8021 -b all
-    STOR (client -> server)                              146.06 MB/sec
-    RETR (server -> client)                              273.88 MB/sec
-    200 concurrent clients (connect, login)                0.36 secs
-    STOR (1 file with 200 idle clients)                  121.02 MB/sec
-    RETR (1 file with 200 idle clients)                  274.31 MB/sec
-    200 concurrent clients (RETR 10.0M file)              16.09 secs
-    200 concurrent clients (STOR 10.0M file)              19.03 secs
-    200 concurrent clients (QUIT)                          0.11 secs
+    STOR (client -> server)                              284.95 MB/sec
+    RETR (server -> client)                              408.44 MB/sec
+    200 concurrent clients (connect, login)                0.18 secs
+    STOR (1 file with 200 idle clients)                  287.52 MB/sec
+    RETR (1 file with 200 idle clients)                  382.05 MB/sec
+    200 concurrent clients (RETR 10.0M file)              13.33 secs
+    200 concurrent clients (STOR 10.0M file)              12.56 secs
+    200 concurrent clients (QUIT)                          0.03 secs
 
-pyftpdlib 1.5.0
+pyftpdlib 1.5.2
 
 ::
 
-    $ ./ftpbench -u anonymous -p none -P 8021 -b all
-    STOR (client -> server)                              198.65 MB/sec
-    RETR (server -> client)                             3361.68 MB/sec
-    200 concurrent clients (connect, login)                0.09 secs
-    STOR (1 file with 200 idle clients)                  209.34 MB/sec
-    RETR (1 file with 200 idle clients)                 3367.59 MB/sec
-    200 concurrent clients (RETR 10.0M file)               1.04 secs
-    200 concurrent clients (STOR 10.0M file)               1.98 secs
+    STOR (client -> server)                             1235.56 MB/sec
+    RETR (server -> client)                             3960.21 MB/sec
+    200 concurrent clients (connect, login)                0.06 secs
+    STOR (1 file with 200 idle clients)                 1208.58 MB/sec
+    RETR (1 file with 200 idle clients)                 3496.03 MB/sec
+    200 concurrent clients (RETR 10.0M file)               0.55 secs
+    200 concurrent clients (STOR 10.0M file)               1.46 secs
     200 concurrent clients (QUIT)                          0.02 secs
 
 Dependencies

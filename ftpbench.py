@@ -285,17 +285,17 @@ def bytes_per_second(ftp, retr=True):
                 chunk = conn.recv(BUFFER_LEN)
                 if not chunk:
                     a = time.time()
-                    while conn.recv(BUFFER_LEN):
-                        break
-                    conn.close()
                     ftp.voidresp()
+                    conn.close()
                     conn = request_file()
                     stop_at += time.time() - a
                 tot_bytes += len(chunk)
 
-        conn.close()
         try:
+            while chunk:
+                chunk = conn.recv(BUFFER_LEN)
             ftp.voidresp()
+            conn.close()
         except (ftplib.error_temp, ftplib.error_perm):
             pass
     else:
@@ -314,7 +314,7 @@ def bytes_per_second(ftp, retr=True):
 def cleanup():
     ftp = connect()
     try:
-        if TESTFN in ftp.nlst():
+        if TESTFN in ftp.mlsd():
             ftp.delete(TESTFN)
     except (ftplib.error_perm, ftplib.error_temp) as err:
         msg = "could not delete %r test file on cleanup: %r" % (TESTFN, err)
