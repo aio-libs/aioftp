@@ -71,7 +71,6 @@ Dependencies
 ------------
 
 - Python 3.5
-- docopt (for execution module as script only)
 
 License
 -------
