@@ -1,3 +1,9 @@
+0.8.1 (08-10-2017)
+------------------
+
+- client: ignore LIST lines, which can't be parsed
+Thanks to `bachya <https://github.com/bachya>`_
+
 0.8.0 (06-08-2017)
 ------------------
 

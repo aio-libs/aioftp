@@ -82,7 +82,7 @@ pyftpdlib 1.5.2
 Dependencies
 ------------
 
-- Python 3.5
+- Python 3.5+
 
 License
 -------

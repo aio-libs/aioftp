@@ -128,6 +128,9 @@ locale should be setted to "C". For this reason if you use multithreaded app,
 and use some locale-dependent stuff, you should use
 :py:meth:`aioftp.setlocale` context manager when you dealing with locale in
 another thread.
+**since 0.8.1**
+If fallback `LIST` parser can't parse line, then this line will be ignored, so
+fallback `LIST` implementation will never raise exception.
 
 Getting path stats
 ------------------
@@ -173,6 +176,12 @@ locale should be setted to "C". For this reason if you use multithreaded app,
 and use some locale-dependent stuff, you should use
 :py:meth:`aioftp.setlocale` context manager when you dealing with locale in
 another thread.
+**since 0.8.1**
+If fallback `LIST` parser can't parse line, then this line will be ignored, so
+fallback `LIST` implementation will never raise exception. But if requested
+path line can't be parsed, then :py:meth:`aioftp.Client.stat` method will
+raise `path does not exists`.
+
 
 Remove path
 -----------
@@ -395,6 +404,9 @@ month abbreviation) locale should be setted to "C". For this reason if you use
 multithreaded app, and use some locale-dependent stuff, you should use
 :py:meth:`aioftp.setlocale` context manager when you dealing with locale in
 another thread.
+**since 0.8.1**
+If fallback `LIST` parser can't parse line, then this line will be ignored, so
+fallback `LIST` implementation will never raise exception.
 
 Futher reading
 --------------
