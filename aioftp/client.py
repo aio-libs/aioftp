@@ -630,7 +630,14 @@ class Client(BaseClient):
                             line = await cls.stream.readline()
                         else:
                             raise StopAsyncIteration
-                    name, info = cls.parse_line(line)
+
+                    try:
+                        name, info = cls.parse_line(line)
+                    except KeyboardInterrupt:
+                        raise
+                    except:
+                        continue
+
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
                         cls.directories.append(stat)
