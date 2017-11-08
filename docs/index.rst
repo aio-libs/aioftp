@@ -8,7 +8,7 @@ aioftp
 
 ftp client/server for asyncio.
 
-.. _GitHub: https://github.com/pohmelie/aioftp
+.. _GitHub: https://github.com/aio-libs/aioftp
 
 Features
 --------

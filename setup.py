@@ -49,7 +49,7 @@ setup(
     ],
     author="pohmelie",
     author_email="multisosnooley@gmail.com",
-    url="https://github.com/pohmelie/aioftp",
+    url="https://github.com/aio-libs/aioftp",
     license="WTFPL",
     packages=find_packages(),
     install_requires=[],

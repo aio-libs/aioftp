@@ -6,11 +6,11 @@
 aioftp
 ======
 
-.. image:: https://img.shields.io/travis/pohmelie/aioftp.svg
-    :target: https://travis-ci.org/pohmelie/aioftp
+.. image:: https://img.shields.io/travis/aio-libs/aioftp.svg
+    :target: https://travis-ci.org/aio-libs/aioftp
 
-.. image:: https://img.shields.io/coveralls/pohmelie/aioftp.svg
-    :target: https://coveralls.io/github/pohmelie/aioftp
+.. image:: https://img.shields.io/coveralls/aio-libs/aioftp.svg
+    :target: https://coveralls.io/github/aio-libs/aioftp
 
 .. image:: https://img.shields.io/pypi/v/aioftp.svg
     :target: https://pypi.python.org/pypi/aioftp
@@ -20,7 +20,7 @@ aioftp
 
 ftp client/server for asyncio (http://aioftp.readthedocs.org)
 
-.. _GitHub: https://github.com/pohmelie/aioftp
+.. _GitHub: https://github.com/aio-libs/aioftp
 
 Features
 --------
