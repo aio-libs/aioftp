@@ -75,7 +75,7 @@ Dependencies
 License
 -------
 
-aioftp is offered under the WTFPL license.
+aioftp is offered under the Apache 2 license.
 
 Library installation
 --------------------

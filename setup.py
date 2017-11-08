@@ -50,7 +50,7 @@ setup(
     author="pohmelie",
     author_email="multisosnooley@gmail.com",
     url="https://github.com/aio-libs/aioftp",
-    license="WTFPL",
+    license="Apache 2",
     packages=find_packages(),
     install_requires=[],
     tests_require=["nose", "coverage"],
