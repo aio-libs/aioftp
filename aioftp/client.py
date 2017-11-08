@@ -635,7 +635,7 @@ class Client(BaseClient):
                         name, info = cls.parse_line(line)
                     except KeyboardInterrupt:
                         raise
-                    except:
+                    except:  # noqa
                         continue
 
                     stat = cls.path / name, info
@@ -1046,9 +1046,8 @@ class ClientSession:
         try:
             await self.client.connect(self.host, self.port)
             await self.client.login(self.user, self.password, self.account)
-        except:
+        finally:
             self.client.close()
-            raise
         return self.client
 
     async def __aexit__(self, *exc_info):

@@ -887,7 +887,7 @@ class Server(AbstractServer):
                     try:
                         try:
                             result = task.result()
-                        except:
+                        except:  # noqa
                             logger.exception("dispatcher caught exception")
                             raise
                     except errors.PathIOError:
