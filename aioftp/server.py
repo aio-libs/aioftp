@@ -1013,10 +1013,9 @@ class Server(AbstractServer):
 
     @ConnectionConditions(ConnectionConditions.user_required)
     async def pass_(self, connection, rest):
-        auth = self.user_manager.authenticate(connection.user, rest)
         if connection.future.logged.done():
             code, info = "503", "already logged in"
-        elif await auth:
+        elif await self.user_manager.authenticate(connection.user, rest):
             connection.logged = True
             code, info = "230", "normal login"
         else:
