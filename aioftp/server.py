@@ -836,6 +836,7 @@ class Server(AbstractServer):
 
     async def dispatcher(self, reader, writer):
         host, port = writer.transport.get_extra_info("peername", ("", ""))
+        current_server_host, *_ = writer.transport.get_extra_info("sockname")
         message = "new connection from {}:{}".format(host, port)
         logger.info(message)
         key = stream = ThrottleStreamIO(
@@ -853,7 +854,7 @@ class Server(AbstractServer):
         connection = Connection(
             client_host=host,
             client_port=port,
-            server_host=self.server_host,
+            server_host=self.server_host or current_server_host,
             passive_server_port=0,
             server_port=self.server_port,
             command_connection=stream,

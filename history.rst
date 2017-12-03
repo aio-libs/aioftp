@@ -1,3 +1,9 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- server: fix server address in passive mode
+Thanks to `yieyu <https://github.com/yieyu>`_
+
 0.8.1 (08-10-2017)
 ------------------
 
