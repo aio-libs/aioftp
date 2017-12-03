@@ -40,7 +40,7 @@ setup(
     name="aioftp",
     version=version,
     description=("ftp client/server for asyncio"),
-    long_description=read("readme.rst"),
+    long_description=read("README.rst"),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",
