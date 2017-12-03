@@ -4,7 +4,7 @@ python:
     - 3.6
     - pypy3.5-5.8.0
 install:
-    - travis_retry pip install coveralls flake8
+    - travis_retry pip install codecov flake8
 before_script:
     - flake8 aioftp
 script:
@@ -13,4 +13,4 @@ branches:
     only:
         - master
 after_success:
-    coveralls
+    codecov
