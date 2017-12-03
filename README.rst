@@ -9,8 +9,8 @@ aioftp
 .. image:: https://img.shields.io/travis/aio-libs/aioftp.svg
     :target: https://travis-ci.org/aio-libs/aioftp
 
-.. image:: https://img.shields.io/coveralls/aio-libs/aioftp.svg
-    :target: https://coveralls.io/github/aio-libs/aioftp
+.. image:: https://codecov.io/gh/aio-libs/aioftp/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/aio-libs/aioftp
 
 .. image:: https://img.shields.io/pypi/v/aioftp.svg
     :target: https://pypi.python.org/pypi/aioftp
