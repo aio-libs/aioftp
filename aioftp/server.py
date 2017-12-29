@@ -894,6 +894,8 @@ class Server(AbstractServer):
                     except errors.PathIOError:
                         connection.response("451", "file system error")
                         continue
+                    except ConnectionResetError:
+                        break
                     # this is "command" result
                     if isinstance(result, bool):
                         if not result:
