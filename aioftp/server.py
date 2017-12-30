@@ -894,8 +894,6 @@ class Server(AbstractServer):
                     except errors.PathIOError:
                         connection.response("451", "file system error")
                         continue
-                    except ConnectionResetError:
-                        break
                     # this is "command" result
                     if isinstance(result, bool):
                         if not result:
@@ -915,6 +913,8 @@ class Server(AbstractServer):
                         else:
                             message = "'{}' not implemented".format(cmd)
                             connection.response("502", message)
+        except ConnectionResetError:
+            logger.info("connection reset by peer")
         finally:
             message = "closing connection from {}:{}".format(host, port)
             logger.info(message)
