@@ -917,9 +917,12 @@ class Server(AbstractServer):
             message = "closing connection from {}:{}".format(host, port)
             logger.info(message)
             if not connection.loop.is_closed():
+                tasks_to_wait = []
                 for task in pending | connection.extra_workers:
                     if isinstance(task, asyncio.Task):
                         task.cancel()
+                        tasks_to_wait.append(task)
+                await asyncio.wait(tasks_to_wait)
                 if connection.future.passive_server.done():
                     connection.passive_server.close()
                     if self.available_data_ports is not None:
