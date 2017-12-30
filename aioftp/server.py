@@ -886,11 +886,7 @@ class Server(AbstractServer):
                 connection.extra_workers -= done
                 for task in done:
                     try:
-                        try:
-                            result = task.result()
-                        except:  # noqa
-                            logger.exception("dispatcher caught exception")
-                            raise
+                        result = task.result()
                     except errors.PathIOError:
                         connection.response("451", "file system error")
                         continue
@@ -913,8 +909,10 @@ class Server(AbstractServer):
                         else:
                             message = "'{}' not implemented".format(cmd)
                             connection.response("502", message)
-        except ConnectionResetError:
-            logger.info("connection reset by peer")
+        except asyncio.CancelledError:
+            raise
+        except:  # noqa
+            logger.exception("dispatcher caught exception")
         finally:
             message = "closing connection from {}:{}".format(host, port)
             logger.info(message)
