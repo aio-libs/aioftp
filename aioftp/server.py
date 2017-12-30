@@ -35,7 +35,7 @@ __all__ = (
     "AbstractServer",
     "Server",
 )
-logger = logging.getLogger("aioftp.server")
+logger = logging.getLogger(__name__)
 
 
 class Permission:
@@ -431,7 +431,7 @@ class AbstractServer:
         for sock in self.server.sockets:
             if sock.family == socket.AF_INET:
                 host, port = sock.getsockname()
-                logger.info("serving on {}:{}".format(host, port))
+                logger.info("serving on %s:%s", host, port)
 
     def close(self):
         """
@@ -837,8 +837,7 @@ class Server(AbstractServer):
     async def dispatcher(self, reader, writer):
         host, port = writer.transport.get_extra_info("peername", ("", ""))
         current_server_host, *_ = writer.transport.get_extra_info("sockname")
-        message = "new connection from {}:{}".format(host, port)
-        logger.info(message)
+        logger.info("new connection from %s:%s", host, port)
         key = stream = ThrottleStreamIO(
             reader,
             writer,
@@ -914,8 +913,7 @@ class Server(AbstractServer):
         except:  # noqa
             logger.exception("dispatcher caught exception")
         finally:
-            message = "closing connection from {}:{}".format(host, port)
-            logger.info(message)
+            logger.info("closing connection from %s:%s", host, port)
             if not connection.loop.is_closed():
                 tasks_to_wait = []
                 for task in pending | connection.extra_workers:

@@ -29,7 +29,7 @@ __all__ = (
     "DataConnectionThrottleStreamIO",
     "Code",
 )
-logger = logging.getLogger("aioftp.client")
+logger = logging.getLogger(__name__)
 
 
 async def open_connection(host, port, loop, create_connection):
