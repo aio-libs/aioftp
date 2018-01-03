@@ -433,22 +433,19 @@ class AbstractServer:
                 host, port = sock.getsockname()
                 logger.info("serving on %s:%s", host, port)
 
-    def close(self):
-        """
-        Shutdown the server and close all connections. Use this method with
-        :py:meth:`aioftp.Server.wait_closed`
-        """
-        self.server.close()
-        for connection in self.connections.values():
-            connection._dispatcher.cancel()
-
-    async def wait_closed(self):
+    async def close(self):
         """
         :py:func:`asyncio.coroutine`
 
-        Wait server to stop.
+        Shutdown the server and close all connections.
         """
-        await self.server.wait_closed()
+        self.server.close()
+        tasks = [self.server.wait_closed()]
+        for connection in self.connections.values():
+            connection._dispatcher.cancel()
+            tasks.append(connection._dispatcher)
+        logger.info("waiting for %r", tasks)
+        await asyncio.wait(tasks)
 
     async def write_line(self, stream, line):
         logger.info(line)
@@ -914,13 +911,12 @@ class Server(AbstractServer):
             logger.exception("dispatcher caught exception")
         finally:
             logger.info("closing connection from %s:%s", host, port)
+            tasks_to_wait = []
             if not connection.loop.is_closed():
-                tasks_to_wait = []
                 for task in pending | connection.extra_workers:
                     if isinstance(task, asyncio.Task):
                         task.cancel()
                         tasks_to_wait.append(task)
-                await asyncio.wait(tasks_to_wait)
                 if connection.future.passive_server.done():
                     connection.passive_server.close()
                     if self.available_data_ports is not None:
@@ -932,8 +928,11 @@ class Server(AbstractServer):
             if connection.acquired:
                 self.available_connections.release()
             if connection.future.user.done():
-                await self.user_manager.notify_logout(connection.user)
+                task = self.user_manager.notify_logout(connection.user)
+                tasks_to_wait.append(task)
             self.connections.pop(key)
+            if tasks_to_wait:
+                await asyncio.wait(tasks_to_wait)
 
     def get_paths(self, connection, path):
         """

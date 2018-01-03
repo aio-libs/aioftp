@@ -248,25 +248,18 @@ class SlowServer(aioftp.Server):
 
 @nose.tools.raises(asyncio.TimeoutError)
 def test_client_socket_timeout():
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
-
     server = SlowServer(loop=loop)
     client = aioftp.Client(loop=loop, socket_timeout=1)
 
     async def coro():
-
         try:
-
             await server.start(None, 8888)
             await client.connect("127.0.0.1", 8888)
             await asyncio.sleep(10, loop=loop)
-
         finally:
-
-            server.close()
-            await server.wait_closed()
+            await server.close()
 
     loop.run_until_complete(coro())
 
@@ -281,27 +274,19 @@ class SlowUserManager(MemoryUserManager):
 
 @nose.tools.raises(ConnectionResetError)
 def test_user_manager_timeout():
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
-
-    server = aioftp.Server(
-        SlowUserManager(None, timeout=1, loop=loop),
-        loop=loop)
+    server = aioftp.Server(SlowUserManager(None, timeout=1, loop=loop),
+                           loop=loop)
     client = aioftp.Client(loop=loop)
 
     async def coro():
-
         try:
-
             await server.start(None, 8888)
             await client.connect("127.0.0.1", 8888)
             await client.login()
-
         finally:
-
-            server.close()
-            await server.wait_closed()
+            await server.close()
 
     loop.run_until_complete(coro())
 

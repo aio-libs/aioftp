@@ -156,14 +156,9 @@ User throttles can be provided by user constructor
 Stopping the server
 -------------------
 
-When you request to stop server all listen and active connections will be
-closed. But this one doesn't stop the server immediately, if you want to wait
-for server to stop use :py:meth:`aioftp.Server.wait_closed`
-
 ::
 
-    >>> server.close()
-    >>> await server.wait_closed()
+    >>> await server.close()
 
 WARNING
 -------

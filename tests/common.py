@@ -18,50 +18,33 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
 
         @functools.wraps(f)
         def wrapper():
-
             s_args, s_kwargs = server_args
             c_args, c_kwargs = client_args
 
             def run_in_loop(s_args, s_kwargs, c_args, c_kwargs):
-
                 logging.basicConfig(
                     level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s",
                     datefmt="[%H:%M:%S]:",
                 )
-
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(None)
-
                 server = aioftp.Server(*s_args, loop=loop, **s_kwargs)
                 client = aioftp.Client(*c_args, loop=loop, **c_kwargs)
-
                 try:
-
                     loop.run_until_complete(f(loop, client, server))
-
                 finally:
-
                     if hasattr(server, "server"):
-
-                        server.close()
-                        loop.run_until_complete(server.wait_closed())
-
+                        loop.run_until_complete(server.close())
                     if hasattr(client, "writer"):
-
                         client.close()
-
                     loop.close()
 
             if "path_io_factory" not in s_kwargs:
-
                 for factory in (aioftp.PathIO, aioftp.AsyncPathIO):
-
                     s_kwargs["path_io_factory"] = factory
                     run_in_loop(s_args, s_kwargs, c_args, c_kwargs)
-
             else:
-
                 run_in_loop(s_args, s_kwargs, c_args, c_kwargs)
 
         return wrapper
@@ -74,18 +57,13 @@ def with_connection(f):
 
     @functools.wraps(f)
     async def wrapper(loop, client, server):
-
         try:
-
             await server.start("127.0.0.1", PORT)
             await client.connect("127.0.0.1", PORT)
             await f(loop, client, server)
-
         finally:
-
             client.close()
-            server.close()
-            await server.wait_closed()
+            await server.close()
 
     return wrapper
 

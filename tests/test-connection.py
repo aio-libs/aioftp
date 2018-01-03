@@ -239,8 +239,7 @@ async def test_server_shutdown(loop, client, server):
     async def close_server():
 
         await asyncio.sleep(1, loop=loop)
-        server.close()
-        await server.wait_closed()
+        await server.close()
 
     await client.login()
     loop.create_task(close_server())
@@ -261,26 +260,19 @@ async def test_client_zeros_passiv_ip(loop, client, server):
     w.close()
 
     client.close()
-    server.close()
-    await server.wait_closed()
+    await server.close()
 
 
 def test_client_session_context_manager():
 
     async def test():
-
         server = aioftp.Server(loop=loop)
-
         await server.start(None, PORT)
         kw = dict(host="127.0.0.1", port=PORT, loop=loop)
         async with aioftp.ClientSession(**kw) as client:
-
             async for path in client.list():
-
                 pass
-
-        server.close()
-        await server.wait_closed()
+        await server.close()
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)

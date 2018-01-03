@@ -133,8 +133,7 @@ Lets see what we have.
         collected = await client.collect(20)
         print(collected)
         await client.quit()
-        server.close()
-        await server.wait_closed()
+        await server.close()
 
 
     if __name__ == "__main__":

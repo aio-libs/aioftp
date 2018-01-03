@@ -73,8 +73,7 @@ def test_stream_iter_by_line():
         nose.tools.eq_(collected, expect)
         await client.quit()
         client.close()
-        server.close()
-        await server.wait_closed()
+        await server.close()
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)

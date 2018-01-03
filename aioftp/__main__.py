@@ -52,6 +52,5 @@ loop.run_until_complete(server.start(args.host, args.port))
 try:
     loop.run_forever()
 except KeyboardInterrupt:
-    server.close()
-    loop.run_until_complete(server.wait_closed())
+    loop.run_until_complete(server.close())
     loop.close()

@@ -125,8 +125,7 @@ Server example
     try:
         loop.run_forever()
     except KeyboardInterrupt:
-        server.close()
-        loop.run_until_complete(server.wait_closed())
+        loop.run_until_complete(server.close())
         loop.close()
 
 Or just use simple server
