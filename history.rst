@@ -1,8 +1,9 @@
-x.x.x (xx-xx-xxxx)
+0.9.0 (04-01-2018)
 ------------------
 
 - server: fix server address in passive mode
 - server: do not reraise dispatcher exceptions
+- server: remove `wait_closed`, `close` is coroutine since now
 Thanks to `yieyu <https://github.com/yieyu>`_ and
     `jkr78 <https://github.com/jkr78>`_
 
