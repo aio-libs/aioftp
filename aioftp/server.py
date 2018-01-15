@@ -832,7 +832,7 @@ class Server(AbstractServer):
         self.encoding = encoding
 
     async def dispatcher(self, reader, writer):
-        host, port = writer.transport.get_extra_info("peername", ("", ""))
+        host, port, *_ = writer.transport.get_extra_info("peername", ("", ""))
         current_server_host, *_ = writer.transport.get_extra_info("sockname")
         logger.info("new connection from %s:%s", host, port)
         key = stream = ThrottleStreamIO(
