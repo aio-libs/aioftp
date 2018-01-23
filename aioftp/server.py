@@ -342,6 +342,8 @@ class Connection(collections.defaultdict):
         self["loop"].set_result(loop or asyncio.get_event_loop())
         for k, v in kwargs.items():
             self[k].set_result(v)
+        self.path_io = self.path_io_factory(
+            timeout=self.path_timeout, loop=self.loop, connection=self)
 
     def __getattr__(self, name):
         if name in self:
@@ -804,7 +806,8 @@ class Server(AbstractServer):
         self.socket_timeout = socket_timeout
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
-        self.path_io = path_io_factory(timeout=path_timeout, loop=self.loop)
+        self.path_io_factory = path_io_factory
+        self.path_timeout = path_timeout
         if data_ports is not None:
             self.available_data_ports = asyncio.PriorityQueue(loop=self.loop)
             for data_port in data_ports:
@@ -858,7 +861,8 @@ class Server(AbstractServer):
             idle_timeout=self.idle_timeout,
             wait_future_timeout=self.wait_future_timeout,
             block_size=self.block_size,
-            path_io=self.path_io,
+            path_io_factory=self.path_io_factory,
+            path_timeout=self.path_timeout,
             loop=self.loop,
             extra_workers=set(),
             response=lambda *args: response_queue.put_nowait(args),

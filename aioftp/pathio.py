@@ -93,10 +93,14 @@ class AbstractPathIO:
 
     :param loop: loop to use
     :type loop: :py:class:`asyncio.BaseEventLoop`
+
+    :param connection: server connection that is accessing this PathIO
+    :type connection: :py:class:`aioftp.Connection`
     """
-    def __init__(self, timeout=None, loop=None):
+    def __init__(self, timeout=None, loop=None, connection=None):
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
+        self.connection = connection
 
     @universal_exception
     async def exists(self, path):
