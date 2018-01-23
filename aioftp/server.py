@@ -342,8 +342,6 @@ class Connection(collections.defaultdict):
         self["loop"].set_result(loop or asyncio.get_event_loop())
         for k, v in kwargs.items():
             self[k].set_result(v)
-        self.path_io = self.path_io_factory(timeout=self.path_timeout,
-                                            loop=self.loop, connection=self)
 
     def __getattr__(self, name):
         if name in self:
@@ -870,6 +868,9 @@ class Server(AbstractServer):
             restart_offset=0,
             _dispatcher=asyncio.Task.current_task(loop=self.loop),
         )
+        connection.path_io = self.path_io_factory(timeout=self.path_timeout,
+                                                  loop=self.loop,
+                                                  connection=connection)
         pending = {
             self.greeting(connection, ""),
             self.response_writer(stream, response_queue),
