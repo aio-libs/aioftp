@@ -33,7 +33,7 @@ class NoseTestCommand(TestCommand):
         cov = pathlib.Path(".coverage")
         if cov.exists():
             cov.unlink()
-        nose.run(argv=["nosetests"])
+        nose.main(argv=["nosetests"])
 
 
 setup(
