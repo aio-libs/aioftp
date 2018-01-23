@@ -2,6 +2,7 @@ import asyncio
 import functools
 import pathlib
 import logging
+import shutil
 
 import nose
 
@@ -75,21 +76,14 @@ def expect_codes_in_exception(*codes):
 
         @functools.wraps(f)
         async def wrapper(*args):
-
             try:
-
                 await f(*args)
-
             except aioftp.StatusCodeError as exc:
-
                 nose.tools.eq_(exc.received_codes, codes)
-
             else:
-
                 raise Exception("There was no exception")
 
         return wrapper
-
     return decorator
 
 
@@ -100,17 +94,12 @@ def with_tmp_dir(name):
 
         @functools.wraps(f)
         async def wrapper(*args):
-
             tmp_dir = pathlib.Path("tests") / name
             tmp_dir.mkdir(parents=True)
             try:
-
                 await f(*args, tmp_dir=tmp_dir)
-
             finally:
-
-                tmp_dir.rmdir()
+                shutil.rmtree(str(tmp_dir))
 
         return wrapper
-
     return decorator
