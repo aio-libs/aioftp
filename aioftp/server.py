@@ -342,8 +342,8 @@ class Connection(collections.defaultdict):
         self["loop"].set_result(loop or asyncio.get_event_loop())
         for k, v in kwargs.items():
             self[k].set_result(v)
-        self.path_io = self.path_io_factory(
-            timeout=self.path_timeout, loop=self.loop, connection=self)
+        self.path_io = self.path_io_factory(timeout=self.path_timeout,
+                                            loop=self.loop, connection=self)
 
     def __getattr__(self, name):
         if name in self:
