@@ -27,7 +27,8 @@ parser.add_argument("--host", default=None,
 parser.add_argument("--port", type=int, default=2121,
                     help="port for binding [default: %(default)s]")
 parser.add_argument("--family", choices=("ipv4", "ipv6", "auto"),
-                    default="auto", help="Socket family [default: %(default)s]")
+                    default="auto",
+                    help="Socket family [default: %(default)s]")
 
 args = parser.parse_args()
 print("aioftp v{}".format(aioftp.__version__))
