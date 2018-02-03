@@ -2,7 +2,6 @@ language: python
 python:
     - 3.5
     - 3.6
-    - pypy3
 install:
     - travis_retry pip install codecov flake8
 before_script:
