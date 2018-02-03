@@ -937,9 +937,17 @@ class Client(BaseClient):
             :py:class:`asyncio.StreamWriter`)
         """
         await self.command("TYPE " + conn_type, "200")
-        code, info = await self.command("PASV", "227")
-        ip, port = self.parse_address_response(info[-1])
-        if ip == "0.0.0.0":
+        try:
+            code, info = await self.command("EPSV", "229")
+            # format: some message (|||port|)
+            *_, info = info[-1].split()
+            ip, port = None, int(info[4:-2])
+        except errors.StatusCodeError as e:
+            if not e.received_codes[-1].matches("50x"):
+                raise
+            code, info = await self.command("PASV", "227")
+            ip, port = self.parse_address_response(info[-1])
+        if ip in ("0.0.0.0", None):
             ip = self.server_host
         reader, writer = await open_connection(
             ip,

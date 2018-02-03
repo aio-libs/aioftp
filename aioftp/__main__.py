@@ -1,6 +1,7 @@
 """Simple aioftp-based server with one user (anonymous or not)"""
 import asyncio
 import logging
+import socket
 
 import argparse
 
@@ -25,6 +26,8 @@ parser.add_argument("--host", default=None,
                     help="host for binding [default: %(default)s]")
 parser.add_argument("--port", type=int, default=2121,
                     help="port for binding [default: %(default)s]")
+parser.add_argument("--family", choices=("ipv4", "ipv6", "auto"),
+                    default="auto", help="Socket family [default: %(default)s]")
 
 args = parser.parse_args()
 print("aioftp v{}".format(aioftp.__version__))
@@ -44,11 +47,15 @@ else:
     else:
         user = aioftp.User(args.login, args.password)
     path_io_factory = aioftp.PathIO
-
+family = {
+    "ipv4": socket.AF_INET,
+    "ipv6": socket.AF_INET6,
+    "auto": socket.AF_UNSPEC,
+}[args.family]
 server = aioftp.Server([user], path_io_factory=path_io_factory)
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(server.start(args.host, args.port))
+loop.run_until_complete(server.start(args.host, args.port, family=family))
 try:
     loop.run_forever()
 except KeyboardInterrupt:

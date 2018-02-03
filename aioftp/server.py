@@ -418,6 +418,7 @@ class AbstractServer:
         :param kwargs: keyword arguments, they passed to
             :py:func:`asyncio.start_server`
         """
+        self._start_server_extra_arguments = kwargs
         self.connections = {}
         self.server_host = host
         self.server_port = port
@@ -426,11 +427,11 @@ class AbstractServer:
             host,
             port,
             loop=self.loop,
-            **kwargs
+            **self._start_server_extra_arguments,
         )
         for sock in self.server.sockets:
-            if sock.family == socket.AF_INET:
-                host, port = sock.getsockname()
+            if sock.family in (socket.AF_INET, socket.AF_INET6):
+                host, port, *_ = sock.getsockname()
                 logger.info("serving on %s:%s", host, port)
 
     async def close(self):
@@ -1314,7 +1315,8 @@ class Server(AbstractServer):
                         handler_callback,
                         connection.server_host,
                         port,
-                        loop=connection.loop
+                        loop=connection.loop,
+                        **self._start_server_extra_arguments,
                     )
                     connection.passive_server_port = port
                     break
@@ -1330,6 +1332,7 @@ class Server(AbstractServer):
                 connection.server_host,
                 connection.passive_server_port,
                 loop=connection.loop,
+                **self._start_server_extra_arguments,
             )
         return passive_server
 
@@ -1363,9 +1366,54 @@ class Server(AbstractServer):
             if sock.family == socket.AF_INET:
                 host, port = sock.getsockname()
                 break
+        else:
+            connection.response("503", ["this server started in ipv6 mode"])
+            return False
 
         nums = tuple(map(int, host.split("."))) + (port >> 8, port & 0xff)
         info.append("({})".format(",".join(map(str, nums))))
+        if connection.future.data_connection.done():
+            connection.data_connection.close()
+            del connection.data_connection
+        connection.response(code, info)
+        return True
+
+    @ConnectionConditions(ConnectionConditions.login_required)
+    async def epsv(self, connection, rest):
+
+        async def handler(reader, writer):
+            if connection.future.data_connection.done():
+                writer.close()
+            else:
+                connection.data_connection = ThrottleStreamIO(
+                    reader,
+                    writer,
+                    throttles=connection.command_connection.throttles,
+                    timeout=connection.socket_timeout,
+                    loop=connection.loop
+                )
+
+        if rest:
+            code, info = "522", ["custom protocols support not implemented"]
+            connection.response(code, info)
+            return False
+        if not connection.future.passive_server.done():
+            coro = self._start_passive_server(connection, handler)
+            try:
+                connection.passive_server = await coro
+            except errors.NoAvailablePort:
+                connection.response("421", ["no free ports"])
+                return False
+            code, info = "229", ["listen socket created"]
+        else:
+            code, info = "229", ["listen socket already exists"]
+
+        for sock in connection.passive_server.sockets:
+            if sock.family in (socket.AF_INET, socket.AF_INET6):
+                _, port, *_ = sock.getsockname()
+                break
+
+        info[0] += " (|||{}|)".format(port)
         if connection.future.data_connection.done():
             connection.data_connection.close()
             del connection.data_connection

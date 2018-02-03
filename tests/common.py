@@ -3,6 +3,7 @@ import functools
 import pathlib
 import logging
 import shutil
+import socket
 
 import nose
 
@@ -54,19 +55,26 @@ def aioftp_setup(*, server_args=([], {}), client_args=([], {})):
 
 
 @nose.tools.nottest
-def with_connection(f):
+def with_connection(f=None, *, host="127.0.0.1", port=PORT,
+                    family=socket.AF_INET):
 
-    @functools.wraps(f)
-    async def wrapper(loop, client, server):
-        try:
-            await server.start("127.0.0.1", PORT)
-            await client.connect("127.0.0.1", PORT)
-            await f(loop, client, server)
-        finally:
-            client.close()
-            await server.close()
+    def decorator(f):
 
-    return wrapper
+        @functools.wraps(f)
+        async def wrapper(loop, client, server):
+            try:
+                await server.start(host, port, family=family)
+                await client.connect(host, port)
+                await f(loop, client, server)
+            finally:
+                client.close()
+                await server.close()
+
+        return wrapper
+    if f is None:
+        return decorator
+    else:
+        return decorator(f)
 
 
 @nose.tools.nottest

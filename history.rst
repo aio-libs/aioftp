@@ -1,3 +1,16 @@
+0.10.0 (03-02-2018)
+------------------
+
+- server: fix ipv6 peername unpack
+- server: `connection` object is accessible from path-io layer since now
+- main: add command line argument to set version of IP protocol
+- setup: fix failed test session return zero exit code
+- client: fix `download`-`mkdir` (issue #68)
+- client/server: add initial ipv6 support
+- client: change `PASV` to `EPSV` with fallback to `PASV`
+Thanks to `jacobtomlinson <https://github.com/jacobtomlinson>`_ and
+    `mbkr1992 <https://github.com/mbkr1992>`_
+
 0.9.0 (04-01-2018)
 ------------------
 
