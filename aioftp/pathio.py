@@ -145,7 +145,7 @@ class AbstractPathIO:
         raise NotImplementedError
 
     @universal_exception
-    async def mkdir(self, path, *, parents=False):
+    async def mkdir(self, path, *, parents=False, exist_ok=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -156,6 +156,9 @@ class AbstractPathIO:
 
         :param parents: create parents is does not exists
         :type parents: :py:class:`bool`
+
+        :param exist_ok: do not raise exception if directory already exists
+        :type exist_ok: :py:class:`bool`
         """
         raise NotImplementedError
 
@@ -349,8 +352,8 @@ class PathIO(AbstractPathIO):
         return path.is_file()
 
     @universal_exception
-    async def mkdir(self, path, *, parents=False):
-        return path.mkdir(parents=parents)
+    async def mkdir(self, path, *, parents=False, exist_ok=False):
+        return path.mkdir(parents=parents, exist_ok=exist_ok)
 
     @universal_exception
     async def rmdir(self, path):
@@ -432,8 +435,8 @@ class AsyncPathIO(AbstractPathIO):
 
     @universal_exception
     @with_timeout
-    async def mkdir(self, path, *, parents=False):
-        f = functools.partial(path.mkdir, parents=parents)
+    async def mkdir(self, path, *, parents=False, exist_ok=False):
+        f = functools.partial(path.mkdir, parents=parents, exist_ok=exist_ok)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
@@ -585,9 +588,11 @@ class MemoryPathIO(AbstractPathIO):
         return not (node is None or node.type != "file")
 
     @universal_exception
-    async def mkdir(self, path, *, parents=False):
-        if self.get_node(path):
-            raise FileExistsError
+    async def mkdir(self, path, *, parents=False, exist_ok=False):
+        node = self.get_node(path)
+        if node:
+            if node.type != "dir" or not exist_ok:
+                raise FileExistsError
         elif not parents:
             parent = self.get_node(path.parent)
             if parent is None:

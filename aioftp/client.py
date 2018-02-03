@@ -901,24 +901,19 @@ class Client(BaseClient):
         if not write_into:
             destination = destination / source.name
         if await self.is_file(source):
-            if not await self.path_io.exists(destination.parent):
-                await self.path_io.mkdir(destination.parent)
+            await self.path_io.mkdir(destination.parent,
+                                     parents=True, exist_ok=True)
             async with self.path_io.open(destination, mode="wb") as file_out, \
                     self.download_stream(source) as stream:
                 async for block in stream.iter_by_block(block_size):
                     await file_out.write(block)
         elif await self.is_dir(source):
-            if not await self.path_io.exists(destination):
-                await self.path_io.mkdir(destination, parents=True)
+            await self.path_io.mkdir(destination, parents=True, exist_ok=True)
             for name, info in (await self.list(source)):
                 full = destination / name.relative_to(source)
                 if info["type"] in ("file", "dir"):
-                    await self.download(
-                        name,
-                        full,
-                        write_into=True,
-                        block_size=block_size
-                    )
+                    await self.download(name, full, write_into=True,
+                                        block_size=block_size)
 
     async def quit(self):
         """
