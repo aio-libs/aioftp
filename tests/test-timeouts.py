@@ -23,7 +23,7 @@ class SlowMemoryPathIO(aioftp.MemoryPathIO):
 
     @aioftp.pathio.universal_exception
     @aioftp.with_timeout
-    async def mkdir(self, path, parents=False):
+    async def mkdir(self, path, parents=False, exist_ok=False):
 
         await asyncio.sleep(10, loop=self.loop)
 
