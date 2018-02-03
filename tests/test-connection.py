@@ -96,7 +96,7 @@ async def test_pasv_connection_ports_not_added(loop, client, server):
     nose.tools.eq_(server.available_data_ports, None)
 
 
-@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@aioftp_setup(server_args=([], {"data_ports": [30000, 30001]}))
 @with_connection
 async def test_pasv_connection_ports(loop, client, server):
 
@@ -116,7 +116,7 @@ async def test_pasv_connection_ports(loop, client, server):
         await client.quit()
 
 
-@aioftp_setup(server_args=([], {'data_ports': []}))
+@aioftp_setup(server_args=([], {"data_ports": []}))
 @with_connection
 async def test_data_ports_remains_empty(loop, client, server):
 
@@ -126,7 +126,7 @@ async def test_data_ports_remains_empty(loop, client, server):
     nose.tools.eq_(server.available_data_ports.qsize(), 0)
 
 
-@aioftp_setup(server_args=([], {'data_ports': [30000]}))
+@aioftp_setup(server_args=([], {"data_ports": [30000]}))
 @with_connection
 async def test_pasv_connection_port_reused(loop, client, server):
 
@@ -142,7 +142,7 @@ async def test_pasv_connection_port_reused(loop, client, server):
         await client.quit()
 
 
-@aioftp_setup(server_args=([], {'data_ports': []}))
+@aioftp_setup(server_args=([], {"data_ports": []}))
 @expect_codes_in_exception("421")
 @with_connection
 async def test_pasv_connection_no_free_port(loop, client, server):
@@ -151,7 +151,7 @@ async def test_pasv_connection_no_free_port(loop, client, server):
     await client.get_passive_connection()
 
 
-@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@aioftp_setup(server_args=([], {"data_ports": [30000, 30001]}))
 @with_connection
 async def test_pasv_connection_busy_port(loop, client, server):
 
@@ -175,7 +175,7 @@ async def test_pasv_connection_busy_port(loop, client, server):
     await conflicting_server.wait_closed()
 
 
-@aioftp_setup(server_args=([], {'data_ports': [30000]}))
+@aioftp_setup(server_args=([], {"data_ports": [30000]}))
 @expect_codes_in_exception("421")
 @with_connection
 async def test_pasv_connection_busy_port2(loop, client, server):
@@ -198,7 +198,7 @@ async def test_pasv_connection_busy_port2(loop, client, server):
         await conflicting_server.wait_closed()
 
 
-@aioftp_setup(server_args=([], {'data_ports': [30000, 30001]}))
+@aioftp_setup(server_args=([], {"data_ports": [30000, 30001]}))
 @expect_codes_in_exception("421")
 @with_connection
 async def test_pasv_connection_busy_port3(loop, client, server):
