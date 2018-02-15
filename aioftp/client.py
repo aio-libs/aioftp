@@ -248,9 +248,26 @@ class BaseClient:
                 self.check_codes(expected_codes, code, info)
             return code, info
 
-    def parse_address_response(self, s):
+    @staticmethod
+    def parse_epsv_response(s):
         """
-        Parsing ip:port server response.
+        Parsing `EPSV` (`message (|||port|)`) response.
+
+        :param s: response line
+        :type s: :py:class:`str`
+
+        :return: (ip, port)
+        :rtype: (:py:class:`None`, :py:class:`int`)
+        """
+        matches = tuple(re.finditer(r"\((.)\1\1\d+\1\)", s))
+        s = matches[-1].group()
+        port = int(s[4:-2])
+        return None, port
+
+    @staticmethod
+    def parse_pasv_response(s):
+        """
+        Parsing `PASV` server response.
 
         :param s: response line
         :type s: :py:class:`str`
@@ -264,7 +281,8 @@ class BaseClient:
         port = (nums[4] << 8) | nums[5]
         return ip, port
 
-    def parse_directory_response(self, s):
+    @staticmethod
+    def parse_directory_response(s):
         """
         Parsing directory server response.
 
@@ -946,7 +964,7 @@ class Client(BaseClient):
             if not e.received_codes[-1].matches("50x"):
                 raise
             code, info = await self.command("PASV", "227")
-            ip, port = self.parse_address_response(info[-1])
+            ip, port = self.parse_pasv_response(info[-1])
         if ip in ("0.0.0.0", None):
             ip = self.server_host
         reader, writer = await open_connection(

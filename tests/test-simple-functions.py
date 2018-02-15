@@ -1,4 +1,3 @@
-import functools
 import pathlib
 import asyncio
 
@@ -8,17 +7,13 @@ from common import *  # noqa
 
 
 def test_parse_directory_response():
-
-    parse = functools.partial(aioftp.Client.parse_directory_response, None)
-
     nose.tools.eq_(
-        parse('foo "baz "" test nop" """""fdfs """'),
+        aioftp.Client.parse_directory_response('foo "baz "" test nop" """""fdfs """'),
         pathlib.PurePosixPath('baz " test nop'),
     )
 
 
 def test_connection_del_future():
-
     loop = asyncio.new_event_loop()
     c = aioftp.Connection(loop=loop)
     c.foo = "bar"
@@ -27,7 +22,6 @@ def test_connection_del_future():
 
 @nose.tools.raises(AttributeError)
 def test_connection_not_in_storage():
-
     loop = asyncio.new_event_loop()
     c = aioftp.Connection(loop=loop)
     getattr(c, "foo")
@@ -35,7 +29,6 @@ def test_connection_not_in_storage():
 
 @nose.tools.raises(ValueError)
 def test_available_connections_too_much_acquires():
-
     ac = aioftp.AvailableConnections(3)
     ac.acquire()
     ac.acquire()
@@ -45,8 +38,18 @@ def test_available_connections_too_much_acquires():
 
 @nose.tools.raises(ValueError)
 def test_available_connections_too_much_releases():
-
     ac = aioftp.AvailableConnections(3)
     ac.acquire()
     ac.release()
     ac.release()
+
+
+def test_parse_pasv_response():
+    p = aioftp.Client.parse_pasv_response
+    nose.tools.eq_(p("(192,168,1,0,1,0)"), ("192.168.1.0", 256))
+
+
+def test_parse_epsv_response():
+    p = aioftp.Client.parse_epsv_response
+    nose.tools.eq_(p("some text (ha-ha) (|||665|) ((((666() (|fd667s)."), (None, 666))
+    nose.tools.eq_(p("some text (ha-ha) (|||665|) (6666666)."), (None, 666))

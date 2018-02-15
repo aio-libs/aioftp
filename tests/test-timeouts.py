@@ -166,7 +166,7 @@ async def test_wait_pasv_timeout_ok(loop, client, server, *, tmp_dir):
     await client.login()
     await client.command("TYPE I", "200")
     code, info = await client.command("PASV", "227")
-    ip, port = client.parse_address_response(info[-1])
+    ip, port = client.parse_pasv_response(info[-1])
 
     await client.command("STOR " + f.name)
     await asyncio.sleep(0.5, loop=loop)
@@ -210,7 +210,7 @@ async def test_wait_pasv_timeout_ok_but_too_long(loop, client, server, *,
     await client.login()
     await client.command("TYPE I", "200")
     code, info = await client.command("PASV", "227")
-    ip, port = client.parse_address_response(info[-1])
+    ip, port = client.parse_pasv_response(info[-1])
 
     await client.command("STOR " + f.name)
     await asyncio.sleep(2, loop=loop)
