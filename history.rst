@@ -1,3 +1,9 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- client: more flexible `EPSV` response parsing
+Thanks to `p4l1ly <https://github.com/p4l1ly>`_
+
 0.10.0 (03-02-2018)
 ------------------
 
