@@ -957,9 +957,7 @@ class Client(BaseClient):
         await self.command("TYPE " + conn_type, "200")
         try:
             code, info = await self.command("EPSV", "229")
-            # format: some message (|||port|)
-            *_, info = info[-1].split()
-            ip, port = None, int(info[4:-2])
+            ip, port = self.parse_epsv_response(info[-1])
         except errors.StatusCodeError as e:
             if not e.received_codes[-1].matches("50x"):
                 raise
