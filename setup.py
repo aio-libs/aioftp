@@ -1,16 +1,14 @@
-import os
 import re
+import pathlib
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 
 
-def read(f):
-    return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
-
-
+BASE_PATH = pathlib.Path(__file__).parent
 try:
     version = re.findall(r"""^__version__ = "([^']+)"\r?$""",
-                         read(os.path.join("aioftp", "__init__.py")), re.M)[0]
+                         (BASE_PATH / "aioftp" / "__init__.py").read_text(),
+                         re.M)[0]
 except IndexError:
     raise RuntimeError("Unable to determine version.")
 
@@ -40,7 +38,7 @@ setup(
     name="aioftp",
     version=version,
     description=("ftp client/server for asyncio"),
-    long_description=read("README.rst"),
+    long_description=(BASE_PATH / "README.rst").read_text(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",

@@ -1,4 +1,4 @@
-x.x.x (xx-xx-xxxx)
+0.10.1 (29-02-2018)
 ------------------
 
 - client: more flexible `EPSV` response parsing
