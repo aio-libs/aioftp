@@ -1,11 +1,11 @@
-0.10.1 (29-02-2018)
-------------------
+0.10.1 (01-03-2018)
+-------------------
 
 - client: more flexible `EPSV` response parsing
 Thanks to `p4l1ly <https://github.com/p4l1ly>`_
 
 0.10.0 (03-02-2018)
-------------------
+-------------------
 
 - server: fix ipv6 peername unpack
 - server: `connection` object is accessible from path-io layer since now
