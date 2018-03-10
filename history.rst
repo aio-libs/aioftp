@@ -1,3 +1,11 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- client: fix parsing `ls` modify time (#60)
+Thanks to `saulcruz <https://github.com/saulcruz>`_,
+    `NickG123 <https://github.com/NickG123>`_,
+    `rsichny <https://github.com/rsichny>`_
+
 0.10.1 (01-03-2018)
 -------------------
 

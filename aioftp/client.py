@@ -3,7 +3,7 @@ import re
 import collections
 import pathlib
 import logging
-import time
+import datetime
 
 from . import errors
 from . import pathio
@@ -350,7 +350,7 @@ class BaseClient:
         return mode
 
     @staticmethod
-    def parse_ls_date(s):
+    def parse_ls_date(s, *, now=None):
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958" and "Nov 18 12:29".
@@ -362,10 +362,20 @@ class BaseClient:
         """
         with setlocale("C"):
             try:
-                d = time.strptime(s, "%b %d %H:%M")
+                if now is None:
+                    now = datetime.datetime.now()
+                d = datetime.datetime.strptime(s, "%b %d %H:%M")
+                d = d.replace(year=now.year)
+                diff = (now - d).total_seconds()
+                # magic constant from `ls` (half of year in seconds)
+                magic = 15778476
+                if diff > magic:
+                    d = d.replace(year=now.year + 1)
+                elif diff < -magic:
+                    d = d.replace(year=now.year - 1)
             except ValueError:
-                d = time.strptime(s, "%b %d  %Y")
-        return time.strftime("%Y%m%d%H%M00", d)
+                d = datetime.datetime.strptime(s, "%b %d  %Y")
+        return d.strftime("%Y%m%d%H%M00")
 
     def parse_list_line(self, b):
         """
