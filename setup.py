@@ -50,6 +50,7 @@ setup(
     url="https://github.com/aio-libs/aioftp",
     license="Apache 2",
     packages=find_packages(),
+    python_requires=" >= 3.5.0",
     install_requires=[],
     tests_require=["nose", "coverage"],
     cmdclass={"test": NoseTestCommand},
