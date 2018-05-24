@@ -1294,7 +1294,7 @@ class Server(AbstractServer):
 
     @ConnectionConditions(ConnectionConditions.login_required)
     async def type(self, connection, rest):
-        if rest == "I":
+        if rest in ("I", "A"):
             connection.transfer_type = rest
             code, info = "200", ""
         else:
