@@ -445,7 +445,7 @@ class AbstractServer:
         for connection in self.connections.values():
             connection._dispatcher.cancel()
             tasks.append(connection._dispatcher)
-        logger.info("waiting for %r", tasks)
+        logger.info("waiting for %d tasks", len(tasks))
         await asyncio.wait(tasks)
 
     async def write_line(self, stream, line):
