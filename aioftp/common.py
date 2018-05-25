@@ -3,7 +3,10 @@ import functools
 import collections
 import locale
 import threading
+import enum
 from contextlib import contextmanager
+
+from . import errors
 
 
 __all__ = (
@@ -37,13 +40,17 @@ DEFAULT_ACCOUNT = ""
 
 
 def _with_timeout(name):
+
     def decorator(f):
+
         @functools.wraps(f)
         def wrapper(cls, *args, **kwargs):
             coro = f(cls, *args, **kwargs)
             timeout = getattr(cls, name)
             return asyncio.wait_for(coro, timeout, loop=cls.loop)
+
         return wrapper
+
     return decorator
 
 
@@ -61,24 +68,20 @@ def with_timeout(name):
     ::
 
         >>> def __init__(self, ...):
-        ...
         ...     self.timeout = 1
         ...
         ... @with_timeout
         ... async def foo(self, ...):
-        ...
         ...     pass
 
     Wait for custom timeout
     ::
 
         >>> def __init__(self, ...):
-        ...
         ...     self.foo_timeout = 1
         ...
         ... @with_timeout("foo_timeout")
         ... async def foo(self, ...):
-        ...
         ...     pass
 
     """
@@ -180,30 +183,25 @@ def async_enterable(f):
     ::
 
         >>> async def foo():
-        ...
         ...     ...
         ...     return AsyncContextInstance(...)
         ...
         ... ctx = await foo()
-        ... async with ctx:
-        ...
+        ... async with ctx as smth:
         ...     # do
 
     ::
 
         >>> @async_enterable
         ... async def foo():
-        ...
         ...     ...
         ...     return AsyncContextInstance(...)
         ...
-        ... async with foo() as ctx:
-        ...
+        ... async with foo() as smth:
         ...     # do
         ...
         ... ctx = await foo()
         ... async with ctx:
-        ...
         ...     # do
 
     """
@@ -300,8 +298,10 @@ class StreamIO:
         self.writer.write(data)
         await self.writer.drain()
 
-    def close(self):
+    async def close(self):
         """
+        :py:func:`asyncio.coroutine`
+
         Close connection.
         """
         self.writer.close()
@@ -335,12 +335,11 @@ class Throttle:
 
         Wait until can do IO
         """
-        if self._limit is not None and self._limit > 0 and \
-           self._start is not None:
-
-            now = self.loop.time()
-            end = self._start + self._sum / self._limit
-            await asyncio.sleep(max(0, end - now), loop=self.loop)
+        if self._limit is None or self._limit <= 0 or self._start is None:
+            return
+        now = self.loop.time()
+        end = self._start + self._sum / self._limit
+        await asyncio.sleep(max(0, end - now), loop=self.loop)
 
     def append(self, data, start):
         """
@@ -353,13 +352,14 @@ class Throttle:
             :py:meth:`asyncio.BaseEventLoop.time`
         :type start: :py:class:`float`
         """
-        if self._limit is not None and self._limit > 0:
-            if self._start is None:
-                self._start = start
-            if start - self._start > self.reset_rate:
-                self._sum -= round((start - self._start) * self._limit)
-                self._start = start
-            self._sum += len(data)
+        if self._limit is None or self._limit <= 0:
+            return
+        if self._start is None:
+            self._start = start
+        if start - self._start > self.reset_rate:
+            self._sum -= round((start - self._start) * self._limit)
+            self._start = start
+        self._sum += len(data)
 
     @property
     def limit(self):
@@ -553,7 +553,7 @@ class ThrottleStreamIO(StreamIO):
         return self
 
     async def __aexit__(self, *args):
-        self.close()
+        await self.close()
 
     def iter_by_line(self):
         """
@@ -580,6 +580,99 @@ class ThrottleStreamIO(StreamIO):
             ...     ...
         """
         return AsyncStreamIterator(lambda: self.read(count))
+
+
+class DirectedThrottleStreamIO(ThrottleStreamIO):
+
+    Direction = enum.Enum("Direction", "incoming outgoing")
+
+    def __init__(self, *args, host, port, start_server_factory,
+                 create_connection_factory, available_ports=None,
+                 wait_connection_timeout=None, **kwargs):
+        super().__init__(None, None, *args, **kwargs)
+        self.host = host
+        self.port = port
+        self.start_server_factory = start_server_factory
+        self.create_connection_factory = create_connection_factory
+        self.available_ports = available_ports
+        self.wait_connection_timeout = wait_connection_timeout
+        self._server = None
+        self._direction = None
+        self._incoming_event = asyncio.Event(loop=self._loop)
+
+    async def set_direction(self, direction):
+        if self._direction == direction:
+            return
+        if direction == self.Direction.outgoing:
+            await self._stop_incoming_server()
+        elif direction == self.Direction.incoming:
+            await self._start_incoming_server()
+        else:
+            raise ValueError("Unknown direction type {!r}".format(direction))
+        self._direction = direction
+
+    async def connect(self):
+        # here
+        self._reset_current_connection()
+        if self._direction == self.Direction.outgoing:
+            self.reader, self.writer = await asyncio.wait_for(
+                self.create_connection_factory(self.host, self.port),
+                self.wait_connection_timeout,
+                loop=self._loop,
+            )
+        elif self._direction == self.Direction.incoming:
+            await asyncio.wait_for(
+                self._incoming_event,
+                self.wait_connection_timeout,
+                loop=self._loop
+            )
+
+    @property
+    def incoming_sockname(self):
+        return self._server.sockets[0].getsockname()
+
+    async def stop(self):
+        await self._stop_incoming_server()
+        self._reset_current_connection()
+
+    def _reset_current_connection(self):
+        if self.writer is not None:
+            self.writer.close()
+        self.reader = self.writer = None
+        # here
+        self._incomming_connection.cancel()
+        self._incomming_connection = asyncio.Future(loop=self._loop)
+
+    async def _incoming_handler(self, reader, writer):
+        # here
+        if self.reader and self.writer:
+            writer.close()
+        else:
+            self._incomming_connection.set_result((reader, writer))
+
+    async def _start_incoming_server(self):
+        if self._server is not None:
+            return
+        if self.available_ports is not None:
+            if not self.available_ports:
+                raise errors.NoAvailablePort
+            port = self.available_ports.pop()
+        else:
+            port = None
+        self._server = await self._start_server_factory(self._incoming_handler,
+                                                        port=port)
+        # maybe here
+
+    async def _stop_incoming_server(self):
+        if self._server is None:
+            return
+        _, port, *_ = self.incoming_sockname
+        self.available_ports.add(port)
+        try:
+            self._server.close()
+            await self._server.wait_closed()
+        finally:
+            self._server = None
 
 
 LOCALE_LOCK = threading.Lock()

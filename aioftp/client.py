@@ -19,7 +19,7 @@ from .common import (
     DEFAULT_BLOCK_SIZE,
     AsyncListerMixin,
     async_enterable,
-    setlocale
+    setlocale,
 )
 
 __all__ = (
