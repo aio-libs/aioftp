@@ -368,7 +368,7 @@ class PathIO(AbstractPathIO):
         class Lister(AbstractAsyncLister):
 
             @universal_exception
-            async def __aiter__(self):
+            def __aiter__(self):
                 self.iter = path.glob("*")
                 return self
 
@@ -452,6 +452,7 @@ class AsyncPathIO(AbstractPathIO):
     def list(self, path):
 
         class Lister(AbstractAsyncLister):
+            iter = None
 
             def worker(self):
                 try:
@@ -462,13 +463,14 @@ class AsyncPathIO(AbstractPathIO):
             @universal_exception
             @with_timeout
             async def __aiter__(self):
-                f = functools.partial(path.glob, "*")
-                self.iter = await self.loop.run_in_executor(None, f)
                 return self
 
             @universal_exception
             @with_timeout
             async def __anext__(self):
+                if self.iter is None:
+                    f = functools.partial(path.glob, "*")
+                    self.iter = await self.loop.run_in_executor(None, f)
                 return await self.loop.run_in_executor(None, self.worker)
 
         return Lister(timeout=self.timeout, loop=self.loop)
@@ -651,7 +653,7 @@ class MemoryPathIO(AbstractPathIO):
         class Lister(AbstractAsyncLister):
 
             @universal_exception
-            async def __aiter__(cls):
+            def __aiter__(cls):
                 node = self.get_node(path)
                 if node is None or node.type != "dir":
                     cls.iter = iter(())

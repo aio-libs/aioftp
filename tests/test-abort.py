@@ -73,7 +73,7 @@ class FakeSlowPathIO(aioftp.PathIO):
 
         class Lister(aioftp.AbstractAsyncLister):
 
-            async def __aiter__(self):
+            def __aiter__(self):
 
                 return self
 

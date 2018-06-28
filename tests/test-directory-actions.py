@@ -166,7 +166,7 @@ class FakeErrorPathIO(aioftp.PathIO):
 
             @aioftp.pathio.universal_exception
             @aioftp.with_timeout
-            async def __aiter__(self):
+            def __aiter__(self):
 
                 self.iter = path.glob("*")
                 return self

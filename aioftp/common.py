@@ -94,7 +94,7 @@ class AsyncStreamIterator:
     def __init__(self, read_coro):
         self.read_coro = read_coro
 
-    async def __aiter__(self):
+    def __aiter__(self):
         return self
 
     async def __anext__(self):
@@ -142,7 +142,7 @@ class AbstractAsyncLister(AsyncListerMixin):
         >>> class Lister(AbstractAsyncLister):
         ...
         ...     @with_timeout
-        ...     async def __aiter__(self):
+        ...     def __aiter__(self):
         ...         ...
 
         ...     @with_timeout
@@ -165,7 +165,7 @@ class AbstractAsyncLister(AsyncListerMixin):
         self.loop = loop or asyncio.get_event_loop()
 
     @with_timeout
-    async def __aiter__(self):
+    def __aiter__(self):
         raise NotImplementedError
 
     @with_timeout
