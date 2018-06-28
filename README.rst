@@ -6,8 +6,9 @@
 aioftp
 ======
 
-.. image:: https://img.shields.io/travis/aio-libs/aioftp.svg
-    :target: https://travis-ci.org/aio-libs/aioftp
+.. image:: https://travis-ci.com/aio-libs/aioftp.svg?branch=master
+   :target: https://travis-ci.com/aio-libs/aioftp
+   :alt: Travis status for master branch
 
 .. image:: https://codecov.io/gh/aio-libs/aioftp/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aioftp
