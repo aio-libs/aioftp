@@ -462,7 +462,7 @@ class AsyncPathIO(AbstractPathIO):
 
             @universal_exception
             @with_timeout
-            async def __aiter__(self):
+            def __aiter__(self):
                 return self
 
             @universal_exception
