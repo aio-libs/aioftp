@@ -131,7 +131,7 @@ class AbstractAsyncLister(AsyncListerMixin):
     :py:class:`list` via `await` with optional timeout (via
     :py:func:`aioftp.with_timeout`)
 
-    :param timeout: timeout for __aiter__, __anext__ operations
+    :param timeout: timeout for __anext__ operation
     :type timeout: :py:class:`None`, :py:class:`int` or :py:class:`float`
 
     :param loop: loop to use for timeouts
@@ -141,10 +141,6 @@ class AbstractAsyncLister(AsyncListerMixin):
 
         >>> class Lister(AbstractAsyncLister):
         ...
-        ...     @with_timeout
-        ...     def __aiter__(self):
-        ...         ...
-
         ...     @with_timeout
         ...     async def __anext__(self):
         ...         ...
@@ -164,9 +160,8 @@ class AbstractAsyncLister(AsyncListerMixin):
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
-    @with_timeout
     def __aiter__(self):
-        raise NotImplementedError
+        return self
 
     @with_timeout
     async def __anext__(self):

@@ -650,9 +650,6 @@ class Client(BaseClient):
             async def __anext__(cls):
                 if cls.stream is None:
                     cls.stream = await cls._new_stream(path)
-                    # this was previously in __aiter__ however as __aiter__ is
-                    # now synchronous only (py 3.7) this is the workaround.
-
                 while True:
                     line = await cls.stream.readline()
                     while not line:
