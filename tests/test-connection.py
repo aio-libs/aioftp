@@ -41,9 +41,7 @@ async def test_not_implemented(loop, client, server):
 
 @aioftp_setup()
 @with_connection
-@expect_codes_in_exception("502")
-async def test_type_not_implemented(loop, client, server):
-
+async def test_type_success(loop, client, server):
     await client.login()
     await client.get_passive_connection("A")
 
