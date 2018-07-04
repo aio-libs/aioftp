@@ -189,7 +189,7 @@ class AbstractPathIO:
     def list(self, path):
         """
         Create instance of subclass of :py:class:`aioftp.AbstractAsyncLister`.
-        You should subclass and implement `__aiter__` and `__anext__` methods
+        You should subclass and implement `__anext__` method
         for :py:class:`aioftp.AbstractAsyncLister` and return new instance.
 
         :param path: path to list
@@ -366,14 +366,12 @@ class PathIO(AbstractPathIO):
     def list(self, path):
 
         class Lister(AbstractAsyncLister):
-
-            @universal_exception
-            async def __aiter__(self):
-                self.iter = path.glob("*")
-                return self
+            iter = None
 
             @universal_exception
             async def __anext__(self):
+                if self.iter is None:
+                    self.iter = path.glob("*")
                 try:
                     return next(self.iter)
                 except StopIteration:
@@ -452,6 +450,7 @@ class AsyncPathIO(AbstractPathIO):
     def list(self, path):
 
         class Lister(AbstractAsyncLister):
+            iter = None
 
             def worker(self):
                 try:
@@ -461,14 +460,10 @@ class AsyncPathIO(AbstractPathIO):
 
             @universal_exception
             @with_timeout
-            async def __aiter__(self):
-                f = functools.partial(path.glob, "*")
-                self.iter = await self.loop.run_in_executor(None, f)
-                return self
-
-            @universal_exception
-            @with_timeout
             async def __anext__(self):
+                if self.iter is None:
+                    f = functools.partial(path.glob, "*")
+                    self.iter = await self.loop.run_in_executor(None, f)
                 return await self.loop.run_in_executor(None, self.worker)
 
         return Lister(timeout=self.timeout, loop=self.loop)
@@ -649,20 +644,18 @@ class MemoryPathIO(AbstractPathIO):
     def list(self, path):
 
         class Lister(AbstractAsyncLister):
-
-            @universal_exception
-            async def __aiter__(cls):
-                node = self.get_node(path)
-                if node is None or node.type != "dir":
-                    cls.iter = iter(())
-                else:
-                    names = map(operator.attrgetter("name"), node.content)
-                    paths = map(lambda name: path / name, names)
-                    cls.iter = iter(paths)
-                return cls
+            iter = None
 
             @universal_exception
             async def __anext__(cls):
+                if cls.iter is None:
+                    node = self.get_node(path)
+                    if node is None or node.type != "dir":
+                        cls.iter = iter(())
+                    else:
+                        names = map(operator.attrgetter("name"), node.content)
+                        paths = map(lambda name: path / name, names)
+                        cls.iter = iter(paths)
                 try:
                     return next(cls.iter)
                 except StopIteration:

@@ -67,18 +67,12 @@ class FakeSlowPathIO(aioftp.PathIO):
         return b"-" * 8192
 
     def list(self, path):
-
         # infinite list
         files = tuple(path.glob("*"))
 
         class Lister(aioftp.AbstractAsyncLister):
 
-            async def __aiter__(self):
-
-                return self
-
             async def __anext__(self):
-
                 return files[0]
 
         return Lister(timeout=self.timeout, loop=self.loop)

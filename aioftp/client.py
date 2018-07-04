@@ -628,6 +628,7 @@ class Client(BaseClient):
             >>> stats = await client.list()
         """
         class AsyncLister(AsyncListerMixin):
+            stream = None
 
             async def _new_stream(cls, local_path):
                 cls.path = local_path
@@ -642,12 +643,13 @@ class Client(BaseClient):
                 command = ("LIST " + str(cls.path)).strip()
                 return await self.get_stream(command, "1xx")
 
-            async def __aiter__(cls):
-                cls.stream = await cls._new_stream(path)
+            def __aiter__(cls):
                 cls.directories = collections.deque()
                 return cls
 
             async def __anext__(cls):
+                if cls.stream is None:
+                    cls.stream = await cls._new_stream(path)
                 while True:
                     line = await cls.stream.readline()
                     while not line:

@@ -163,24 +163,16 @@ class FakeErrorPathIO(aioftp.PathIO):
     def list(self, path):
 
         class Lister(aioftp.AbstractAsyncLister):
-
-            @aioftp.pathio.universal_exception
-            @aioftp.with_timeout
-            async def __aiter__(self):
-
-                self.iter = path.glob("*")
-                return self
+            iter = None
 
             @aioftp.pathio.universal_exception
             @aioftp.with_timeout
             async def __anext__(self):
-
+                if self.iter is None:
+                    self.iter = path.glob("*")
                 try:
-
                     raise Exception("KERNEL PANIC")
-
                 except StopIteration:
-
                     raise StopAsyncIteration
 
         return Lister(timeout=self.timeout, loop=self.loop)
