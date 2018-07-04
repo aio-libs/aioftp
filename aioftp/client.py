@@ -4,12 +4,12 @@ import collections
 import pathlib
 import logging
 import datetime
+import functools
 
 from . import errors
 from . import pathio
+from .stream import DirectedThrottleStreamIO, StreamDirection, StreamThrottle
 from .common import (
-    ThrottleStreamIO,
-    StreamThrottle,
     DEFAULT_PORT,
     wrap_with_container,
     END_OF_LINE,
@@ -22,6 +22,7 @@ from .common import (
     setlocale,
 )
 
+
 __all__ = (
     "BaseClient",
     "Client",
@@ -32,7 +33,7 @@ __all__ = (
 logger = logging.getLogger(__name__)
 
 
-async def open_connection(host, port, loop, create_connection):
+async def open_connection(host, port, *, loop, create_connection):
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
     transport, _ = await create_connection(lambda: protocol, host, port)
@@ -60,7 +61,7 @@ class Code(str):
         return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
 
 
-class DataConnectionThrottleStreamIO(ThrottleStreamIO):
+class DataConnection(DirectedThrottleStreamIO):
     """
     Add `finish` method to :py:class:`aioftp.ThrottleStreamIO`, which is
     specific for data connection. This requires `client`.
@@ -93,14 +94,14 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         :type wait_codes: :py:class:`tuple` of :py:class:`str` or
             :py:class:`str`
         """
-        self.close()
+        await self.disconnect()
         await self.client.command(None, expected_codes, wait_codes)
 
     async def __aexit__(self, exc_type, exc, tb):
         if exc is None:
             await self.finish()
         else:
-            self.close()
+            await self.disconnect()
 
 
 class BaseClient:
@@ -110,42 +111,51 @@ class BaseClient:
                  write_speed_limit=None, path_timeout=None,
                  path_io_factory=pathio.PathIO, encoding="utf-8"):
         self.loop = loop or asyncio.get_event_loop()
-        self.create_connection = create_connection or \
-            self.loop.create_connection
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
-            loop=self.loop
+            loop=self.loop,
         )
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
         self.encoding = encoding
-        self.stream = None
-
-    async def connect(self, host, port=DEFAULT_PORT):
-        self.server_host = host
-        self.server_port = port
-        reader, writer = await open_connection(
-            host,
-            port,
-            self.loop,
-            self.create_connection,
+        if create_connection is None:
+            create_connection = self.loop.create_connection
+        self.connection_factory = functools.partial(
+            open_connection,
+            loop=loop,
+            create_connection=create_connection,
         )
-        self.stream = ThrottleStreamIO(
-            reader,
-            writer,
+        self.info_stream = DirectedThrottleStreamIO(
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
             loop=self.loop,
+            start_server_factory=None,
+            create_connection_factory=create_connection,
+        )
+        self.data_stream = DataConnection(
+            self,
+            throttles={"_": self.throttle},
+            timeout=self.socket_timeout,
+            loop=self.loop,
+            start_server_factory=None,
+            create_connection_factory=self.connection_factory,
         )
 
-    def close(self):
+    async def connect(self, host, port=DEFAULT_PORT):
+        await self.info_stream.connect(
+            host,
+            port,
+            direction=StreamDirection.outgoing
+        )
+
+    async def close(self):
         """
         Close connection.
         """
-        if self.stream is not None:
-            self.stream.close()
+        await self.data_stream.stop()
+        await self.info_stream.stop()
 
     async def parse_line(self):
         """
@@ -161,9 +171,9 @@ class BaseClient:
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
         """
-        line = await self.stream.readline()
+        line = await self.info_stream.readline()
         if not line:
-            self.stream.close()
+            await self.close()
             raise ConnectionResetError
         s = line.decode(encoding=self.encoding).rstrip()
         logger.info(s)
@@ -239,7 +249,7 @@ class BaseClient:
         if command:
             logger.info(command)
             message = command + END_OF_LINE
-            await self.stream.write(message.encode(encoding=self.encoding))
+            await self.info_stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
             code, info = await self.parse_response()
             while any(map(code.matches, wait_codes)):
@@ -661,9 +671,7 @@ class Client(BaseClient):
 
                     try:
                         name, info = cls.parse_line(line)
-                    except KeyboardInterrupt:
-                        raise
-                    except:  # noqa
+                    except Exception:
                         continue
 
                     stat = cls.path / name, info
@@ -950,7 +958,7 @@ class Client(BaseClient):
         Send "QUIT" and close connection.
         """
         await self.command("QUIT", "2xx")
-        self.close()
+        await self.close()
 
     async def get_passive_connection(self, conn_type="I"):
         """
@@ -974,14 +982,16 @@ class Client(BaseClient):
             code, info = await self.command("PASV", "227")
             ip, port = self.parse_pasv_response(info[-1])
         if ip in ("0.0.0.0", None):
-            ip = self.server_host
-        reader, writer = await open_connection(
-            ip,
-            port,
-            self.loop,
-            self.create_connection,
-        )
-        return reader, writer
+            ip = self.info_stream.host
+        await self.data_connection.set_direction(StreamDirection.outgoing)
+        await self.data_connection.connect(ip, port)
+        # reader, writer = await open_connection(
+        #     ip,
+        #     port,
+        #     self.loop,
+        #     self.create_connection,
+        # )
+        # return reader, writer
 
     @async_enterable
     async def get_stream(self, *command_args, conn_type="I", offset=0):
@@ -1076,7 +1086,7 @@ class ClientSession:
             await self.client.connect(self.host, self.port)
             await self.client.login(self.user, self.password, self.account)
         except:  # noqa
-            self.client.close()
+            await self.client.close()
             raise
         return self.client
 
