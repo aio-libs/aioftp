@@ -1,10 +1,13 @@
-x.x.x (xx-xx-xxxx)
+0.11.0 (04-07-2018)
 ------------------
 
 - client: fix parsing `ls` modify time (#60)
+- all: add python3.7 support (`__aiter__` must be regular function since now) (#76, #77)
 Thanks to `saulcruz <https://github.com/saulcruz>`_,
     `NickG123 <https://github.com/NickG123>`_,
-    `rsichny <https://github.com/rsichny>`_
+    `rsichny <https://github.com/rsichny>`_,
+    `Modelmat <https://github.com/Modelmat>`_,
+    `webknjaz <https://github.com/webknjaz>`_
 
 0.10.1 (01-03-2018)
 -------------------
