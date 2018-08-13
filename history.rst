@@ -1,3 +1,8 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- server: fix memory pathio is not shared between connections
+
 0.11.0 (04-07-2018)
 ------------------
 

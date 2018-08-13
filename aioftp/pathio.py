@@ -17,6 +17,7 @@ __all__ = (
     "PathIO",
     "AsyncPathIO",
     "MemoryPathIO",
+    "PathIONursery",
 )
 
 
@@ -84,6 +85,19 @@ def universal_exception(coro):
     return wrapper
 
 
+class PathIONursery:
+
+    def __init__(self, factory):
+        self.factory = factory
+        self.state = None
+
+    def __call__(self, *args, **kwargs):
+        instance = self.factory(*args, state=self.state, **kwargs)
+        if self.state is None:
+            self.state = instance.state
+        return instance
+
+
 class AbstractPathIO:
     """
     Abstract class for path io operations.
@@ -96,11 +110,17 @@ class AbstractPathIO:
 
     :param connection: server connection that is accessing this PathIO
     :type connection: :py:class:`aioftp.Connection`
+
+    :param state: shared pathio state per server
     """
-    def __init__(self, timeout=None, loop=None, connection=None):
+    def __init__(self, timeout=None, loop=None, connection=None, state=None):
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
         self.connection = connection
+
+    @property
+    def state(self):
+        return
 
     @universal_exception
     async def exists(self, path):
@@ -547,9 +567,16 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, state=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fs = [Node("dir", "/", content=[])]
+        if state is None:
+            self.fs = [Node("dir", "/", content=[])]
+        else:
+            self.fs = state
+
+    @property
+    def state(self):
+        return self.fs
 
     def __repr__(self):
         return repr(self.fs)

@@ -507,6 +507,26 @@ async def test_memory_path_seek_write_over_end(loop, client, server):
     nose.tools.eq_(r, b"foobar" + b"\x00" * 4 + b"foo")
 
 
+@aioftp_setup(
+    server_args=(
+        [(aioftp.User(base_path=pathlib.PurePosixPath("/")),)],
+        {"path_io_factory": aioftp.MemoryPathIO}))
+@with_connection
+async def test_memory_path_save_state_on_reconnection(loop, client, server):
+    data = b"test"
+    await client.login()
+    async with client.upload_stream("foo.txt") as stream:
+        await stream.write(data)
+    async with client.download_stream("foo.txt") as stream:
+        assert (await stream.read()) == data
+    await client.quit()
+    await client.connect("127.0.0.1", PORT)
+    await client.login()
+    assert (await client.exists("foo.txt"))
+    async with client.download_stream("foo.txt") as stream:
+        assert (await stream.read()) == data
+
+
 if __name__ == "__main__":
 
     import logging

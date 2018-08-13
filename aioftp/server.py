@@ -805,7 +805,7 @@ class Server(AbstractServer):
         self.socket_timeout = socket_timeout
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
-        self.path_io_factory = path_io_factory
+        self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
         if data_ports is not None:
             self.available_data_ports = asyncio.PriorityQueue(loop=self.loop)
