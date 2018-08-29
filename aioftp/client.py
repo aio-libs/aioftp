@@ -610,6 +610,10 @@ class Client(BaseClient):
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
 
+        :param cmd optional ftp command to use in place of fallback logic.
+        must be one of "MLSD", "LIST"
+        :type cmd :py:class:`str`
+
         :rtype: :py:class:`list` or `async for` context
 
         ::
