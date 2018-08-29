@@ -598,7 +598,7 @@ class Client(BaseClient):
         """
         await self.command("RMD " + str(path), "250")
 
-    def list(self, path="", *, recursive=False):
+    def list(self, path="", *, recursive=False, cmd=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -633,15 +633,19 @@ class Client(BaseClient):
             async def _new_stream(cls, local_path):
                 cls.path = local_path
                 cls.parse_line = self.parse_mlsx_line
-                try:
-                    command = ("MLSD " + str(cls.path)).strip()
+                if cmd not in [None, "MLSD", "LIST"]:
+                    raise ValueError("cmd must be one of MLSD or LIST")
+                if not cmd or cmd == "MLSD":
+                    try:
+                        command = ("MLSD " + str(cls.path)).strip()
+                        return await self.get_stream(command, "1xx")
+                    except errors.StatusCodeError as e:
+                        if not e.received_codes[-1].matches("50x"):
+                            raise
+                if not cmd or cmd == "LIST":
+                    cls.parse_line = self.parse_list_line
+                    command = ("LIST " + str(cls.path)).strip()
                     return await self.get_stream(command, "1xx")
-                except errors.StatusCodeError as e:
-                    if not e.received_codes[-1].matches("50x"):
-                        raise
-                cls.parse_line = self.parse_list_line
-                command = ("LIST " + str(cls.path)).strip()
-                return await self.get_stream(command, "1xx")
 
             def __aiter__(cls):
                 cls.directories = collections.deque()
