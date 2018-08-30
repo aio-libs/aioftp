@@ -1,7 +1,10 @@
-x.x.x (xx-xx-xxxx)
+0.11.1 (30-08-2018)
 ------------------
 
 - server: fix memory pathio is not shared between connections
+- client: add argument to `list` to allow manually specifying raw command (fix #78)
+Thanks to `thirtyseven <https://github.com/thirtyseven>`_
+
 
 0.11.0 (04-07-2018)
 ------------------
