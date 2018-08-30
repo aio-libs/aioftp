@@ -598,7 +598,7 @@ class Client(BaseClient):
         """
         await self.command("RMD " + str(path), "250")
 
-    def list(self, path="", *, recursive=False):
+    def list(self, path="", *, recursive=False, raw_command=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -609,6 +609,10 @@ class Client(BaseClient):
 
         :param recursive: list recursively
         :type recursive: :py:class:`bool`
+
+        :param raw_command optional ftp command to use in place of
+            fallback logic (must be one of "MLSD", "LIST")
+        :type cmd :py:class:`str`
 
         :rtype: :py:class:`list` or `async for` context
 
@@ -633,15 +637,21 @@ class Client(BaseClient):
             async def _new_stream(cls, local_path):
                 cls.path = local_path
                 cls.parse_line = self.parse_mlsx_line
-                try:
-                    command = ("MLSD " + str(cls.path)).strip()
+                if raw_command not in [None, "MLSD", "LIST"]:
+                    t = "raw_command must be one of MLSD or LIST, but got {}"
+                    raise ValueError(t.format(raw_command))
+                if raw_command in [None, "MLSD"]:
+                    try:
+                        command = ("MLSD " + str(cls.path)).strip()
+                        return await self.get_stream(command, "1xx")
+                    except errors.StatusCodeError as e:
+                        code = e.received_codes[-1]
+                        if not code.matches("50x") or raw_command is not None:
+                            raise
+                if raw_command in [None, "LIST"]:
+                    cls.parse_line = self.parse_list_line
+                    command = ("LIST " + str(cls.path)).strip()
                     return await self.get_stream(command, "1xx")
-                except errors.StatusCodeError as e:
-                    if not e.received_codes[-1].matches("50x"):
-                        raise
-                cls.parse_line = self.parse_list_line
-                command = ("LIST " + str(cls.path)).strip()
-                return await self.get_stream(command, "1xx")
 
             def __aiter__(cls):
                 cls.directories = collections.deque()
