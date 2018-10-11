@@ -98,7 +98,7 @@ async def test_pasv_connection_ports_not_added(loop, client, server):
 @with_connection
 async def test_pasv_connection_ports(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(2)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(2)]
     expected_data_ports = [30000, 30001]
 
     for i, client in enumerate(clients):
@@ -128,7 +128,7 @@ async def test_data_ports_remains_empty(loop, client, server):
 @with_connection
 async def test_pasv_connection_port_reused(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(2)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(2)]
 
     for client in clients:
 

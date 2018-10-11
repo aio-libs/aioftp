@@ -427,6 +427,7 @@ class AbstractServer:
             host,
             port,
             loop=self.loop,
+            ssl=self.ssl,
             **self._start_server_extra_arguments,
         )
         for sock in self.server.sockets:
@@ -776,6 +777,11 @@ class Server(AbstractServer):
 
     :param encoding: encoding to use for convertion strings to bytes
     :type encoding: :py:class:`str`
+
+    :param ssl: can be set to an :py:class:`ssl.SSLContext` instance
+        to enable TLS over the accepted connections.
+        Please look :py:meth:`asyncio.loop.create_server` docs.
+    :type ssl: :py:class:`ssl.SSLContext`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -799,7 +805,8 @@ class Server(AbstractServer):
                  read_speed_limit_per_connection=None,
                  write_speed_limit_per_connection=None,
                  data_ports=None,
-                 encoding="utf-8"):
+                 encoding="utf-8",
+                 ssl=None):
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -832,6 +839,7 @@ class Server(AbstractServer):
         )
         self.throttle_per_user = {}
         self.encoding = encoding
+        self.ssl = ssl
 
     async def dispatcher(self, reader, writer):
         host, port, *_ = writer.transport.get_extra_info("peername", ("", ""))
