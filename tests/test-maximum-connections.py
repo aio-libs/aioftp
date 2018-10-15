@@ -6,7 +6,7 @@ import aioftp
 @with_connection
 async def test_multiply_connections_no_limits(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(4)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(4)]
     for client in clients:
 
         await client.connect("127.0.0.1", PORT)
@@ -23,7 +23,7 @@ async def test_multiply_connections_no_limits(loop, client, server):
 @with_connection
 async def test_multiply_connections_limited_error(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(5)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(5)]
     for client in clients:
 
         await client.connect("127.0.0.1", PORT)
@@ -53,7 +53,7 @@ async def test_multiply_user_commands(loop, client, server):
 async def test_multiply_connections_with_user_limited_error(loop, client,
                                                             server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(5)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(5)]
     for client in clients:
 
         await client.connect("127.0.0.1", PORT)
@@ -69,7 +69,7 @@ async def test_multiply_connections_with_user_limited_error(loop, client,
 @with_connection
 async def test_multiply_connections_relogin_balanced(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(5)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(5)]
     for client in clients[:-1]:
 
         await client.connect("127.0.0.1", PORT)
@@ -90,7 +90,7 @@ async def test_multiply_connections_relogin_balanced(loop, client, server):
 @expect_codes_in_exception("421")
 async def test_multiply_connections_server_limit_error(loop, client, server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(5)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(5)]
     for client in clients:
 
         await client.connect("127.0.0.1", PORT)
@@ -107,7 +107,7 @@ async def test_multiply_connections_server_limit_error(loop, client, server):
 async def test_multiply_connections_server_relogin_balanced(loop, client,
                                                             server):
 
-    clients = [aioftp.Client(loop=loop) for _ in range(5)]
+    clients = [aioftp.Client(loop=loop, ssl=client.ssl) for _ in range(5)]
     for client in clients[:-1]:
 
         await client.connect("127.0.0.1", PORT)

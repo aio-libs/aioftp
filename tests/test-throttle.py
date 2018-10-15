@@ -293,15 +293,15 @@ async def test_server_global_write_throttle_multi_users(loop, client, server,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.download(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.download(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -335,15 +335,15 @@ async def test_server_global_read_throttle_multi_users(loop, client, server, *,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.upload(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.upload(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -378,15 +378,15 @@ async def test_server_per_connection_write_throttle_multi_users(loop, client,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.download(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.download(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -421,15 +421,15 @@ async def test_server_per_connection_read_throttle_multi_users(loop, client,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.upload(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.upload(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -463,15 +463,15 @@ async def test_server_user_per_connection_write_throttle_multi_users(loop,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.download(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.download(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -505,15 +505,15 @@ async def test_server_user_per_connection_read_throttle_multi_users(loop,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.upload(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.upload(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -546,15 +546,15 @@ async def test_server_user_global_write_throttle_multi_users(loop, client,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.download(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.download(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"
@@ -587,15 +587,15 @@ async def test_server_user_global_read_throttle_multi_users(loop, client,
 
     async def worker(fname):
 
-        client = aioftp.Client(loop=loop)
-        await client.connect("127.0.0.1", PORT)
-        await client.login()
-        await client.upload(
+        _client = aioftp.Client(loop=loop, ssl=client.ssl)
+        await _client.connect("127.0.0.1", PORT)
+        await _client.login()
+        await _client.upload(
             "tests/foo/foo.txt",
             str.format("tests/foo/{}", fname),
             write_into=True
         )
-        await client.quit()
+        await _client.quit()
 
     fnames = ("bar.txt", "baz.txt", "hurr.txt")
     big_file = tmp_dir / "foo.txt"

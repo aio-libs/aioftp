@@ -52,7 +52,7 @@ setup(
     packages=find_packages(),
     python_requires=" >= 3.5.3",
     install_requires=[],
-    tests_require=["nose", "coverage"],
+    tests_require=["nose", "coverage", "trustme"],
     cmdclass={"test": NoseTestCommand},
     include_package_data=True
 )

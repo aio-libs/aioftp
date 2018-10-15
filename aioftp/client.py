@@ -32,10 +32,11 @@ __all__ = (
 logger = logging.getLogger(__name__)
 
 
-async def open_connection(host, port, loop, create_connection):
+async def open_connection(host, port, loop, create_connection, ssl=None):
     reader = asyncio.StreamReader(loop=loop)
     protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    transport, _ = await create_connection(lambda: protocol, host, port)
+    transport, _ = await create_connection(lambda: protocol,
+                                           host, port, ssl=ssl)
     writer = asyncio.StreamWriter(transport, protocol, reader, loop)
     return reader, writer
 
@@ -108,7 +109,8 @@ class BaseClient:
     def __init__(self, *, loop=None, create_connection=None,
                  socket_timeout=None, read_speed_limit=None,
                  write_speed_limit=None, path_timeout=None,
-                 path_io_factory=pathio.PathIO, encoding="utf-8"):
+                 path_io_factory=pathio.PathIO, encoding="utf-8",
+                 ssl=None):
         self.loop = loop or asyncio.get_event_loop()
         self.create_connection = create_connection or \
             self.loop.create_connection
@@ -122,6 +124,7 @@ class BaseClient:
         self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
         self.encoding = encoding
         self.stream = None
+        self.ssl = ssl
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
@@ -131,6 +134,7 @@ class BaseClient:
             port,
             self.loop,
             self.create_connection,
+            self.ssl,
         )
         self.stream = ThrottleStreamIO(
             reader,
@@ -491,6 +495,14 @@ class Client(BaseClient):
 
     :param encoding: encoding to use for convertion strings to bytes
     :type encoding: :py:class:`str`
+
+    :param ssl: if given and not false, a SSL/TLS transport is created
+        (by default a plain TCP transport is created).
+        If ssl is a ssl.SSLContext object, this context is used to create
+        the transport; if ssl is True, a default context returned from
+        ssl.create_default_context() is used.
+        Please look :py:meth:`asyncio.loop.create_connection` docs.
+    :type ssl: :py:class:`bool` or :py:class:`ssl.SSLContext`
     """
     async def connect(self, host, port=DEFAULT_PORT):
         """
