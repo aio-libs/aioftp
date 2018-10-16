@@ -831,7 +831,7 @@ class Client(BaseClient):
         :param offset: byte offset for stream start position
         :type offset: :py:class:`int`
 
-        :rtype: :py:class:`aioftp.ThrottleStreamIO`
+        :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
         return self.get_stream(
             "STOR " + str(destination),
@@ -849,7 +849,7 @@ class Client(BaseClient):
         :param offset: byte offset for stream start position
         :type offset: :py:class:`int`
 
-        :rtype: :py:class:`aioftp.ThrottleStreamIO`
+        :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
         return self.get_stream(
             "APPE " + str(destination),
@@ -922,7 +922,7 @@ class Client(BaseClient):
         :param offset: byte offset for stream start position
         :type offset: :py:class:`int`
 
-        :rtype: :py:class:`aioftp.ThrottleStreamIO`
+        :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
         return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
