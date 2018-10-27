@@ -8,6 +8,7 @@ import collections
 import enum
 import logging
 import stat
+import sys
 
 from . import errors
 from . import pathio
@@ -35,6 +36,13 @@ __all__ = (
     "AbstractServer",
     "Server",
 )
+
+IS_PY37_PLUS = sys.version_info[:2] >= (3, 7)
+if IS_PY37_PLUS:
+    get_current_task = asyncio.current_task
+else:
+    get_current_task = asyncio.Task.current_task
+
 logger = logging.getLogger(__name__)
 
 
@@ -875,7 +883,7 @@ class Server(AbstractServer):
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
             restart_offset=0,
-            _dispatcher=asyncio.Task.current_task(loop=self.loop),
+            _dispatcher=get_current_task(loop=self.loop),
         )
         connection.path_io = self.path_io_factory(timeout=self.path_timeout,
                                                   loop=self.loop,
