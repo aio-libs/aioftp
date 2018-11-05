@@ -354,7 +354,18 @@ class BaseClient:
         return mode
 
     @staticmethod
-    def parse_ls_date(s, *, now=None):
+    def format_date_time(d):
+        """
+        Formats dates from strptime in a consistent format
+
+        :param d: return value from strptime
+        :type d: :py:class:`datetime`
+
+        :rtype: :py:class`str`
+        """
+        return d.strftime("%Y%m%d%H%M00")
+
+    def parse_ls_date(self, s, *, now=None):
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958" and "Nov 18 12:29".
@@ -379,9 +390,9 @@ class BaseClient:
                     d = d.replace(year=now.year - 1)
             except ValueError:
                 d = datetime.datetime.strptime(s, "%b %d  %Y")
-        return d.strftime("%Y%m%d%H%M00")
+        return self.format_date_time(d)
 
-    def parse_list_line(self, b):
+    def parse_list_line_unix(self, b):
         """
         Attempt to parse a LIST line (similar to unix ls utility).
 
@@ -439,6 +450,70 @@ class BaseClient:
             info["type"] = "dir" if link_dst[i] == "/" else "file"
             s = link_src
         return pathlib.PurePosixPath(s), info
+
+    def parse_list_line_windows(self,b):
+        """
+        Parsing Microsoft Windows `dir` output
+
+        :param b: response line
+        :type b: :py:class:`bytes` or :py:class:`str`
+
+        :return: (path, info)
+        :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
+        """
+        if isinstance(b, bytes):
+            s = b.decode(encoding=self.encoding)
+        else:
+            s = b
+        # Do not strip! File names can have spaces at the end
+        line = s
+        i = len(line) - 1
+        # Hopefully files can't have newlines and carriage returns in their name
+        while line[i] in ['\r', '\n']:
+            i -= 1
+        line = line[:i + 1]
+        date_time_end = line.index('M')
+        date_time_str = line[:date_time_end + 1]
+        date_time_str = ' '.join([x for x in line[:date_time_end + 1].split(' ') if len(x) > 0])
+        line = line[date_time_end + 1:].lstrip()
+        with setlocale("C"):
+            date_time = datetime.datetime.strptime(date_time_str, "%m/%d/%Y %I:%M %p")
+        info = {}
+        info["modify"] = self.format_date_time(date_time)
+        next_space = line.index(' ')
+        if line.startswith("<DIR>"):
+            info["type"] = "dir"
+        else:
+            info["type"] = "file"
+            info["size"] = line[:next_space].replace(',', '')
+            if not info["size"].isdigit():
+                raise ValueError
+        # This here could cause a problem if a filename started with whitespace
+        # But if we were to try to detect such a condition we would have to make
+        # strong assumptions about the input format
+        filename = line[next_space:].lstrip()
+        if filename == "." or filename == "..":
+            raise ValueError
+        return pathlib.PurePosixPath(filename), info
+
+    def parse_list_line(self, b):
+        """
+        Parse LIST response with both Microsoft Windows® parser and
+        UNIX parser
+
+        :param b: response line
+        :type b: :py:class:`bytes` or :py:class:`str`
+
+        :return: (path, info)
+        :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
+        """
+        try:
+            return self.parse_list_line_unix(b)
+        except (ValueError, KeyError, IndexError):
+            try:
+                return self.parse_list_line_windows(b)
+            except (ValueError, KeyError, IndexError):
+                raise
 
     def parse_mlsx_line(self, b):
         """
@@ -687,7 +762,7 @@ class Client(BaseClient):
                         name, info = cls.parse_line(line)
                     except KeyboardInterrupt:
                         raise
-                    except:  # noqa
+                    except Exception as e:  # noqa
                         continue
 
                     stat = cls.path / name, info
