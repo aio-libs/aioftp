@@ -451,7 +451,7 @@ class BaseClient:
             s = link_src
         return pathlib.PurePosixPath(s), info
 
-    def parse_list_line_windows(self,b):
+    def parse_list_line_windows(self, b):
         """
         Parsing Microsoft Windows `dir` output
 
@@ -468,16 +468,18 @@ class BaseClient:
         # Do not strip! File names can have spaces at the end
         line = s
         i = len(line) - 1
-        # Hopefully files can't have newlines and carriage returns in their name
+        # Hopefully files can't have newlines and
+        # carriage returns in their name
         while line[i] in ['\r', '\n']:
             i -= 1
         line = line[:i + 1]
         date_time_end = line.index('M')
-        date_time_str = line[:date_time_end + 1]
-        date_time_str = ' '.join([x for x in line[:date_time_end + 1].split(' ') if len(x) > 0])
+        date_time_str = line[:date_time_end + 1].strip().split(' ')
+        date_time_str = ' '.join([x for x in date_time_str if len(x) > 0])
         line = line[date_time_end + 1:].lstrip()
         with setlocale("C"):
-            date_time = datetime.datetime.strptime(date_time_str, "%m/%d/%Y %I:%M %p")
+            strptime = datetime.datetime.strptime
+            date_time = strptime(date_time_str, "%m/%d/%Y %I:%M %p")
         info = {}
         info["modify"] = self.format_date_time(date_time)
         next_space = line.index(' ')
@@ -488,9 +490,9 @@ class BaseClient:
             info["size"] = line[:next_space].replace(',', '')
             if not info["size"].isdigit():
                 raise ValueError
-        # This here could cause a problem if a filename started with whitespace
-        # But if we were to try to detect such a condition we would have to make
-        # strong assumptions about the input format
+        # This here could cause a problem if a filename started with
+        # whitespace, but if we were to try to detect such a condition
+        # we would have to make strong assumptions about the input format
         filename = line[next_space:].lstrip()
         if filename == "." or filename == "..":
             raise ValueError
