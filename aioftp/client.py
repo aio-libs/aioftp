@@ -509,7 +509,8 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        for parser in (self.parse_list_line_unix, self.parse_list_line_windows):
+        parsers = (self.parse_list_line_unix, self.parse_list_line_windows)
+        for parser in parsers:
             try:
                 return parser(b)
             except (ValueError, KeyError, IndexError) as e:
