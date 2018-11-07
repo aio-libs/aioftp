@@ -2,6 +2,8 @@ import pathlib
 
 import nose
 
+import contextlib
+
 from common import *  # noqa
 
 
@@ -88,10 +90,8 @@ def test_client_list_windows():
     test_str = test_str.strip().split("\n")
     entities = []
     for x in test_str:
-        try:
+        with contextlib.suppress(ValueError):
             entities.append(p(aioftp.Client, x))
-        except ValueError:
-            pass
     # The spaces in "win7.sh   " are supposed to be there
     # We parse file names with spaces to the best of our ability
     correct_names = {"bin", "Desktop", "dow", "Downloads", "msc", "opt",
