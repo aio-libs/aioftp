@@ -462,11 +462,10 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-            s = b.decode(encoding=self.encoding)
+            line = b.decode(encoding=self.encoding)
         else:
-            s = b
+            line = b
         # Do not strip! File names can have spaces at the end
-        line = s
         i = len(line) - 1
         # Hopefully files can't have newlines and
         # carriage returns in their name
@@ -509,13 +508,13 @@ class BaseClient:
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
-        try:
-            return self.parse_list_line_unix(b)
-        except (ValueError, KeyError, IndexError):
+        ex = []
+        for parser in (self.parse_list_line_unix, self.parse_list_line_windows):
             try:
-                return self.parse_list_line_windows(b)
-            except (ValueError, KeyError, IndexError):
-                raise
+                return parser(b)
+            except (ValueError, KeyError, IndexError) as e:
+                ex.append(e)
+        raise ValueError("All parsers failed to parse", b, ex)
 
     def parse_mlsx_line(self, b):
         """
@@ -764,7 +763,7 @@ class Client(BaseClient):
                         name, info = cls.parse_line(line)
                     except KeyboardInterrupt:
                         raise
-                    except Exception as e:  # noqa
+                    except Exception:
                         continue
 
                     stat = cls.path / name, info

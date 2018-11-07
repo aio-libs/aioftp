@@ -10,9 +10,11 @@ async def not_implemented(connection, rest):
     connection.response("502", ":P")
     return True
 
+
 async def implemented_badly(connection, rest):
 
     nose.tools.ok_(False, 'should not be called')
+
 
 @aioftp_setup(server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
 @with_connection
@@ -87,13 +89,15 @@ def test_client_list_windows():
     entities = []
     for x in test_str:
         try:
-            entities.append(p(aioftp.Client,x))
-        except ValueError as e:
+            entities.append(p(aioftp.Client, x))
+        except ValueError:
             pass
     # The spaces in "win7.sh   " are supposed to be there
     # We parse file names with spaces to the best of our ability
-    correct_names = set(["bin","Desktop","dow","Downloads","msc","opt","win10.img","win10.iso","win10.sh","win7.img","win7.iso","win7.sh   "])
-    nose.tools.eq_(len(correct_names),len(entities))
+    correct_names = {"bin", "Desktop", "dow", "Downloads", "msc", "opt",
+                        "win10.img", "win10.iso", "win10.sh",
+                        "win7.img", "win7.iso", "win7.sh   "}
+    nose.tools.eq_(len(correct_names), len(entities))
     for x in entities:
         correct_names.remove(str(x[0]))
-    nose.tools.eq_(len(correct_names),0)
+    nose.tools.eq_(len(correct_names), 0)
