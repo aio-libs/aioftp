@@ -74,4 +74,4 @@ def test_parse_list_datetime_not_older_than_6_month_format():
     deltas = (datetime.timedelta(), dt, -dt)
     for now, delta in itertools.product(dates, deltas):
         d = now + delta
-        nose.tools.eq_(p(_c_locale_time(d), now=d), date_to_p(d))
+        nose.tools.eq_(p(aioftp.Client, _c_locale_time(d), now=d), date_to_p(d))

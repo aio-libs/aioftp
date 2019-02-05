@@ -1,3 +1,9 @@
+0.13.0 (xx-xx-xxxx)
+-------------------
+
+- client: add windows list parser (#82)
+Thanks to `jw4js <https://github.com/jw4js>`_
+
 0.12.0 (15-10-2018)
 -------------------
 
