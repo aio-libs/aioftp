@@ -452,6 +452,7 @@ class AbstractServer:
         self.server.close()
         tasks = [self.server.wait_closed()]
         for connection in self.connections.values():
+            connection.command_connection.close()
             connection._dispatcher.cancel()
             tasks.append(connection._dispatcher)
         logger.info("waiting for %d tasks", len(tasks))
@@ -1318,6 +1319,20 @@ class Server(AbstractServer):
         connection.response(code, info)
         return True
 
+    @ConnectionConditions(ConnectionConditions.login_required)
+    async def pbsz(self, connection, rest):
+        connection.response('200', '')
+        return True
+
+    @ConnectionConditions(ConnectionConditions.login_required)
+    async def prot(self, connection, rest):
+        if rest == 'P':
+            code, info = '200', ''
+        else:
+            code, info = '502', ''
+        connection.response(code, info)
+        return True
+
     async def _start_passive_server(self, connection, handler_callback):
         if self.available_data_ports is not None:
             viewed_ports = set()
@@ -1332,6 +1347,7 @@ class Server(AbstractServer):
                         connection.server_host,
                         port,
                         loop=connection.loop,
+                        ssl=self.ssl,
                         **self._start_server_extra_arguments,
                     )
                     connection.passive_server_port = port
@@ -1348,6 +1364,7 @@ class Server(AbstractServer):
                 connection.server_host,
                 connection.passive_server_port,
                 loop=connection.loop,
+                ssl=self.ssl,
                 **self._start_server_extra_arguments,
             )
         return passive_server
