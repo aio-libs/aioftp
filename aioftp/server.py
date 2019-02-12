@@ -1321,15 +1321,15 @@ class Server(AbstractServer):
 
     @ConnectionConditions(ConnectionConditions.login_required)
     async def pbsz(self, connection, rest):
-        connection.response('200', '')
+        connection.response("200", "")
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
     async def prot(self, connection, rest):
         if rest == 'P':
-            code, info = '200', ''
+            code, info = "200", ""
         else:
-            code, info = '502', ''
+            code, info = "502", ""
         connection.response(code, info)
         return True
 
