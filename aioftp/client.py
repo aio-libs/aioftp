@@ -1081,6 +1081,7 @@ class Client(BaseClient):
             port,
             self.loop,
             self.create_connection,
+            self.ssl,
         )
         return reader, writer
 
