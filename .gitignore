@@ -12,3 +12,4 @@ __pycache__
 /tags
 /*.py
 .vscode
+.mypy_cache
