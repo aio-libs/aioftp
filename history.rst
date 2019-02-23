@@ -1,5 +1,26 @@
+0.13.0 (xx-xx-xxxx)
+-------------------
+
+- client: add windows list parser (#82)
+Thanks to `jw4js <https://github.com/jw4js>`_
+
+0.12.0 (15-10-2018)
+-------------------
+
+- all: add implicit ftps mode support (#81)
+Thanks to `alxpy <https://github.com/alxpy>`_,
+    `webknjaz <https://github.com/webknjaz>`_
+
+0.11.1 (30-08-2018)
+-------------------
+
+- server: fix memory pathio is not shared between connections
+- client: add argument to `list` to allow manually specifying raw command (#78)
+Thanks to `thirtyseven <https://github.com/thirtyseven>`_
+
+
 0.11.0 (04-07-2018)
-------------------
+-------------------
 
 - client: fix parsing `ls` modify time (#60)
 - all: add python3.7 support (`__aiter__` must be regular function since now) (#76, #77)

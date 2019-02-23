@@ -8,6 +8,7 @@ import collections
 import enum
 import logging
 import stat
+import sys
 
 from . import errors
 from . import pathio
@@ -35,6 +36,13 @@ __all__ = (
     "AbstractServer",
     "Server",
 )
+
+IS_PY37_PLUS = sys.version_info[:2] >= (3, 7)
+if IS_PY37_PLUS:
+    get_current_task = asyncio.current_task
+else:
+    get_current_task = asyncio.Task.current_task
+
 logger = logging.getLogger(__name__)
 
 
@@ -427,6 +435,7 @@ class AbstractServer:
             host,
             port,
             loop=self.loop,
+            ssl=self.ssl,
             **self._start_server_extra_arguments,
         )
         for sock in self.server.sockets:
@@ -776,6 +785,11 @@ class Server(AbstractServer):
 
     :param encoding: encoding to use for convertion strings to bytes
     :type encoding: :py:class:`str`
+
+    :param ssl: can be set to an :py:class:`ssl.SSLContext` instance
+        to enable TLS over the accepted connections.
+        Please look :py:meth:`asyncio.loop.create_server` docs.
+    :type ssl: :py:class:`ssl.SSLContext`
     """
     path_facts = (
         ("st_size", "Size"),
@@ -799,13 +813,14 @@ class Server(AbstractServer):
                  read_speed_limit_per_connection=None,
                  write_speed_limit_per_connection=None,
                  data_ports=None,
-                 encoding="utf-8"):
+                 encoding="utf-8",
+                 ssl=None):
         self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
         self.idle_timeout = idle_timeout
         self.wait_future_timeout = wait_future_timeout
-        self.path_io_factory = path_io_factory
+        self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
         if data_ports is not None:
             self.available_data_ports = asyncio.PriorityQueue(loop=self.loop)
@@ -832,6 +847,7 @@ class Server(AbstractServer):
         )
         self.throttle_per_user = {}
         self.encoding = encoding
+        self.ssl = ssl
 
     async def dispatcher(self, reader, writer):
         host, port, *_ = writer.transport.get_extra_info("peername", ("", ""))
@@ -867,7 +883,7 @@ class Server(AbstractServer):
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
             restart_offset=0,
-            _dispatcher=asyncio.Task.current_task(loop=self.loop),
+            _dispatcher=get_current_task(loop=self.loop),
         )
         connection.path_io = self.path_io_factory(timeout=self.path_timeout,
                                                   loop=self.loop,
@@ -1302,6 +1318,20 @@ class Server(AbstractServer):
         connection.response(code, info)
         return True
 
+    @ConnectionConditions(ConnectionConditions.login_required)
+    async def pbsz(self, connection, rest):
+        connection.response("200", "")
+        return True
+
+    @ConnectionConditions(ConnectionConditions.login_required)
+    async def prot(self, connection, rest):
+        if rest == 'P':
+            code, info = "200", ""
+        else:
+            code, info = "502", ""
+        connection.response(code, info)
+        return True
+
     async def _start_passive_server(self, connection, handler_callback):
         if self.available_data_ports is not None:
             viewed_ports = set()
@@ -1316,6 +1346,7 @@ class Server(AbstractServer):
                         connection.server_host,
                         port,
                         loop=connection.loop,
+                        ssl=self.ssl,
                         **self._start_server_extra_arguments,
                     )
                     connection.passive_server_port = port
@@ -1332,6 +1363,7 @@ class Server(AbstractServer):
                 connection.server_host,
                 connection.passive_server_port,
                 loop=connection.loop,
+                ssl=self.ssl,
                 **self._start_server_extra_arguments,
             )
         return passive_server
