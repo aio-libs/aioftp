@@ -452,7 +452,6 @@ class AbstractServer:
         self.server.close()
         tasks = [self.server.wait_closed()]
         for connection in self.connections.values():
-            connection.command_connection.close()
             connection._dispatcher.cancel()
             tasks.append(connection._dispatcher)
         logger.info("waiting for %d tasks", len(tasks))
