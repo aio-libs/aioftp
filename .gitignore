@@ -1,4 +1,3 @@
-aioftp/__pycache__
 docs/_build
 /build/
 /dist/
@@ -13,3 +12,4 @@ __pycache__
 /*.py
 .vscode
 .mypy_cache
+.pytest_cache
