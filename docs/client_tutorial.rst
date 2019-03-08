@@ -277,6 +277,12 @@ Or, if you want to abort transfer at some point
     ... else:
     ...     await stream.finish()
 
+WARNING
+^^^^^^^
+
+Do not use `async with <stream>` syntax if you want to use `abort`, this will
+lead to deadlock.
+
 For restarting upload/download at exact byte position (REST command) there is
 `offset` argument for `*_stream` methods:
 

@@ -11,11 +11,11 @@ jobs:
           dist: xenial
           sudo: required
 install:
-    - travis_retry pip install codecov flake8
+    - travis_retry pip install codecov flake8 .[tests]
 before_script:
     - flake8 aioftp
 script:
-    - python setup.py test
+    - pytest
 branches:
     only:
         - master

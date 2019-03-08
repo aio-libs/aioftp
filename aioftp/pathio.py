@@ -6,6 +6,7 @@ import io
 import time
 import stat
 import sys
+import pathlib
 
 from .common import (with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE,
                      AbstractAsyncLister)
@@ -567,8 +568,9 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, *args, state=None, **kwargs):
+    def __init__(self, *args, state=None, cwd=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.cwd = pathlib.Path(cwd or "/")
         if state is None:
             self.fs = [Node("dir", "/", content=[])]
         else:
@@ -584,6 +586,8 @@ class MemoryPathIO(AbstractPathIO):
     def get_node(self, path):
         nodes = self.fs
         node = None
+        if not path.is_absolute():
+            path = self.cwd / path
         for part in path.parts:
             if not isinstance(nodes, list):
                 return

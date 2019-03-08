@@ -1,184 +1,98 @@
-# import pathlib
+import asyncio
+import itertools
+import pathlib
+
+import pytest
+
+import aioftp
 
 
-async def test_abort_stor(factory, tmp_dir):
-    pass
-# @aioftp_setup(
-#     server_args=([(aioftp.User(base_path="tests/foo"),)], {}))
-# @with_connection
-# @with_tmp_dir("foo")
-# async def test_abort_stor(loop, client, server, *, tmp_dir):
-
-#     async def request_abort():
-
-#         await asyncio.sleep(0.1, loop=loop)
-#         await client.abort()
-#         future.set_result(True)
-
-#     future = asyncio.Future(loop=loop)
-#     await client.login()
-#     stream = await client.upload_stream("/test.txt")
-#     loop.create_task(request_abort())
-#     while True:
-
-#         try:
-
-#             for _ in range(5):
-
-#                 await stream.write(b"-" * 8192)
-#                 await asyncio.sleep(0.1, loop=loop)
-
-#             await stream.finish()
-#             raise Exception("Not aborted")
-
-#         except (ConnectionResetError, BrokenPipeError):
-
-#             break
-
-#     await future
-#     await client.quit()
-#     file = (tmp_dir / "test.txt")
-#     nose.tools.ok_(file.stat().st_size)
-#     file.unlink()
+@pytest.mark.asyncio
+async def test_abort_stor(pair_factory):
+    async with pair_factory() as pair:
+        stream = await pair.client.upload_stream("test.txt")
+        with pytest.raises((ConnectionResetError, BrokenPipeError)):
+            while True:
+                await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE)
+                await pair.client.abort()
 
 
-# class FakeSlowPathIO(aioftp.PathIO):
+class SlowReadMemoryPathIO(aioftp.MemoryPathIO):
 
-#     async def exists(self, path):
-
-#         return True
-
-#     async def is_file(self, path):
-
-#         return True
-
-#     async def _open(self, path, *args, **kwargs):
-
-#         return path
-
-#     async def close(self, *args, **kwargs):
-
-#         return
-
-#     async def read(self, *args, **kwargs):
-
-#         await asyncio.sleep(0.05, loop=self.loop)
-#         return b"-" * 8192
-
-#     def list(self, path):
-#         # infinite list
-#         files = tuple(path.glob("*"))
-
-#         class Lister(aioftp.AbstractAsyncLister):
-
-#             async def __anext__(self):
-#                 return files[0]
-
-#         return Lister(timeout=self.timeout, loop=self.loop)
+    async def read(self, *args, **kwargs):
+        await asyncio.sleep(0.01)
+        return await super().read(*args, **kwargs)
 
 
-# @aioftp_setup(
-#     server_args=([(aioftp.User(base_path="tests/foo"),)],
-#                  {"path_io_factory": FakeSlowPathIO}))
-# @with_connection
-# @with_tmp_dir("foo")
-# async def test_abort_retr(loop, client, server, *, tmp_dir):
-
-#     async def request_abort():
-
-#         await asyncio.sleep(0.1, loop=loop)
-#         await client.abort()
-#         future.set_result(True)
-
-#     future = asyncio.Future(loop=loop)
-#     await client.login()
-#     stream = await client.download_stream("/test.txt")
-#     loop.create_task(request_abort())
-#     while True:
-
-#         data = await stream.read(8192)
-#         if not data:
-
-#             break
-
-#     await future
-#     await client.quit()
+@pytest.mark.asyncio
+async def test_abort_retr(pair_factory, Server):
+    s = Server(path_io_factory=SlowReadMemoryPathIO)
+    async with pair_factory(None, s) as pair:
+        async with pair.client.upload_stream("test.txt") as stream:
+            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE * 3)
+        stream = await pair.client.download_stream("test.txt")
+        for i in itertools.count():
+            data = await stream.read(aioftp.DEFAULT_BLOCK_SIZE)
+            if not data:
+                stream.close()
+                break
+            if i == 0:
+                await pair.client.abort()
 
 
-# @aioftp_setup(
-#     server_args=([(aioftp.User(base_path="tests/foo"),)],
-#                  {"path_io_factory": FakeSlowPathIO}))
-# @expect_codes_in_exception("426")
-# @with_connection
-# @with_tmp_dir("foo")
-# async def test_abort_retr_no_wait(loop, client, server, *, tmp_dir):
-
-#     async def request_abort():
-
-#         await asyncio.sleep(0.1, loop=loop)
-#         await client.abort(wait=False)
-#         future.set_result(True)
-
-#     future = asyncio.Future(loop=loop)
-#     await client.login()
-#     stream = await client.download_stream("/test.txt")
-#     loop.create_task(request_abort())
-#     while True:
-
-#         data = await stream.read(8192)
-#         if not data:
-
-#             await stream.finish()
-#             break
-
-#     await future
-#     await client.quit()
+@pytest.mark.asyncio
+async def test_abort_retr_no_wait(pair_factory, Server,
+                                  expect_codes_in_exception):
+    s = Server(path_io_factory=SlowReadMemoryPathIO)
+    async with pair_factory(None, s) as pair:
+        async with pair.client.upload_stream("test.txt") as stream:
+            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE * 3)
+        stream = await pair.client.download_stream("test.txt")
+        with expect_codes_in_exception("426"):
+            for i in itertools.count():
+                data = await stream.read(aioftp.DEFAULT_BLOCK_SIZE)
+                if not data:
+                    await stream.finish()
+                    break
+                if i == 0:
+                    await pair.client.abort(wait=False)
 
 
-# @aioftp_setup()
-# @with_connection
-# async def test_nothing_to_abort(loop, client, server):
-
-#     await client.login()
-#     await client.abort()
-#     await client.quit()
+@pytest.mark.asyncio
+async def test_nothing_to_abort(pair_factory):
+    async with pair_factory() as pair:
+        await pair.client.abort()
 
 
-# @aioftp_setup(
-#     server_args=([(aioftp.User(base_path="tests/foo", home_path="/"),)],
-#                  {"path_io_factory": FakeSlowPathIO}))
-# @with_connection
-# @with_tmp_dir("foo")
-# async def test_mlsd_abort(loop, client, server, *, tmp_dir):
+class SlowListMemoryPathIO(aioftp.MemoryPathIO):
 
-#     tmp_file = tmp_dir / "test.txt"
-#     tmp_file.touch()
+    async def is_file(self, *a, **kw):
+        return True
 
-#     await client.login()
-#     cwd = await client.get_current_directory()
-#     nose.tools.eq_(cwd, pathlib.PurePosixPath("/"))
+    def list(self, *args, **kwargs):
 
-#     async for path, info in client.list():
+        class Lister(aioftp.AbstractAsyncLister):
 
-#         await client.abort()
-#         break
+            async def __anext__(cls):
+                await asyncio.sleep(0.01)
+                return pathlib.PurePath("/test.txt")
 
-#     tmp_file.unlink()
+        return Lister()
+
+    async def stat(self, *a, **kw):
+        class Stat:
+            st_size = 0
+            st_mtime = 0
+            st_ctime = 0
+        return Stat
 
 
-# if __name__ == "__main__":
-
-#     import logging
-#     import os
-
-#     os.environ["AIOFTP_TESTS"] = "PathIO"
-#     logging.basicConfig(
-#         level=logging.INFO
-#     )
-#     # this test for testing infinite loop of
-#     # WARNING:asyncio:socket.send() raised exception
-#     test_abort_stor()
-#     test_abort_retr()
-#     test_abort_retr_no_wait()
-#     test_nothing_to_abort()
-#     print("done")
+@pytest.mark.asyncio
+async def test_mlsd_abort(pair_factory, Server):
+    s = Server(path_io_factory=SlowListMemoryPathIO)
+    async with pair_factory(None, s) as pair:
+        cwd = await pair.client.get_current_directory()
+        assert cwd == pathlib.PurePosixPath("/")
+        async for path, info in pair.client.list():
+            await pair.client.abort()
+            break

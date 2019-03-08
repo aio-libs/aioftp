@@ -441,7 +441,18 @@ class AbstractServer:
         for sock in self.server.sockets:
             if sock.family in (socket.AF_INET, socket.AF_INET6):
                 host, port, *_ = sock.getsockname()
+                if not self.server_port:
+                    self.server_port = port
+                if not self.server_host:
+                    self.server_host = host
                 logger.info("serving on %s:%s", host, port)
+
+    @property
+    def address(self):
+        """
+        Server listen socket host and port as :py:class:`tuple`
+        """
+        return self.server_host, self.server_port
 
     async def close(self):
         """
