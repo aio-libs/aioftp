@@ -1,9 +1,3 @@
-import asyncio
-import functools
-import logging
-import pathlib
-import shutil
-import socket
 import ssl
 import collections
 import contextlib
@@ -23,8 +17,6 @@ server_cert.configure_cert(ssl_server)
 
 ssl_client = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
 ca.configure_trust(ssl_client)
-
-PORT = 8888
 
 
 class Container:

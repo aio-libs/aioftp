@@ -583,11 +583,15 @@ class MemoryPathIO(AbstractPathIO):
     def __repr__(self):
         return repr(self.fs)
 
+    def _absolute(self, path):
+        if not path.is_absolute():
+            path = self.cwd / path
+        return path
+
     def get_node(self, path):
         nodes = self.fs
         node = None
-        if not path.is_absolute():
-            path = self.cwd / path
+        path = self._absolute(path)
         for part in path.parts:
             if not isinstance(nodes, list):
                 return
@@ -615,6 +619,7 @@ class MemoryPathIO(AbstractPathIO):
 
     @universal_exception
     async def mkdir(self, path, *, parents=False, exist_ok=False):
+        path = self._absolute(path)
         node = self.get_node(path)
         if node:
             if node.type != "dir" or not exist_ok:
