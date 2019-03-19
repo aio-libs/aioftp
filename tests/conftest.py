@@ -1,6 +1,7 @@
 import ssl
 import collections
 import contextlib
+from pathlib import Path
 
 import pytest
 import trustme
@@ -61,6 +62,25 @@ def pair_factory():
             self.logged = logged
             self.do_quit = do_quit
             self.timeout = timeout(1)
+
+        async def make_server_files(self, *paths, size=None, atom=b"-"):
+            if size is None:
+                size = aioftp.DEFAULT_BLOCK_SIZE * 3
+            data = atom * size
+            for p in paths:
+                await self.client.make_directory(Path(p).parent)
+                async with self.client.upload_stream(p) as stream:
+                    await stream.write(data)
+
+        async def server_paths_exists(self, *paths):
+            values = []
+            for p in paths:
+                values.append(await self.client.exists(p))
+            if all(values):
+                return True
+            if any(values):
+                raise ValueError("Mixed exists/not exists list")
+            return False
 
         async def __aenter__(self):
             self.timeout.__enter__()

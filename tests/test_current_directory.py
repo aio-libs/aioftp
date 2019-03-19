@@ -23,8 +23,7 @@ async def test_current_directory_not_default(pair_factory, Server):
 @pytest.mark.asyncio
 async def test_mlsd(pair_factory):
     async with pair_factory() as pair:
-        async with pair.client.upload_stream("test.txt") as stream:
-            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE)
+        await pair.make_server_files("test.txt")
         (path, stat), *_ = files = await pair.client.list()
         assert len(files) == 1
         assert path == pathlib.PurePosixPath("test.txt")
@@ -34,8 +33,7 @@ async def test_mlsd(pair_factory):
 @pytest.mark.asyncio
 async def test_resolving_double_dots(pair_factory):
     async with pair_factory() as pair:
-        async with pair.client.upload_stream("test.txt") as stream:
-            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE)
+        await pair.make_server_files("test.txt")
 
         async def f():
             cwd = await pair.client.get_current_directory()

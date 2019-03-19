@@ -28,8 +28,7 @@ class SlowReadMemoryPathIO(aioftp.MemoryPathIO):
 async def test_abort_retr(pair_factory, Server):
     s = Server(path_io_factory=SlowReadMemoryPathIO)
     async with pair_factory(None, s) as pair:
-        async with pair.client.upload_stream("test.txt") as stream:
-            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE * 3)
+        await pair.make_server_files("test.txt")
         stream = await pair.client.download_stream("test.txt")
         for i in itertools.count():
             data = await stream.read(aioftp.DEFAULT_BLOCK_SIZE)
@@ -45,8 +44,7 @@ async def test_abort_retr_no_wait(pair_factory, Server,
                                   expect_codes_in_exception):
     s = Server(path_io_factory=SlowReadMemoryPathIO)
     async with pair_factory(None, s) as pair:
-        async with pair.client.upload_stream("test.txt") as stream:
-            await stream.write(b"-" * aioftp.DEFAULT_BLOCK_SIZE * 3)
+        await pair.make_server_files("test.txt")
         stream = await pair.client.download_stream("test.txt")
         with expect_codes_in_exception("426"):
             for i in itertools.count():

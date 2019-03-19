@@ -13,7 +13,7 @@ jobs:
 install:
     - travis_retry pip install codecov flake8 .[tests]
 before_script:
-    - flake8 aioftp
+    - flake8 aioftp tests
 script:
     - pytest
 branches:

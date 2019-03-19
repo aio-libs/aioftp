@@ -15,28 +15,17 @@ async def test_create_and_remove_directory(pair_factory):
         assert stat["type"] == "dir"
 
         await pair.client.remove_directory("bar")
-        files = await pair.client.list()
-        assert len(files) == 0
+        assert await pair.server_paths_exists("bar") is False
 
 
 @pytest.mark.asyncio
 async def test_create_and_remove_directory_long(pair_factory):
     async with pair_factory() as pair:
         await pair.client.make_directory("bar/baz")
-        (path, stat), *_ = files = await pair.client.list()
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("bar")
-        assert stat["type"] == "dir"
-
-        (path, stat), *_ = files = await pair.client.list("bar")
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("bar/baz")
-        assert stat["type"] == "dir"
-
+        assert await pair.server_paths_exists("bar", "bar/baz")
         await pair.client.remove_directory("bar/baz")
         await pair.client.remove_directory("bar")
-        files = await pair.client.list()
-        assert len(files) == 0
+        assert await pair.server_paths_exists("bar") is False
 
 
 @pytest.mark.asyncio
@@ -71,41 +60,22 @@ async def test_change_directory_not_exist(pair_factory,
 async def test_rename_empty_directory(pair_factory):
     async with pair_factory() as pair:
         await pair.client.make_directory("bar")
-        (path, stat), *_ = files = await pair.client.list()
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("bar")
-        assert stat["type"] == "dir"
+        assert await pair.server_paths_exists("bar")
+        assert await pair.server_paths_exists("baz") is False
         await pair.client.rename("bar", "baz")
-        (path, stat), *_ = files = await pair.client.list()
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("baz")
-        assert stat["type"] == "dir"
+        assert await pair.server_paths_exists("bar") is False
+        assert await pair.server_paths_exists("baz")
 
 
 @pytest.mark.asyncio
 async def test_rename_non_empty_directory(pair_factory):
     async with pair_factory() as pair:
-        await pair.client.make_directory("bar")
-        async with pair.client.upload_stream("bar/foo.txt") as stream:
-            await stream.write(b"-")
-        (path, stat), *_ = files = await pair.client.list("bar")
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("bar/foo.txt")
-        assert stat["type"] == "file"
+        await pair.make_server_files("bar/foo.txt")
+        assert await pair.server_paths_exists("bar/foo.txt", "bar")
         await pair.client.make_directory("hurr")
         await pair.client.rename("bar", "hurr/baz")
-        (path, stat), *_ = files = await pair.client.list()
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("hurr")
-        assert stat["type"] == "dir"
-        (path, stat), *_ = files = await pair.client.list("hurr")
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("hurr/baz")
-        assert stat["type"] == "dir"
-        (path, stat), *_ = files = await pair.client.list("/hurr/baz")
-        assert len(files) == 1
-        assert path == pathlib.PurePosixPath("/hurr/baz/foo.txt")
-        assert stat["type"] == "file"
+        assert await pair.server_paths_exists("hurr/baz/foo.txt")
+        assert await pair.server_paths_exists("bar") is False
 
 
 class FakeErrorPathIO(aioftp.MemoryPathIO):
