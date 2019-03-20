@@ -1177,7 +1177,7 @@ class ClientSession:
         try:
             await self.client.connect(self.host, self.port)
             await self.client.login(self.user, self.password, self.account)
-        except:  # noqa
+        except Exception:
             self.client.close()
             raise
         return self.client

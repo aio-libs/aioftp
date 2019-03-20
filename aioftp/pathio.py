@@ -80,7 +80,7 @@ def universal_exception(coro):
         except (asyncio.CancelledError, NotImplementedError,
                 StopAsyncIteration):
             raise
-        except:  # noqa
+        except Exception:
             raise errors.PathIOError(reason=sys.exc_info())
 
     return wrapper
@@ -570,7 +570,7 @@ class MemoryPathIO(AbstractPathIO):
 
     def __init__(self, *args, state=None, cwd=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cwd = pathlib.Path(cwd or "/")
+        self.cwd = pathlib.PurePosixPath(cwd or "/")
         if state is None:
             self.fs = [Node("dir", "/", content=[])]
         else:

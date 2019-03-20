@@ -940,7 +940,7 @@ class Server(AbstractServer):
                             connection.response("502", message)
         except asyncio.CancelledError:
             raise
-        except:  # noqa
+        except Exception:
             logger.exception("dispatcher caught exception")
         finally:
             logger.info("closing connection from %s:%s", host, port)

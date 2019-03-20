@@ -72,10 +72,30 @@ def pair_factory():
                 async with self.client.upload_stream(p) as stream:
                     await stream.write(data)
 
+        async def make_client_files(self, *paths, size=None, atom=b"-"):
+            if size is None:
+                size = aioftp.DEFAULT_BLOCK_SIZE * 3
+            data = atom * size
+            for p in map(Path, paths):
+                await self.client.path_io.mkdir(p.parent, parents=True,
+                                                exist_ok=True)
+                async with self.client.path_io.open(p, mode="wb") as f:
+                    await f.write(data)
+
         async def server_paths_exists(self, *paths):
             values = []
             for p in paths:
                 values.append(await self.client.exists(p))
+            if all(values):
+                return True
+            if any(values):
+                raise ValueError("Mixed exists/not exists list")
+            return False
+
+        async def client_paths_exists(self, *paths):
+            values = []
+            for p in paths:
+                values.append(await self.client.path_io.exists(Path(p)))
             if all(values):
                 return True
             if any(values):
