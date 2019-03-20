@@ -49,7 +49,7 @@ def pair_factory():
     class Factory:
 
         def __init__(self, client=None, server=None, *,
-                     connected=True, logged=True, do_quit=True):
+                     connected=True, logged=True, do_quit=True, host=None):
             if client is None:
                 client = Container()
             self.client = aioftp.Client(*client.args,
@@ -61,6 +61,7 @@ def pair_factory():
             self.connected = connected
             self.logged = logged
             self.do_quit = do_quit
+            self.host = host
             self.timeout = timeout(1)
 
         async def make_server_files(self, *paths, size=None, atom=b"-"):
@@ -104,7 +105,7 @@ def pair_factory():
 
         async def __aenter__(self):
             self.timeout.__enter__()
-            await self.server.start()
+            await self.server.start(host=self.host)
             if self.connected:
                 await self.client.connect(self.server.server_host,
                                           self.server.server_port)
