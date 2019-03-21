@@ -1,2 +1,3 @@
 [report]
 show_missing = True
+omit = aioftp/__main__.py
