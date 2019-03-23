@@ -2,6 +2,8 @@ import ssl
 import collections
 import contextlib
 import tempfile
+import asyncio
+import math
 from pathlib import Path
 
 import pytest
@@ -152,3 +154,24 @@ def temp_dir(path_io):
     else:
         with tempfile.TemporaryDirectory() as name:
             yield Path(name)
+
+
+class Sleep:
+
+    def __init__(self):
+        self.delay = 0
+
+    async def sleep(self, delay, result=None, **kwargs):
+        self.delay = delay
+        return result
+
+    def is_close(self, delay, *, rel_tol=0.05):
+        return math.isclose(self.delay, delay, rel_tol=rel_tol)
+
+
+@pytest.fixture
+def skip_sleep(monkeypatch):
+    with monkeypatch.context() as m:
+        sleeper = Sleep()
+        m.setattr(asyncio, "sleep", sleeper.sleep)
+        yield sleeper

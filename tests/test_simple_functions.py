@@ -151,3 +151,17 @@ def test_parse_unix_mode(owner, group, others, read, write):
 def test_parse_list_line_failed():
     with pytest.raises(ValueError):
         aioftp.Client(encoding="utf-8").parse_list_line(b"what a hell?!")
+
+
+def test_repr_works():
+    repr(aioftp.Throttle())
+
+
+def test_throttle_reset():
+    t = aioftp.Throttle(limit=1, reset_rate=1)
+    t.append(b"-" * 3, 0)
+    assert t._start == 0
+    assert t._sum == 3
+    t.append(b"-" * 3, 2)
+    assert t._start == 2
+    assert t._sum == 4
