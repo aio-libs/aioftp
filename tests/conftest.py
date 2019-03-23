@@ -50,15 +50,17 @@ def pair_factory():
     class Factory:
 
         def __init__(self, client=None, server=None, *,
-                     connected=True, logged=True, do_quit=True, host=None):
+                     connected=True, logged=True, do_quit=True, host=None,
+                     server_factory=aioftp.Server,
+                     client_factory=aioftp.Client):
             if client is None:
                 client = Container()
-            self.client = aioftp.Client(*client.args,
-                                        **_wrap_with_defaults(client.kwargs))
+            self.client = client_factory(*client.args,
+                                         **_wrap_with_defaults(client.kwargs))
             if server is None:
                 server = Container()
-            self.server = aioftp.Server(*server.args,
-                                        **_wrap_with_defaults(server.kwargs))
+            self.server = server_factory(*server.args,
+                                         **_wrap_with_defaults(server.kwargs))
             self.connected = connected
             self.logged = logged
             self.do_quit = do_quit

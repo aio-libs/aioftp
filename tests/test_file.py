@@ -150,6 +150,15 @@ async def test_upload_file_write_into(pair_factory):
 
 
 @pytest.mark.asyncio
+async def test_upload_tree(pair_factory):
+    async with pair_factory() as pair:
+        await pair.make_client_files("foo/bar/baz", size=1, atom=b"client")
+        await pair.client.upload("foo", "bar", write_into=True)
+        files = await pair.client.list(recursive=True)
+        assert len(files) == 3
+
+
+@pytest.mark.asyncio
 async def test_download_file_write_into(pair_factory):
     async with pair_factory() as pair:
         await pair.make_client_files("foo", size=1, atom=b"client")
@@ -176,3 +185,17 @@ async def test_upload_file_os_error(pair_factory, Server,
         with expect_codes_in_exception("451"):
             async with pair.client.upload_stream("foo") as stream:
                 await stream.write(b"foobar")
+
+
+@pytest.mark.asyncio
+async def test_stat_when_no_mlst(pair_factory):
+    class CustomServer(aioftp.Server):
+        def __getattribute__(self, name):
+            if name == "mlst":
+                raise AttributeError
+            return super().__getattribute__(name)
+
+    async with pair_factory(server_factory=CustomServer) as pair:
+        await pair.make_server_files("foo")
+        info = await pair.client.stat("foo")
+        assert info["type"] == "file"

@@ -402,11 +402,7 @@ class BaseClient:
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
-        if isinstance(b, bytes):
-            s = b.decode(encoding=self.encoding)
-        else:
-            s = b
-        s = s.rstrip()
+        s = b.decode(encoding=self.encoding).rstrip()
         info = {}
         if s[0] == "-":
             info["type"] = "file"
@@ -461,17 +457,7 @@ class BaseClient:
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
-        if isinstance(b, bytes):
-            line = b.decode(encoding=self.encoding)
-        else:
-            line = b
-        # Do not strip! File names can have spaces at the end
-        i = len(line) - 1
-        # Hopefully files can't have newlines and
-        # carriage returns in their name
-        while line[i] in ['\r', '\n']:
-            i -= 1
-        line = line[:i + 1]
+        line = b.decode(encoding=self.encoding).rstrip("\r\n")
         date_time_end = line.index('M')
         date_time_str = line[:date_time_end + 1].strip().split(' ')
         date_time_str = ' '.join([x for x in date_time_str if len(x) > 0])
@@ -762,8 +748,6 @@ class Client(BaseClient):
 
                     try:
                         name, info = cls.parse_line(line)
-                    except KeyboardInterrupt:
-                        raise
                     except Exception:
                         continue
 

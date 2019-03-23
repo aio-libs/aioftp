@@ -56,9 +56,9 @@ def test_parse_epsv_response():
     assert p("some text (ha-ha) (|||665|) (6666666).") == (None, 666)
 
 
-def _c_locale_time(d):
+def _c_locale_time(d, format="%b %d %H:%M"):
     with aioftp.common.setlocale("C"):
-        return d.strftime("%b %d %H:%M")
+        return d.strftime(format)
 
 
 def test_parse_list_datetime_not_older_than_6_month_format():
@@ -66,11 +66,88 @@ def test_parse_list_datetime_not_older_than_6_month_format():
         return d.strftime("%Y%m%d%H%M00")
     p = aioftp.Client.parse_ls_date
     dates = (
-        datetime.datetime(year=2000, month=1, day=1),
-        datetime.datetime(year=2000, month=12, day=31),
+        datetime.datetime(year=2002, month=1, day=1),
+        datetime.datetime(year=2002, month=12, day=31),
     )
     dt = datetime.timedelta(seconds=15778476 // 2)
     deltas = (datetime.timedelta(), dt, -dt)
     for now, delta in itertools.product(dates, deltas):
         d = now + delta
-        assert p(aioftp.Client, _c_locale_time(d), now=d) == date_to_p(d)
+        assert p(aioftp.Client, _c_locale_time(d), now=now) == date_to_p(d)
+
+
+def test_parse_list_datetime_older_than_6_month_format():
+    def date_to_p(d):
+        return d.strftime("%Y%m%d%H%M00")
+    p = aioftp.Client.parse_ls_date
+    dates = (
+        datetime.datetime(year=2002, month=1, day=1),
+        datetime.datetime(year=2002, month=12, day=31),
+    )
+    dt = datetime.timedelta(seconds=15778476, days=30)
+    deltas = (dt, -dt)
+    for now, delta in itertools.product(dates, deltas):
+        d = now + delta
+        if delta.total_seconds() > 0:
+            expect = date_to_p(d.replace(year=d.year - 1))
+        else:
+            expect = date_to_p(d.replace(year=d.year + 1))
+        assert p(aioftp.Client, _c_locale_time(d), now=now) == expect
+
+
+def test_parse_list_datetime_short():
+    def date_to_p(d):
+        return d.strftime("%Y%m%d%H%M00")
+    p = aioftp.Client.parse_ls_date
+    dates = (
+        datetime.datetime(year=2002, month=1, day=1),
+        datetime.datetime(year=2002, month=12, day=31),
+    )
+    for d in dates:
+        s = _c_locale_time(d, format="%b %d  %Y")
+        assert p(aioftp.Client, s) == date_to_p(d)
+
+
+def test_parse_list_line_unix():
+    lines = {
+        "file": [
+            "-rw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",
+            "lrwxrwxrwx  1 poh  poh      6 Mar 23 05:46 link-tmp.py -> tmp.py",
+        ],
+        "dir": [
+            "drw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",
+        ],
+        "unknown": [
+            "Erw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",
+        ]
+    }
+    p = aioftp.Client(encoding="utf-8").parse_list_line_unix
+    for t, stack in lines.items():
+        for line in stack:
+            _, parsed = p(line.encode("utf-8"))
+            assert parsed["type"] == t
+    with pytest.raises(ValueError):
+        p(b"-rw-rw-r--  1 poh  poh   6xx5 Feb 27 04:14 history.rst")
+    with pytest.raises(ValueError):
+        p(b"-rw-rw-r--  xx poh  poh   6595 Feb 27 04:14 history.rst")
+
+
+@pytest.mark.parametrize("owner", ["s", "x", "-", "E"])
+@pytest.mark.parametrize("group", ["s", "x", "-", "E"])
+@pytest.mark.parametrize("others", ["t", "x", "-", "E"])
+@pytest.mark.parametrize("read", ["r", "-"])
+@pytest.mark.parametrize("write", ["w", "-"])
+def test_parse_unix_mode(owner, group, others, read, write):
+    t = "{read}{write}{owner}{read}{write}{group}{read}{write}{others}"
+    s = t.format(read=read, write=write, owner=owner,
+                 group=group, others=others)
+    if "E" in {owner, group, others}:
+        with pytest.raises(ValueError):
+            aioftp.Client.parse_unix_mode(s)
+    else:
+        assert isinstance(aioftp.Client.parse_unix_mode(s), int)
+
+
+def test_parse_list_line_failed():
+    with pytest.raises(ValueError):
+        aioftp.Client(encoding="utf-8").parse_list_line(b"what a hell?!")

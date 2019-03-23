@@ -51,7 +51,6 @@ async def test_client_list_override_invalid_raw_command(pair_factory):
 
 
 def test_client_list_windows():
-    p = aioftp.Client.parse_list_line_windows
     test_str = textwrap.dedent("""\
          11/4/2018   9:09 PM  <DIR>         .
          8/10/2018   1:02 PM  <DIR>         ..
@@ -72,9 +71,10 @@ def test_client_list_windows():
     """)
     test_str = test_str.strip().split("\n")
     entities = {}
+    parse = aioftp.Client(encoding="utf-8").parse_list_line_windows
     for x in test_str:
         with contextlib.suppress(ValueError):
-            path, stat = p(aioftp.Client, x)
+            path, stat = parse(x.encode("utf-8"))
             entities[path] = stat
     dirs = ["bin", "Desktop", "dow", "Downloads", "msc", "opt"]
     files = ["win10.img", "win10.iso", "win10.sh", "win7.img",
@@ -88,3 +88,5 @@ def test_client_list_windows():
         p = pathlib.PurePosixPath(f)
         assert p in entities
         assert entities[p]["type"] == "file"
+    with pytest.raises(ValueError):
+        parse(b" 10/3/2018   2:58 PM    34,35xxx38,368  win10.img")

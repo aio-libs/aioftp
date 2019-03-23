@@ -97,3 +97,11 @@ async def test_exception_in_list(pair_factory, Server,
     async with pair_factory(None, s) as pair:
         with expect_codes_in_exception("451"):
             await pair.client.list()
+
+
+@pytest.mark.asyncio
+async def test_list_recursive(pair_factory):
+    async with pair_factory() as pair:
+        await pair.make_server_files("foo/bar", "foo/baz/baz")
+        files = await pair.client.list(recursive=True)
+        assert len(files) == 4

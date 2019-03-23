@@ -168,3 +168,46 @@ async def test_client_session_context_manager(pair_factory):
     async with pair_factory(connected=False) as pair:
         async with aioftp.ClientSession(*pair.server.address) as client:
             await client.list()
+
+
+@pytest.mark.asyncio
+async def test_long_login_sequence_fail(pair_factory, expect_codes_in_exception):
+    class CustomServer(aioftp.Server):
+        async def user(self, connection, rest):
+            connection.response("331")
+            return True
+
+        async def pass_(self, connection, rest):
+            connection.response("332")
+            return True
+
+        async def acct(self, connection, rest):
+            connection.response("333")
+            return True
+
+    factory = pair_factory(logged=False, server_factory=CustomServer,
+                           do_quit=False)
+    async with factory as pair:
+        with expect_codes_in_exception("333"):
+            await pair.client.login()
+
+
+@pytest.mark.asyncio
+async def test_bad_sublines_seq(pair_factory, expect_codes_in_exception):
+    class CustomServer(aioftp.Server):
+        async def write_response(self, stream, code, lines="", list=False):
+            import functools
+            lines = aioftp.wrap_with_container(lines)
+            write = functools.partial(self.write_line, stream)
+            *body, tail = lines
+            for line in body:
+                await write(code + "-" + line)
+            await write(str(int(code) + 1) + "-" + tail)
+            await write(code + " " + tail)
+
+    factory = pair_factory(connected=False, server_factory=CustomServer)
+    async with factory as pair:
+        with expect_codes_in_exception("220"):
+            await pair.client.connect(pair.server.server_host,
+                                      pair.server.server_port)
+            await pair.client.login()
