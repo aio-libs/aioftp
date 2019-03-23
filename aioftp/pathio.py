@@ -100,6 +100,20 @@ class PathIONursery:
         return instance
 
 
+def defend_file_methods(coro):
+    """
+    Decorator. Raises exception when file methods called with wrapped by
+    :py:class:`aioftp.AsyncPathIOContext` file object.
+    """
+    @functools.wraps(coro)
+    async def wrapper(self, file, *args, **kwargs):
+        if isinstance(file, AsyncPathIOContext):
+            raise ValueError("Native path io file methods can not be used "
+                             "with wrapped file object")
+        return await coro(self, file, *args, **kwargs)
+    return wrapper
+
+
 class AbstractPathIO(abc.ABC):
     """
     Abstract class for path io operations.
@@ -284,6 +298,7 @@ class AbstractPathIO(abc.ABC):
         return AsyncPathIOContext(self, args, kwargs)
 
     @universal_exception
+    @defend_file_methods
     @abc.abstractmethod
     async def seek(self, file, offset, whence=io.SEEK_SET):
         """
@@ -302,6 +317,7 @@ class AbstractPathIO(abc.ABC):
         """
 
     @universal_exception
+    @defend_file_methods
     @abc.abstractmethod
     async def write(self, file, data):
         """
@@ -316,6 +332,7 @@ class AbstractPathIO(abc.ABC):
         """
 
     @universal_exception
+    @defend_file_methods
     @abc.abstractmethod
     async def read(self, file, block_size):
         """
@@ -332,6 +349,7 @@ class AbstractPathIO(abc.ABC):
         """
 
     @universal_exception
+    @defend_file_methods
     @abc.abstractmethod
     async def close(self, file):
         """
@@ -412,18 +430,22 @@ class PathIO(AbstractPathIO):
         return path.open(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def seek(self, file, *args, **kwargs):
         return file.seek(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def write(self, file, *args, **kwargs):
         return file.write(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def read(self, file, *args, **kwargs):
         return file.read(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def close(self, file):
         return file.close()
 
@@ -504,24 +526,28 @@ class AsyncPathIO(AbstractPathIO):
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def seek(self, file, *args, **kwargs):
         f = functools.partial(file.seek, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def write(self, file, *args, **kwargs):
         f = functools.partial(file.write, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def read(self, file, *args, **kwargs):
         f = functools.partial(file.read, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def close(self, file):
         return await self.loop.run_in_executor(None, file.close)
@@ -632,7 +658,7 @@ class MemoryPathIO(AbstractPathIO):
             if parent is None:
                 raise FileNotFoundError
             elif parent.type != "dir":
-                raise FileExistsError
+                raise NotADirectoryError
             node = Node("dir", path.name, content=[])
             parent.content.append(node)
         else:
@@ -648,7 +674,7 @@ class MemoryPathIO(AbstractPathIO):
                         nodes.append(node)
                         nodes = node.content
                 else:
-                    raise FileExistsError
+                    raise NotADirectoryError
 
     @universal_exception
     async def rmdir(self, path):
@@ -755,19 +781,23 @@ class MemoryPathIO(AbstractPathIO):
         return file_like
 
     @universal_exception
+    @defend_file_methods
     async def seek(self, file, *args, **kwargs):
         return file.seek(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def write(self, file, *args, **kwargs):
         file.write(*args, **kwargs)
         file.mtime = int(time.time())
 
     @universal_exception
+    @defend_file_methods
     async def read(self, file, *args, **kwargs):
         return file.read(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def close(self, file):
         pass
 

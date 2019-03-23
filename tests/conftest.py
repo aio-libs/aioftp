@@ -1,6 +1,7 @@
 import ssl
 import collections
 import contextlib
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -134,3 +135,18 @@ def expect_codes_in_exception():
         else:
             raise RuntimeError("There was no exception")
     return context
+
+
+@pytest.fixture(params=[aioftp.MemoryPathIO, aioftp.PathIO,
+                        aioftp.AsyncPathIO])
+def path_io(request, event_loop):
+    return request.param(loop=event_loop)
+
+
+@pytest.fixture
+def temp_dir(path_io):
+    if isinstance(path_io, aioftp.MemoryPathIO):
+        yield Path("/")
+    else:
+        with tempfile.TemporaryDirectory() as name:
+            yield Path(name)
