@@ -60,15 +60,3 @@ matrix:
           pytest;"
       after_success:
         - codecov
-
-# install:
-#     - travis_retry pip install --upgrade codecov flake8 .[tests]
-# before_script:
-#     - flake8 aioftp tests
-# script:
-#     - pytest
-# branches:
-#     only:
-#         - master
-# after_success:
-#     codecov
