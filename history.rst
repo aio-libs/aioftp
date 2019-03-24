@@ -2,14 +2,14 @@
 -------------------
 
 - client: add windows list parser (#82)
-Thanks to `jw4js <https://github.com/jw4js>`_
+- client/server: fix implicit ssl mode (#89)
+Thanks to `jw4js <https://github.com/jw4js>`_, `PonyPC <https://github.com/PonyPC>`_
 
 0.12.0 (15-10-2018)
 -------------------
 
 - all: add implicit ftps mode support (#81)
-Thanks to `alxpy <https://github.com/alxpy>`_,
-    `webknjaz <https://github.com/webknjaz>`_
+Thanks to `alxpy <https://github.com/alxpy>`_, `webknjaz <https://github.com/webknjaz>`_
 
 0.11.1 (30-08-2018)
 -------------------
@@ -24,11 +24,7 @@ Thanks to `thirtyseven <https://github.com/thirtyseven>`_
 
 - client: fix parsing `ls` modify time (#60)
 - all: add python3.7 support (`__aiter__` must be regular function since now) (#76, #77)
-Thanks to `saulcruz <https://github.com/saulcruz>`_,
-    `NickG123 <https://github.com/NickG123>`_,
-    `rsichny <https://github.com/rsichny>`_,
-    `Modelmat <https://github.com/Modelmat>`_,
-    `webknjaz <https://github.com/webknjaz>`_
+Thanks to `saulcruz <https://github.com/saulcruz>`_, `NickG123 <https://github.com/NickG123>`_, `rsichny <https://github.com/rsichny>`_, `Modelmat <https://github.com/Modelmat>`_, `webknjaz <https://github.com/webknjaz>`_
 
 0.10.1 (01-03-2018)
 -------------------
@@ -46,8 +42,7 @@ Thanks to `p4l1ly <https://github.com/p4l1ly>`_
 - client: fix `download`-`mkdir` (issue #68)
 - client/server: add initial ipv6 support (issue #63)
 - client: change `PASV` to `EPSV` with fallback to `PASV`
-Thanks to `jacobtomlinson <https://github.com/jacobtomlinson>`_ and
-    `mbkr1992 <https://github.com/mbkr1992>`_
+Thanks to `jacobtomlinson <https://github.com/jacobtomlinson>`_, `mbkr1992 <https://github.com/mbkr1992>`_
 
 0.9.0 (04-01-2018)
 ------------------
@@ -55,8 +50,7 @@ Thanks to `jacobtomlinson <https://github.com/jacobtomlinson>`_ and
 - server: fix server address in passive mode
 - server: do not reraise dispatcher exceptions
 - server: remove `wait_closed`, `close` is coroutine since now
-Thanks to `yieyu <https://github.com/yieyu>`_ and
-    `jkr78 <https://github.com/jkr78>`_
+Thanks to `yieyu <https://github.com/yieyu>`_, `jkr78 <https://github.com/jkr78>`_
 
 0.8.1 (08-10-2017)
 ------------------
@@ -79,8 +73,7 @@ Thanks to `anan-lee <https://github.com/anan-lee>`_
 - common: add `setlocale` context manager for `LIST` parsing, formatting and thread-safe usage of locale
 - server: add `LIST` support for non-english locales
 - server: fix `PASV` sequencies before data transfer (latest `PASV` win)
-Thanks to `jw4js <https://github.com/jw4js>`_ and
-    `rsichny <https://github.com/rsichny>`_
+Thanks to `jw4js <https://github.com/jw4js>`_, `rsichny <https://github.com/rsichny>`_
 
 0.6.3 (02-03-2017)
 ------------------
@@ -94,8 +87,7 @@ Thanks to `sametmax <https://github.com/sametmax>`_
 - replace `docopt` with `argparse`
 - add `syst` server command
 - improve client `list` documentation
-Thanks to `thelostt <https://github.com/thelostt>`_ and
-`yieyu <https://github.com/yieyu>`_
+Thanks to `thelostt <https://github.com/thelostt>`_, `yieyu <https://github.com/yieyu>`_
 
 0.6.1 (16-04-2016)
 ------------------
@@ -157,8 +149,7 @@ Thanks to `rsichny <https://github.com/rsichny>`_
 - with_timeout decorator for methods
 - StreamIO deals with timeouts
 - all socket streams are ThrottleStreamIO since now
-Thanks to `rsichny <https://github.com/rsichny>`_
-`tier2003 <https://github.com/tier2003>`_
+Thanks to `rsichny <https://github.com/rsichny>`_, `tier2003 <https://github.com/tier2003>`_
 
 0.2.0 (22-09-2015)
 ------------------
@@ -171,8 +162,7 @@ Thanks to `rsichny <https://github.com/rsichny>`_
 - setup.py support
 - tests via "python setup.py test"
 - "sh" module removed from test requirements
-Thanks to `rsichny <https://github.com/rsichny>`_ and
-`jettify <https://github.com/jettify>`_
+Thanks to `rsichny <https://github.com/rsichny>`_, `jettify <https://github.com/jettify>`_
 
 0.1.7 (03-09-2015)
 ------------------
