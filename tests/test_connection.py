@@ -50,10 +50,11 @@ async def test_extra_pasv_connection(pair_factory):
                 await w.drain()
 
 
+@pytest.mark.parametrize("method", ["epsv", "pasv"])
 @pytest.mark.asyncio
-async def test_closing_pasv_connection(pair_factory):
-    async with pair_factory() as pair:
-        r, w = await pair.client.get_passive_connection()
+async def test_closing_passive_connection(pair_factory, method):
+    async with pair_factory(host="127.0.0.1") as pair:
+        r, w = await pair.client.get_passive_connection(commands=[method])
         host, port, *_ = w.transport.get_extra_info("peername")
         nr, nw = await asyncio.open_connection(host, port)
         with pytest.raises((ConnectionResetError, BrokenPipeError)):
@@ -108,14 +109,16 @@ async def test_pasv_connection_port_reused(pair_factory, Server,
         assert pair.server.available_data_ports.qsize() == 0
 
 
+@pytest.mark.parametrize("method", ["epsv", "pasv"])
 @pytest.mark.asyncio
 async def test_pasv_connection_no_free_port(pair_factory, Server,
-                                            expect_codes_in_exception):
+                                            expect_codes_in_exception,
+                                            method):
     s = Server(data_ports=[])
-    async with pair_factory(None, s, do_quit=False) as pair:
+    async with pair_factory(None, s, do_quit=False, host="127.0.0.1") as pair:
         assert pair.server.available_data_ports.qsize() == 0
         with expect_codes_in_exception("421"):
-            await pair.client.get_passive_connection()
+            await pair.client.get_passive_connection(commands=[method])
 
 
 @pytest.mark.asyncio
@@ -171,7 +174,8 @@ async def test_client_session_context_manager(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_long_login_sequence_fail(pair_factory, expect_codes_in_exception):
+async def test_long_login_sequence_fail(pair_factory,
+                                        expect_codes_in_exception):
     class CustomServer(aioftp.Server):
         async def user(self, connection, rest):
             connection.response("331")

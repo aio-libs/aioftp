@@ -153,8 +153,10 @@ def test_parse_list_line_failed():
         aioftp.Client(encoding="utf-8").parse_list_line(b"what a hell?!")
 
 
-def test_repr_works():
+def test_reprs_works():
     repr(aioftp.Throttle())
+    repr(aioftp.Permission())
+    repr(aioftp.User())
 
 
 def test_throttle_reset():
@@ -165,3 +167,17 @@ def test_throttle_reset():
     t.append(b"-" * 3, 2)
     assert t._start == 2
     assert t._sum == 4
+
+
+def test_permission_is_parent():
+    p = aioftp.Permission("/foo/bar")
+    assert p.is_parent(pathlib.PurePosixPath("/foo/bar/baz"))
+    assert not p.is_parent(pathlib.PurePosixPath("/bar/baz"))
+
+
+def test_server_mtime_build():
+    now = datetime.datetime(year=2002, month=1, day=1).timestamp()
+    past = datetime.datetime(year=2001, month=1, day=1).timestamp()
+    b = aioftp.Server.build_list_mtime
+    assert b(now, now) == "Jan  1 00:00"
+    assert b(past, now) == "Jan  1  2001"

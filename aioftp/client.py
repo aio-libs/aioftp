@@ -19,7 +19,8 @@ from .common import (
     DEFAULT_BLOCK_SIZE,
     AsyncListerMixin,
     async_enterable,
-    setlocale
+    setlocale,
+    HALF_OF_YEAR_IN_SECONDS,
 )
 
 __all__ = (
@@ -382,11 +383,9 @@ class BaseClient:
                 d = datetime.datetime.strptime(s, "%b %d %H:%M")
                 d = d.replace(year=now.year)
                 diff = (now - d).total_seconds()
-                # magic constant from `ls` (half of year in seconds)
-                magic = 15778476
-                if diff > magic:
+                if diff > HALF_OF_YEAR_IN_SECONDS:
                     d = d.replace(year=now.year + 1)
-                elif diff < -magic:
+                elif diff < -HALF_OF_YEAR_IN_SECONDS:
                     d = d.replace(year=now.year - 1)
             except ValueError:
                 d = datetime.datetime.strptime(s, "%b %d  %Y")
@@ -458,21 +457,21 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         line = b.decode(encoding=self.encoding).rstrip("\r\n")
-        date_time_end = line.index('M')
-        date_time_str = line[:date_time_end + 1].strip().split(' ')
-        date_time_str = ' '.join([x for x in date_time_str if len(x) > 0])
+        date_time_end = line.index("M")
+        date_time_str = line[:date_time_end + 1].strip().split(" ")
+        date_time_str = " ".join([x for x in date_time_str if len(x) > 0])
         line = line[date_time_end + 1:].lstrip()
         with setlocale("C"):
             strptime = datetime.datetime.strptime
             date_time = strptime(date_time_str, "%m/%d/%Y %I:%M %p")
         info = {}
         info["modify"] = self.format_date_time(date_time)
-        next_space = line.index(' ')
+        next_space = line.index(" ")
         if line.startswith("<DIR>"):
             info["type"] = "dir"
         else:
             info["type"] = "file"
-            info["size"] = line[:next_space].replace(',', '')
+            info["size"] = line[:next_space].replace(",", "")
             if not info["size"].isdigit():
                 raise ValueError
         # This here could cause a problem if a filename started with
@@ -1037,7 +1036,18 @@ class Client(BaseClient):
         await self.command("QUIT", "2xx")
         self.close()
 
-    async def get_passive_connection(self, conn_type="I"):
+    async def _do_epsv(self):
+        code, info = await self.command("EPSV", "229")
+        ip, port = self.parse_epsv_response(info[-1])
+        return ip, port
+
+    async def _do_pasv(self):
+        code, info = await self.command("PASV", "227")
+        ip, port = self.parse_pasv_response(info[-1])
+        return ip, port
+
+    async def get_passive_connection(self, conn_type="I",
+                                     commands=("epsv", "pasv")):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1046,18 +1056,32 @@ class Client(BaseClient):
         :param conn_type: connection type ("I", "A", "E", "L")
         :type conn_type: :py:class:`str`
 
+        :param commands: sequence of commands to try to initiate passive
+            server creation. First success wins. Default is EPSV, then PASV.
+        :type commands: :py:class:`list`
+
         :rtype: (:py:class:`asyncio.StreamReader`,
             :py:class:`asyncio.StreamWriter`)
         """
+        functions = {
+            "epsv": self._do_epsv,
+            "pasv": self._do_pasv,
+        }
+        if not commands:
+            raise ValueError("No passive commands provided")
         await self.command("TYPE " + conn_type, "200")
-        try:
-            code, info = await self.command("EPSV", "229")
-            ip, port = self.parse_epsv_response(info[-1])
-        except errors.StatusCodeError as e:
-            if not e.received_codes[-1].matches("50x"):
-                raise
-            code, info = await self.command("PASV", "227")
-            ip, port = self.parse_pasv_response(info[-1])
+        for i, name in enumerate(commands, start=1):
+            name = name.lower()
+            if name not in functions:
+                names = set(functions)
+                raise ValueError("{!r} not in {!r}".format(name, names))
+            try:
+                ip, port = await functions[name]()
+                break
+            except errors.StatusCodeError as e:
+                is_last = i == len(commands)
+                if is_last or not e.received_codes[-1].matches("50x"):
+                    raise
         if ip in ("0.0.0.0", None):
             ip = self.server_host
         reader, writer = await open_connection(

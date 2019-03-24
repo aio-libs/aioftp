@@ -188,6 +188,15 @@ async def test_upload_file_os_error(pair_factory, Server,
 
 
 @pytest.mark.asyncio
+async def test_upload_path_unreachable(pair_factory,
+                                       expect_codes_in_exception):
+    async with pair_factory() as pair:
+        with expect_codes_in_exception("550"):
+            async with pair.client.upload_stream("foo/bar/foo") as stream:
+                await stream.write(b"foobar")
+
+
+@pytest.mark.asyncio
 async def test_stat_when_no_mlst(pair_factory):
     class CustomServer(aioftp.Server):
         def __getattribute__(self, name):

@@ -3,7 +3,6 @@ from . import common
 
 __all__ = (
     "StatusCodeError",
-    "PathIsNotFileOrDir",
     "PathIsNotAbsolute",
     "PathIOError",
 )
@@ -47,13 +46,6 @@ class StatusCodeError(Exception):
         self.info = info
 
 
-class PathIsNotFileOrDir(Exception):
-    """
-    Raised when "path abstract layer" tells, that `path` is not a file and
-        is not a directory.
-    """
-
-
 class PathIsNotAbsolute(Exception):
     """
     Raised when "path" is not absolute.
@@ -82,5 +74,5 @@ class PathIOError(Exception):
 
 class NoAvailablePort(OSError):
     """
-    Raised when there's no available data port
+    Raised when there is no available data port
     """

@@ -35,6 +35,7 @@ DEFAULT_PORT = 21
 DEFAULT_USER = "anonymous"
 DEFAULT_PASSWORD = "anon@"
 DEFAULT_ACCOUNT = ""
+HALF_OF_YEAR_IN_SECONDS = 15778476
 
 
 def _with_timeout(name):

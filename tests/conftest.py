@@ -13,6 +13,7 @@ from async_timeout import timeout
 import aioftp
 
 
+# No ssl tests since https://bugs.python.org/issue36098
 ca = trustme.CA()
 server_cert = ca.issue_server_cert("127.0.0.1", "::1")
 
