@@ -16,7 +16,7 @@ async def test_patched_sleep(skip_sleep):
 SIZE = 3 * 100 * 1024  # 300KiB
 
 
-@pytest.mark.parametrize("times", [1, 2, 3])
+@pytest.mark.parametrize("times", [10, 20, 30])
 @pytest.mark.parametrize("type", ["read", "write"])
 @pytest.mark.parametrize("direction", ["download", "upload"])
 @pytest.mark.asyncio
@@ -33,7 +33,7 @@ async def test_client_side_throttle(pair_factory, skip_sleep, times, type,
             assert skip_sleep.is_close(0)
 
 
-@pytest.mark.parametrize("times", [1, 2, 3])
+@pytest.mark.parametrize("times", [10, 20, 30])
 @pytest.mark.parametrize("users", [1, 2, 3])
 @pytest.mark.parametrize("throttle_direction", ["read", "write"])
 @pytest.mark.parametrize("data_direction", ["download", "upload"])
