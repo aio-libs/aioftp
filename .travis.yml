@@ -11,13 +11,16 @@ matrix:
     - name: lint
       stage: lint
       script:
-        - docker run --rm -v $(pwd):/source -w /source python bash -c "pip install flake8; flake8 aioftp tests"
+        - >
+          docker run --rm -v $(pwd):/source -w /source python bash -c "
+          pip install flake8;
+          flake8 aioftp tests"
     - name: python 3.5
       stage: test
       script:
         - >
           docker run --rm -v $(pwd):/source -w /source python:3.5 bash -c "
-          python -m pip install --upgarde pip setuptools;
+          python -m pip install --upgrade pip setuptools;
           pip install codecov ./[tests];
           pytest;
           codecov;"
