@@ -1,23 +1,22 @@
-version: = 0
-conditions: v1
-
+language: python
 services:
   - docker
+branches:
+  only:
+    - master
 stages:
   - lint
   - test
-jobs:
+matrix:
   include:
     - name: lint
       stage: lint
-      before_scrpit:
-        - travis_retry pip install --upgrade flake8
       script:
         - docker run --rm -v $(pwd):/source -w /source python bash -c "pip install flake8; flake8 aioftp tests"
     - name: python 3.5
       stage: test
       script:
-        - dock
+        - docker run --rm -v $(pwd):/source -w /source python:3.5 bash -c "pip install codecov .[tests]; pytest; codecov
 
 # install:
 #     - travis_retry pip install --upgrade codecov flake8 .[tests]
