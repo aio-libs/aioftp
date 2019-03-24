@@ -15,7 +15,12 @@ matrix:
     - name: python 3.5
       stage: test
       script:
-        - docker run --rm -v $(pwd):/source -w /source python:3.5 bash -c "pip install codecov ./[tests]; pytest; codecov"
+        - >
+          docker run --rm -v $(pwd):/source -w /source python:3.5 bash -c "
+          python -m pip install --upgarde pip setuptools;
+          pip install codecov ./[tests];
+          pytest;
+          codecov;"
 
 # install:
 #     - travis_retry pip install --upgrade codecov flake8 .[tests]
