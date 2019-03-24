@@ -47,13 +47,14 @@ def _wrap_with_defaults(kwargs):
     return collections.ChainMap(kwargs, test_defaults)
 
 
-@pytest.fixture
-def pair_factory():
+@pytest.fixture(params=["127.0.0.1", "::1"])
+def pair_factory(request):
 
     class Factory:
 
         def __init__(self, client=None, server=None, *,
-                     connected=True, logged=True, do_quit=True, host=None,
+                     connected=True, logged=True, do_quit=True,
+                     host=request.param,
                      server_factory=aioftp.Server,
                      client_factory=aioftp.Client):
             if client is None:
