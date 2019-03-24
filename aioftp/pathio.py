@@ -6,6 +6,8 @@ import io
 import time
 import stat
 import sys
+import pathlib
+import abc
 
 from .common import (with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE,
                      AbstractAsyncLister)
@@ -79,7 +81,7 @@ def universal_exception(coro):
         except (asyncio.CancelledError, NotImplementedError,
                 StopAsyncIteration):
             raise
-        except:  # noqa
+        except Exception:
             raise errors.PathIOError(reason=sys.exc_info())
 
     return wrapper
@@ -98,7 +100,21 @@ class PathIONursery:
         return instance
 
 
-class AbstractPathIO:
+def defend_file_methods(coro):
+    """
+    Decorator. Raises exception when file methods called with wrapped by
+    :py:class:`aioftp.AsyncPathIOContext` file object.
+    """
+    @functools.wraps(coro)
+    async def wrapper(self, file, *args, **kwargs):
+        if isinstance(file, AsyncPathIOContext):
+            raise ValueError("Native path io file methods can not be used "
+                             "with wrapped file object")
+        return await coro(self, file, *args, **kwargs)
+    return wrapper
+
+
+class AbstractPathIO(abc.ABC):
     """
     Abstract class for path io operations.
 
@@ -120,9 +136,12 @@ class AbstractPathIO:
 
     @property
     def state(self):
-        return
+        """
+        Shared pathio state per server
+        """
 
     @universal_exception
+    @abc.abstractmethod
     async def exists(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -134,9 +153,9 @@ class AbstractPathIO:
 
         :rtype: :py:class:`bool`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def is_dir(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -148,9 +167,9 @@ class AbstractPathIO:
 
         :rtype: :py:class:`bool`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def is_file(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -162,9 +181,9 @@ class AbstractPathIO:
 
         :rtype: :py:class:`bool`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def mkdir(self, path, *, parents=False, exist_ok=False):
         """
         :py:func:`asyncio.coroutine`
@@ -180,9 +199,9 @@ class AbstractPathIO:
         :param exist_ok: do not raise exception if directory already exists
         :type exist_ok: :py:class:`bool`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def rmdir(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -192,9 +211,9 @@ class AbstractPathIO:
         :param path: path to remove
         :type path: :py:class:`pathlib.Path`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def unlink(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -204,8 +223,8 @@ class AbstractPathIO:
         :param path: path to remove
         :type path: :py:class:`pathlib.Path`
         """
-        raise NotImplementedError
 
+    @abc.abstractmethod
     def list(self, path):
         """
         Create instance of subclass of :py:class:`aioftp.AbstractAsyncLister`.
@@ -231,9 +250,9 @@ class AbstractPathIO:
             [path, path, path, ...]
 
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def stat(self, path):
         """
         :py:func:`asyncio.coroutine`
@@ -247,9 +266,9 @@ class AbstractPathIO:
           st_size, st_mtime, st_ctime, st_nlink, st_mode
         :rtype: same as :py:class:`os.stat_result`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def _open(self, path, mode):
         """
         :py:func:`asyncio.coroutine`
@@ -268,7 +287,6 @@ class AbstractPathIO:
 
         :return: file-object
         """
-        raise NotImplementedError
 
     def open(self, *args, **kwargs):
         """
@@ -280,6 +298,8 @@ class AbstractPathIO:
         return AsyncPathIOContext(self, args, kwargs)
 
     @universal_exception
+    @defend_file_methods
+    @abc.abstractmethod
     async def seek(self, file, offset, whence=io.SEEK_SET):
         """
         :py:func:`asyncio.coroutine`
@@ -295,9 +315,10 @@ class AbstractPathIO:
         :param whence: base position for offset
         :type whence: :py:class:`int`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @defend_file_methods
+    @abc.abstractmethod
     async def write(self, file, data):
         """
         :py:func:`asyncio.coroutine`
@@ -309,9 +330,10 @@ class AbstractPathIO:
         :param data: data to write
         :type data: :py:class:`bytes`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @defend_file_methods
+    @abc.abstractmethod
     async def read(self, file, block_size):
         """
         :py:func:`asyncio.coroutine`
@@ -325,9 +347,10 @@ class AbstractPathIO:
 
         :rtype: :py:class:`bytes`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @defend_file_methods
+    @abc.abstractmethod
     async def close(self, file):
         """
         :py:func:`asyncio.coroutine`
@@ -336,9 +359,9 @@ class AbstractPathIO:
 
         :param file: file-object from :py:class:`aioftp.AbstractPathIO.open`
         """
-        raise NotImplementedError
 
     @universal_exception
+    @abc.abstractmethod
     async def rename(self, source, destination):
         """
         :py:func:`asyncio.coroutine`
@@ -351,7 +374,6 @@ class AbstractPathIO:
         :param destination: rename to
         :type destination: :py:class:`pathlib.Path`
         """
-        raise NotImplementedError
 
 
 class PathIO(AbstractPathIO):
@@ -408,18 +430,22 @@ class PathIO(AbstractPathIO):
         return path.open(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def seek(self, file, *args, **kwargs):
         return file.seek(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def write(self, file, *args, **kwargs):
         return file.write(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def read(self, file, *args, **kwargs):
         return file.read(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def close(self, file):
         return file.close()
 
@@ -500,24 +526,28 @@ class AsyncPathIO(AbstractPathIO):
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def seek(self, file, *args, **kwargs):
         f = functools.partial(file.seek, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def write(self, file, *args, **kwargs):
         f = functools.partial(file.write, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def read(self, file, *args, **kwargs):
         f = functools.partial(file.read, *args, **kwargs)
         return await self.loop.run_in_executor(None, f)
 
     @universal_exception
+    @defend_file_methods
     @with_timeout
     async def close(self, file):
         return await self.loop.run_in_executor(None, file.close)
@@ -567,8 +597,9 @@ class MemoryPathIO(AbstractPathIO):
         )
     )
 
-    def __init__(self, *args, state=None, **kwargs):
+    def __init__(self, *args, state=None, cwd=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.cwd = pathlib.PurePosixPath(cwd or "/")
         if state is None:
             self.fs = [Node("dir", "/", content=[])]
         else:
@@ -581,9 +612,15 @@ class MemoryPathIO(AbstractPathIO):
     def __repr__(self):
         return repr(self.fs)
 
+    def _absolute(self, path):
+        if not path.is_absolute():
+            path = self.cwd / path
+        return path
+
     def get_node(self, path):
         nodes = self.fs
         node = None
+        path = self._absolute(path)
         for part in path.parts:
             if not isinstance(nodes, list):
                 return
@@ -611,6 +648,7 @@ class MemoryPathIO(AbstractPathIO):
 
     @universal_exception
     async def mkdir(self, path, *, parents=False, exist_ok=False):
+        path = self._absolute(path)
         node = self.get_node(path)
         if node:
             if node.type != "dir" or not exist_ok:
@@ -620,7 +658,7 @@ class MemoryPathIO(AbstractPathIO):
             if parent is None:
                 raise FileNotFoundError
             elif parent.type != "dir":
-                raise FileExistsError
+                raise NotADirectoryError
             node = Node("dir", path.name, content=[])
             parent.content.append(node)
         else:
@@ -636,7 +674,7 @@ class MemoryPathIO(AbstractPathIO):
                         nodes.append(node)
                         nodes = node.content
                 else:
-                    raise FileExistsError
+                    raise NotADirectoryError
 
     @universal_exception
     async def rmdir(self, path):
@@ -743,19 +781,23 @@ class MemoryPathIO(AbstractPathIO):
         return file_like
 
     @universal_exception
+    @defend_file_methods
     async def seek(self, file, *args, **kwargs):
         return file.seek(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def write(self, file, *args, **kwargs):
         file.write(*args, **kwargs)
         file.mtime = int(time.time())
 
     @universal_exception
+    @defend_file_methods
     async def read(self, file, *args, **kwargs):
         return file.read(*args, **kwargs)
 
     @universal_exception
+    @defend_file_methods
     async def close(self, file):
         pass
 

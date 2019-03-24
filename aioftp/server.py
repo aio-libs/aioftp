@@ -9,6 +9,7 @@ import enum
 import logging
 import stat
 import sys
+import abc
 
 from . import errors
 from . import pathio
@@ -19,6 +20,7 @@ from .common import (
     StreamThrottle,
     ThrottleStreamIO,
     setlocale,
+    HALF_OF_YEAR_IN_SECONDS,
 )
 
 
@@ -131,10 +133,7 @@ class User:
                  write_speed_limit_per_connection=None):
         self.login = login
         self.password = password
-        if isinstance(base_path, str):
-            self.base_path = pathlib.Path(base_path)
-        else:
-            self.base_path = base_path
+        self.base_path = pathlib.Path(base_path)
         self.home_path = pathlib.PurePosixPath(home_path)
         if not self.home_path.is_absolute():
             raise errors.PathIsNotAbsolute(home_path)
@@ -187,7 +186,7 @@ class User:
         )
 
 
-class AbstractUserManager:
+class AbstractUserManager(abc.ABC):
     """
     Abstract user manager.
 
@@ -207,6 +206,7 @@ class AbstractUserManager:
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
+    @abc.abstractmethod
     async def get_user(self, login):
         """
         :py:func:`asyncio.coroutine`
@@ -216,8 +216,8 @@ class AbstractUserManager:
         :param login: user's login
         :type login: :py:class:`str`
         """
-        raise NotImplementedError
 
+    @abc.abstractmethod
     async def authenticate(self, user, password):
         """
         :py:func:`asyncio.coroutine`
@@ -232,7 +232,6 @@ class AbstractUserManager:
 
         :rtype: :py:class:`bool`
         """
-        raise NotImplementedError
 
     async def notify_logout(self, user):
         """
@@ -243,7 +242,6 @@ class AbstractUserManager:
         :param user: user
         :type user: :py:class:`aioftp.User`
         """
-        pass
 
 
 class MemoryUserManager(AbstractUserManager):
@@ -409,7 +407,7 @@ class AvailableConnections:
                 raise ValueError("Too many releases")
 
 
-class AbstractServer:
+class AbstractServer(abc.ABC):
 
     async def start(self, host=None, port=0, **kwargs):
         """
@@ -441,7 +439,18 @@ class AbstractServer:
         for sock in self.server.sockets:
             if sock.family in (socket.AF_INET, socket.AF_INET6):
                 host, port, *_ = sock.getsockname()
+                if not self.server_port:
+                    self.server_port = port
+                if not self.server_host:
+                    self.server_host = host
                 logger.info("serving on %s:%s", host, port)
+
+    @property
+    def address(self):
+        """
+        Server listen socket host and port as :py:class:`tuple`
+        """
+        return self.server_host, self.server_port
 
     async def close(self):
         """
@@ -535,8 +544,13 @@ class AbstractServer:
             finally:
                 response_queue.task_done()
 
+    @abc.abstractmethod
     async def dispatcher(self, reader, writer):
-        raise NotImplementedError
+        """
+        :py:func:`asyncio.coroutine`
+
+        Server connection handler (main routine per user).
+        """
 
 
 class ConnectionConditions:
@@ -929,7 +943,7 @@ class Server(AbstractServer):
                             connection.response("502", message)
         except asyncio.CancelledError:
             raise
-        except:  # noqa
+        except Exception:
             logger.exception("dispatcher caught exception")
         finally:
             logger.info("closing connection from %s:%s", host, port)
@@ -1098,7 +1112,7 @@ class Server(AbstractServer):
         elif await connection.path_io.is_dir(path):
             stats["Type"] = "dir"
         else:
-            raise errors.PathIsNotFileOrDir(path)
+            stats["Type"] = "unknown"
 
         raw = await connection.path_io.stat(path)
         for attr, fact in Server.path_facts:
@@ -1140,16 +1154,21 @@ class Server(AbstractServer):
         connection.response("150", "mlsd transfer started")
         return True
 
+    @staticmethod
+    def build_list_mtime(st_mtime, now=None):
+        if now is None:
+            now = time.time()
+        mtime = time.localtime(st_mtime)
+        with setlocale("C"):
+            if now - HALF_OF_YEAR_IN_SECONDS < st_mtime <= now:
+                s = time.strftime("%b %e %H:%M", mtime)
+            else:
+                s = time.strftime("%b %e  %Y", mtime)
+        return s
+
     async def build_list_string(self, connection, path):
         stats = await connection.path_io.stat(path)
-        now = time.time()
-        mtime = time.localtime(stats.st_mtime)
-        with setlocale("C"):
-            if now - 365 * 24 * 60 * 60 / 2 < stats.st_mtime <= now:
-                mtime = time.strftime('%b %e %H:%M', mtime)
-            else:
-                mtime = time.strftime('%b %e  %Y', mtime)
-
+        mtime = self.build_list_mtime(stats.st_mtime)
         fields = (
             stat.filemode(stats.st_mode),
             str(stats.st_nlink),
@@ -1325,7 +1344,7 @@ class Server(AbstractServer):
 
     @ConnectionConditions(ConnectionConditions.login_required)
     async def prot(self, connection, rest):
-        if rest == 'P':
+        if rest == "P":
             code, info = "200", ""
         else:
             code, info = "502", ""

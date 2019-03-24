@@ -3,6 +3,7 @@ import functools
 import collections
 import locale
 import threading
+import abc
 from contextlib import contextmanager
 
 
@@ -34,6 +35,7 @@ DEFAULT_PORT = 21
 DEFAULT_USER = "anonymous"
 DEFAULT_PASSWORD = "anon@"
 DEFAULT_ACCOUNT = ""
+HALF_OF_YEAR_IN_SECONDS = 15778476
 
 
 def _with_timeout(name):
@@ -125,7 +127,7 @@ class AsyncListerMixin:
         return self._to_list().__await__()
 
 
-class AbstractAsyncLister(AsyncListerMixin):
+class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
     """
     Abstract context with ability to collect all iterables into
     :py:class:`list` via `await` with optional timeout (via
@@ -157,6 +159,7 @@ class AbstractAsyncLister(AsyncListerMixin):
         [block, block, block, ...]
     """
     def __init__(self, *, timeout=None, loop=None):
+        super().__init__()
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
 
@@ -164,8 +167,13 @@ class AbstractAsyncLister(AsyncListerMixin):
         return self
 
     @with_timeout
+    @abc.abstractmethod
     async def __anext__(self):
-        raise NotImplementedError
+        """
+        :py:func:`asyncio.coroutine`
+
+        Abstract method
+        """
 
 
 def async_enterable(f):
