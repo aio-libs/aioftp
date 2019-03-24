@@ -22,7 +22,7 @@ matrix:
       stage: test
       before_install:
         - echo '{"ipv6":true,"fixed-cidr-v6":"2001:db8:1::/64"}' | sudo tee /etc/docker/daemon.json
-        - sudo systemctl docker restart
+        - sudo systemctl restart docker
       install:
         - pip install codecov
       script:
