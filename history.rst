@@ -1,8 +1,10 @@
-0.13.0 (xx-xx-xxxx)
+0.13.0 (24-03-2019)
 -------------------
 
 - client: add windows list parser (#82)
 - client/server: fix implicit ssl mode (#89)
+- tests: move to pytest
+- all: small fixes
 Thanks to `jw4js <https://github.com/jw4js>`_, `PonyPC <https://github.com/PonyPC>`_
 
 0.12.0 (15-10-2018)
