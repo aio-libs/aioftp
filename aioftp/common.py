@@ -38,13 +38,17 @@ DEFAULT_ACCOUNT = ""
 HALF_OF_YEAR_IN_SECONDS = 15778476
 
 
+def _now():
+    return asyncio.get_event_loop().time()
+
+
 def _with_timeout(name):
     def decorator(f):
         @functools.wraps(f)
         def wrapper(cls, *args, **kwargs):
             coro = f(cls, *args, **kwargs)
             timeout = getattr(cls, name)
-            return asyncio.wait_for(coro, timeout, loop=cls.loop)
+            return asyncio.wait_for(coro, timeout)
         return wrapper
     return decorator
 
@@ -136,9 +140,6 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
     :param timeout: timeout for __anext__ operation
     :type timeout: :py:class:`None`, :py:class:`int` or :py:class:`float`
 
-    :param loop: loop to use for timeouts
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-
     ::
 
         >>> class Lister(AbstractAsyncLister):
@@ -158,10 +159,9 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         >>> result
         [block, block, block, ...]
     """
-    def __init__(self, *, timeout=None, loop=None):
+    def __init__(self, *, timeout=None):
         super().__init__()
         self.timeout = timeout
-        self.loop = loop or asyncio.get_event_loop()
 
     def __aiter__(self):
         return self
@@ -256,17 +256,13 @@ class StreamIO:
     :param write_timeout: socket timeout for write operations, overrides
         `timeout`
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
-
-    :param loop: loop to use for creating connection and binding with streams
-    :type loop: :py:class:`asyncio.BaseEventLoop`
     """
     def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
-                 write_timeout=None, loop=None):
+                 write_timeout=None):
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
         self.write_timeout = write_timeout or timeout
-        self.loop = loop or asyncio.get_event_loop()
 
     @with_timeout("read_timeout")
     async def readline(self):
@@ -314,9 +310,6 @@ class Throttle:
     """
     Throttle for streams.
 
-    :param loop: loop to use
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-
     :param limit: speed limit in bytes or :py:class:`None` for unlimited
     :type limit: :py:class:`int` or :py:class:`None`
 
@@ -325,8 +318,7 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    def __init__(self, *, loop=None, limit=None, reset_rate=10):
-        self.loop = loop or asyncio.get_event_loop()
+    def __init__(self, *, limit=None, reset_rate=10):
         self._limit = limit
         self.reset_rate = reset_rate
         self._start = None
@@ -339,11 +331,10 @@ class Throttle:
         Wait until can do IO
         """
         if self._limit is not None and self._limit > 0 and \
-           self._start is not None:
-
-            now = self.loop.time()
+                self._start is not None:
+            now = _now()
             end = self._start + self._sum / self._limit
-            await asyncio.sleep(max(0, end - now), loop=self.loop)
+            await asyncio.sleep(max(0, end - now))
 
     def append(self, data, start):
         """
@@ -387,16 +378,11 @@ class Throttle:
         """
         Clone throttle without memory
         """
-        return Throttle(
-            loop=self.loop,
-            limit=self._limit,
-            reset_rate=self.reset_rate
-        )
+        return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
     def __repr__(self):
-        return "{}(loop={!r}, limit={!r}, reset_rate={!r})".format(
+        return "{}(limit={!r}, reset_rate={!r})".format(
             self.__class__.__name__,
-            self.loop,
             self._limit,
             self.reset_rate
         )
@@ -422,8 +408,7 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit=None, write_speed_limit=None, *,
-                    loop=None):
+    def from_limits(cls, read_speed_limit=None, write_speed_limit=None):
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
@@ -434,21 +419,9 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         :param write_speed_limit: stream write speed limit in bytes or
             :py:class:`None` for unlimited
         :type write_speed_limit: :py:class:`int` or :py:class:`None`
-
-        :param loop: loop to use
-        :type loop: :py:class:`asyncio.BaseEventLoop`
         """
-        loop = loop or asyncio.get_event_loop()
-        return cls(
-            read=Throttle(
-                loop=loop,
-                limit=read_speed_limit
-            ),
-            write=Throttle(
-                loop=loop,
-                limit=write_speed_limit
-            ),
-        )
+        return cls(read=Throttle(limit=read_speed_limit),
+                   write=Throttle(limit=write_speed_limit))
 
 
 class ThrottleStreamIO(StreamIO):
@@ -474,8 +447,7 @@ class ThrottleStreamIO(StreamIO):
         ...             write=Throttle(...)
         ...         )
         ...     },
-        ...     timeout=timeout,
-        ...     loop=loop
+        ...     timeout=timeout
         ... )
     """
 
@@ -498,7 +470,7 @@ class ThrottleStreamIO(StreamIO):
             if curr_throttle.limit:
                 waiters.append(curr_throttle.wait())
         if waiters:
-            await asyncio.wait(waiters, loop=self.loop)
+            await asyncio.wait(waiters)
 
     def append(self, name, data, start):
         """
@@ -524,7 +496,7 @@ class ThrottleStreamIO(StreamIO):
         :py:meth:`aioftp.StreamIO.read` proxy
         """
         await self.wait("read")
-        start = self.loop.time()
+        start = _now()
         data = await super().read(count)
         self.append("read", data, start)
         return data
@@ -536,7 +508,7 @@ class ThrottleStreamIO(StreamIO):
         :py:meth:`aioftp.StreamIO.readline` proxy
         """
         await self.wait("read")
-        start = self.loop.time()
+        start = _now()
         data = await super().readline()
         self.append("read", data, start)
         return data
@@ -548,7 +520,7 @@ class ThrottleStreamIO(StreamIO):
         :py:meth:`aioftp.StreamIO.write` proxy
         """
         await self.wait("write")
-        start = self.loop.time()
+        start = _now()
         await super().write(data)
         self.append("write", data, start)
 

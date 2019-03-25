@@ -121,17 +121,13 @@ class AbstractPathIO(abc.ABC):
     :param timeout: timeout used by `with_timeout` decorator
     :type timeout: :py:class:`float`, :py:class:`int` or `None`
 
-    :param loop: loop to use
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-
     :param connection: server connection that is accessing this PathIO
     :type connection: :py:class:`aioftp.Connection`
 
     :param state: shared pathio state per server
     """
-    def __init__(self, timeout=None, loop=None, connection=None, state=None):
+    def __init__(self, timeout=None, connection=None, state=None):
         self.timeout = timeout
-        self.loop = loop or asyncio.get_event_loop()
         self.connection = connection
 
     @property
@@ -419,7 +415,7 @@ class PathIO(AbstractPathIO):
                 except StopIteration:
                     raise StopAsyncIteration
 
-        return Lister(timeout=self.timeout, loop=self.loop)
+        return Lister(timeout=self.timeout)
 
     @universal_exception
     async def stat(self, path):
@@ -454,49 +450,74 @@ class PathIO(AbstractPathIO):
         return source.rename(destination)
 
 
+def _blocking_io(f):
+    @functools.wraps(f)
+    async def wrapper(self, *args, **kwargs):
+        return await asyncio.get_event_loop().run_in_executor(
+            self.executor,
+            functools.partial(f, self, *args, **kwargs),
+        )
+    return wrapper
+
+
 class AsyncPathIO(AbstractPathIO):
     """
     Non-blocking path io. Based on
     :py:meth:`asyncio.BaseEventLoop.run_in_executor` and
     :py:class:`pathlib.Path` methods. It's really slow, so it's better to avoid
     usage of this path io layer.
+
+    :param executor: executor for running blocking tasks
+    :type executor: :py:class:`concurrent.futures.Executor`
     """
+    def __init__(self, *args, executor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.executor = executor
 
     @universal_exception
     @with_timeout
-    async def exists(self, path):
-        return await self.loop.run_in_executor(None, path.exists)
+    @_blocking_io
+    def exists(self, path):
+        return path.exists()
 
     @universal_exception
     @with_timeout
-    async def is_dir(self, path):
-        return await self.loop.run_in_executor(None, path.is_dir)
+    @_blocking_io
+    def is_dir(self, path):
+        return path.is_dir()
 
     @universal_exception
     @with_timeout
-    async def is_file(self, path):
-        return await self.loop.run_in_executor(None, path.is_file)
+    @_blocking_io
+    def is_file(self, path):
+        return path.is_file()
 
     @universal_exception
     @with_timeout
-    async def mkdir(self, path, *, parents=False, exist_ok=False):
-        f = functools.partial(path.mkdir, parents=parents, exist_ok=exist_ok)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def mkdir(self, path, *, parents=False, exist_ok=False):
+        return path.mkdir(parents=parents, exist_ok=exist_ok)
 
     @universal_exception
     @with_timeout
-    async def rmdir(self, path):
-        return await self.loop.run_in_executor(None, path.rmdir)
+    @_blocking_io
+    def rmdir(self, path):
+        return path.rmdir()
 
     @universal_exception
     @with_timeout
-    async def unlink(self, path):
-        return await self.loop.run_in_executor(None, path.unlink)
+    @_blocking_io
+    def unlink(self, path):
+        return path.unlink()
 
     def list(self, path):
 
         class Lister(AbstractAsyncLister):
             iter = None
+
+            def __init__(self, *args, executor=None, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.executor = executor
 
             def worker(self):
                 try:
@@ -506,57 +527,59 @@ class AsyncPathIO(AbstractPathIO):
 
             @universal_exception
             @with_timeout
-            async def __anext__(self):
+            @_blocking_io
+            def __anext__(self):
                 if self.iter is None:
-                    f = functools.partial(path.glob, "*")
-                    self.iter = await self.loop.run_in_executor(None, f)
-                return await self.loop.run_in_executor(None, self.worker)
+                    self.iter = path.glob("*")
+                return self.worker()
 
-        return Lister(timeout=self.timeout, loop=self.loop)
-
-    @universal_exception
-    @with_timeout
-    async def stat(self, path):
-        return await self.loop.run_in_executor(None, path.stat)
+        return Lister(timeout=self.timeout, executor=self.executor)
 
     @universal_exception
     @with_timeout
-    async def _open(self, path, *args, **kwargs):
-        f = functools.partial(path.open, *args, **kwargs)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def stat(self, path):
+        return path.stat()
 
     @universal_exception
-    @defend_file_methods
     @with_timeout
-    async def seek(self, file, *args, **kwargs):
-        f = functools.partial(file.seek, *args, **kwargs)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def _open(self, path, *args, **kwargs):
+        return path.open(*args, **kwargs)
 
     @universal_exception
     @defend_file_methods
     @with_timeout
-    async def write(self, file, *args, **kwargs):
-        f = functools.partial(file.write, *args, **kwargs)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def seek(self, file, *args, **kwargs):
+        return file.seek(*args, **kwargs)
 
     @universal_exception
     @defend_file_methods
     @with_timeout
-    async def read(self, file, *args, **kwargs):
-        f = functools.partial(file.read, *args, **kwargs)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def write(self, file, *args, **kwargs):
+        return file.write(*args, **kwargs)
 
     @universal_exception
     @defend_file_methods
     @with_timeout
-    async def close(self, file):
-        return await self.loop.run_in_executor(None, file.close)
+    @_blocking_io
+    def read(self, file, *args, **kwargs):
+        return file.read(*args, **kwargs)
+
+    @universal_exception
+    @defend_file_methods
+    @with_timeout
+    @_blocking_io
+    def close(self, file):
+        return file.close()
 
     @universal_exception
     @with_timeout
-    async def rename(self, source, destination):
-        f = functools.partial(source.rename, destination)
-        return await self.loop.run_in_executor(None, f)
+    @_blocking_io
+    def rename(self, source, destination):
+        return source.rename(destination)
 
 
 class Node:
@@ -726,7 +749,7 @@ class MemoryPathIO(AbstractPathIO):
                 except StopIteration:
                     raise StopAsyncIteration
 
-        return Lister(timeout=self.timeout, loop=self.loop)
+        return Lister(timeout=self.timeout)
 
     @universal_exception
     async def stat(self, path):
