@@ -4,6 +4,7 @@ import contextlib
 import tempfile
 import asyncio
 import math
+import time
 from pathlib import Path
 
 import pytest
@@ -162,9 +163,13 @@ class Sleep:
 
     def __init__(self):
         self.delay = 0
+        self.first_sleep = None
 
     async def sleep(self, delay, result=None, **kwargs):
-        self.delay = delay
+        if self.first_sleep is None:
+            self.first_sleep = time.monotonic()
+        delay = (time.monotonic() - self.first_sleep) + delay
+        self.delay = max(self.delay, delay)
         return result
 
     def is_close(self, delay, *, rel_tol=0.05, abs_tol=0.2):
