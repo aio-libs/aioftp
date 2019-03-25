@@ -192,9 +192,6 @@ class AbstractUserManager(abc.ABC):
 
     :param timeout: timeout used by `with_timeout` decorator
     :type timeout: :py:class:`float`, :py:class:`int` or :py:class:`None`
-
-    :param loop: loop to use
-    :type loop: :py:class:`asyncio.BaseEventLoop`
     """
 
     GetUserResponse = enum.Enum(
@@ -202,9 +199,8 @@ class AbstractUserManager(abc.ABC):
         "OK PASSWORD_REQUIRED ERROR"
     )
 
-    def __init__(self, *, timeout=None, loop=None):
+    def __init__(self, *, timeout=None):
         self.timeout = timeout
-        self.loop = loop or asyncio.get_event_loop()
 
     @abc.abstractmethod
     async def get_user(self, login):
@@ -301,9 +297,6 @@ class Connection(collections.defaultdict):
     Connection state container for transparent work with futures for async
     wait
 
-    :param loop: event loop
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-
     :param kwargs: initialization parameters
 
     Container based on :py:class:`collections.defaultdict`, which holds
@@ -342,10 +335,9 @@ class Connection(collections.defaultdict):
         def __delattr__(self, name):
             self.storage.pop(name)
 
-    def __init__(self, *, loop=None, **kwargs):
-        super().__init__(functools.partial(asyncio.Future, loop=loop))
+    def __init__(self, **kwargs):
+        super().__init__(asyncio.Future)
         self.future = Connection.Container(self)
-        self["loop"].set_result(loop or asyncio.get_event_loop())
         for k, v in kwargs.items():
             self[k].set_result(v)
 
@@ -432,7 +424,6 @@ class AbstractServer(abc.ABC):
             self.dispatcher,
             host,
             port,
-            loop=self.loop,
             ssl=self.ssl,
             **self._start_server_extra_arguments,
         )
@@ -611,7 +602,7 @@ class ConnectionConditions:
         @functools.wraps(f)
         async def wrapper(cls, connection, rest, *args):
             futures = {connection[name]: msg for name, msg in self.fields}
-            aggregate = asyncio.gather(*futures, loop=connection.loop)
+            aggregate = asyncio.gather(*futures)
             if self.wait:
                 timeout = connection.wait_future_timeout
             else:
@@ -619,9 +610,8 @@ class ConnectionConditions:
 
             try:
                 await asyncio.wait_for(
-                    asyncio.shield(aggregate, loop=connection.loop),
+                    asyncio.shield(aggregate),
                     timeout,
-                    loop=connection.loop
                 )
             except asyncio.TimeoutError:
                 for future, message in futures.items():
@@ -750,9 +740,6 @@ class Server(AbstractServer):
         :py:class:`aioftp.User` or instance of
         :py:class:`aioftp.AbstractUserManager` subclass
 
-    :param loop: loop to use for creating connection and binding with streams
-    :type loop: :py:class:`asyncio.BaseEventLoop`
-
     :param block_size: bytes count for socket read operations
     :type block_size: :py:class:`int`
 
@@ -814,7 +801,6 @@ class Server(AbstractServer):
     def __init__(self,
                  users=None,
                  *,
-                 loop=None,
                  block_size=DEFAULT_BLOCK_SIZE,
                  socket_timeout=None,
                  idle_timeout=None,
@@ -829,7 +815,6 @@ class Server(AbstractServer):
                  data_ports=None,
                  encoding="utf-8",
                  ssl=None):
-        self.loop = loop or asyncio.get_event_loop()
         self.block_size = block_size
         self.socket_timeout = socket_timeout
         self.idle_timeout = idle_timeout
@@ -837,7 +822,7 @@ class Server(AbstractServer):
         self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
         if data_ports is not None:
-            self.available_data_ports = asyncio.PriorityQueue(loop=self.loop)
+            self.available_data_ports = asyncio.PriorityQueue()
             for data_port in data_ports:
                 self.available_data_ports.put_nowait((0, data_port))
         else:
@@ -846,18 +831,16 @@ class Server(AbstractServer):
         if isinstance(users, AbstractUserManager):
             self.user_manager = users
         else:
-            self.user_manager = MemoryUserManager(users, loop=self.loop)
+            self.user_manager = MemoryUserManager(users)
 
         self.available_connections = AvailableConnections(maximum_connections)
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
-            loop=self.loop
         )
         self.throttle_per_connection = StreamThrottle.from_limits(
             read_speed_limit_per_connection,
             write_speed_limit_per_connection,
-            loop=self.loop
         )
         self.throttle_per_user = {}
         self.encoding = encoding
@@ -876,9 +859,8 @@ class Server(AbstractServer):
             ),
             read_timeout=self.idle_timeout,
             write_timeout=self.socket_timeout,
-            loop=self.loop
         )
-        response_queue = asyncio.Queue(loop=self.loop)
+        response_queue = asyncio.Queue()
         connection = Connection(
             client_host=host,
             client_port=port,
@@ -892,15 +874,13 @@ class Server(AbstractServer):
             block_size=self.block_size,
             path_io_factory=self.path_io_factory,
             path_timeout=self.path_timeout,
-            loop=self.loop,
             extra_workers=set(),
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
             restart_offset=0,
-            _dispatcher=get_current_task(loop=self.loop),
+            _dispatcher=get_current_task(),
         )
         connection.path_io = self.path_io_factory(timeout=self.path_timeout,
-                                                  loop=self.loop,
                                                   connection=connection)
         pending = {
             self.greeting(connection, ""),
@@ -913,7 +893,6 @@ class Server(AbstractServer):
                 done, pending = await asyncio.wait(
                     pending | connection.extra_workers,
                     return_when=asyncio.FIRST_COMPLETED,
-                    loop=connection.loop
                 )
                 connection.extra_workers -= done
                 for task in done:
@@ -948,7 +927,7 @@ class Server(AbstractServer):
         finally:
             logger.info("closing connection from %s:%s", host, port)
             tasks_to_wait = []
-            if not connection.loop.is_closed():
+            if not asyncio.get_event_loop().is_closed():
                 for task in pending | connection.extra_workers:
                     if isinstance(task, asyncio.Task):
                         task.cancel()
@@ -1033,7 +1012,6 @@ class Server(AbstractServer):
                 throttle = StreamThrottle.from_limits(
                     connection.user.read_speed_limit,
                     connection.user.write_speed_limit,
-                    loop=connection.loop
                 )
                 self.throttle_per_user[connection.user] = throttle
 
@@ -1042,7 +1020,6 @@ class Server(AbstractServer):
                 user_per_connection=StreamThrottle.from_limits(
                     connection.user.read_speed_limit_per_connection,
                     connection.user.write_speed_limit_per_connection,
-                    loop=connection.loop
                 )
             )
         connection.response(code, info)
@@ -1149,7 +1126,7 @@ class Server(AbstractServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = mlsd_worker(self, connection, rest)
-        task = connection.loop.create_task(coro)
+        task = asyncio.ensure_future(coro)
         connection.extra_workers.add(task)
         connection.response("150", "mlsd transfer started")
         return True
@@ -1207,7 +1184,7 @@ class Server(AbstractServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = list_worker(self, connection, rest)
-        task = connection.loop.create_task(coro)
+        task = asyncio.ensure_future(coro)
         connection.extra_workers.add(task)
         connection.response("150", "list transfer started")
         return True
@@ -1285,7 +1262,7 @@ class Server(AbstractServer):
         real_path, virtual_path = self.get_paths(connection, rest)
         if await connection.path_io.is_dir(real_path.parent):
             coro = stor_worker(self, connection, rest)
-            task = connection.loop.create_task(coro)
+            task = asyncio.ensure_future(coro)
             connection.extra_workers.add(task)
             code, info = "150", "data transfer started"
         else:
@@ -1322,7 +1299,7 @@ class Server(AbstractServer):
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = retr_worker(self, connection, rest)
-        task = connection.loop.create_task(coro)
+        task = asyncio.ensure_future(coro)
         connection.extra_workers.add(task)
         connection.response("150", "data transfer started")
         return True
@@ -1364,7 +1341,6 @@ class Server(AbstractServer):
                         handler_callback,
                         connection.server_host,
                         port,
-                        loop=connection.loop,
                         ssl=self.ssl,
                         **self._start_server_extra_arguments,
                     )
@@ -1381,7 +1357,6 @@ class Server(AbstractServer):
                 handler_callback,
                 connection.server_host,
                 connection.passive_server_port,
-                loop=connection.loop,
                 ssl=self.ssl,
                 **self._start_server_extra_arguments,
             )
@@ -1399,7 +1374,6 @@ class Server(AbstractServer):
                     writer,
                     throttles=connection.command_connection.throttles,
                     timeout=connection.socket_timeout,
-                    loop=connection.loop
                 )
 
         if not connection.future.passive_server.done():
@@ -1441,7 +1415,6 @@ class Server(AbstractServer):
                     writer,
                     throttles=connection.command_connection.throttles,
                     timeout=connection.socket_timeout,
-                    loop=connection.loop
                 )
 
         if rest:

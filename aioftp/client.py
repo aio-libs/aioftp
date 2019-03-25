@@ -33,12 +33,13 @@ __all__ = (
 logger = logging.getLogger(__name__)
 
 
-async def open_connection(host, port, loop, create_connection, ssl=None):
-    reader = asyncio.StreamReader(loop=loop)
-    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+async def open_connection(host, port, create_connection, ssl=None):
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
     transport, _ = await create_connection(lambda: protocol,
                                            host, port, ssl=ssl)
-    writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+    writer = asyncio.StreamWriter(transport, protocol, reader,
+                                  asyncio.get_event_loop())
     return reader, writer
 
 
@@ -107,22 +108,19 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
 class BaseClient:
 
-    def __init__(self, *, loop=None, create_connection=None,
-                 socket_timeout=None, read_speed_limit=None,
-                 write_speed_limit=None, path_timeout=None,
-                 path_io_factory=pathio.PathIO, encoding="utf-8",
-                 ssl=None):
-        self.loop = loop or asyncio.get_event_loop()
-        self.create_connection = create_connection or \
-            self.loop.create_connection
+    def __init__(self, *, create_connection=None, socket_timeout=None,
+                 read_speed_limit=None, write_speed_limit=None,
+                 path_timeout=None, path_io_factory=pathio.PathIO,
+                 encoding="utf-8", ssl=None):
+        loop = asyncio.get_event_loop()
+        self.create_connection = create_connection or loop.create_connection
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
-            loop=self.loop
         )
         self.path_timeout = path_timeout
-        self.path_io = path_io_factory(timeout=path_timeout, loop=loop)
+        self.path_io = path_io_factory(timeout=path_timeout)
         self.encoding = encoding
         self.stream = None
         self.ssl = ssl
@@ -133,7 +131,6 @@ class BaseClient:
         reader, writer = await open_connection(
             host,
             port,
-            self.loop,
             self.create_connection,
             self.ssl,
         )
@@ -142,7 +139,6 @@ class BaseClient:
             writer,
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
-            loop=self.loop,
         )
 
     def close(self):
@@ -528,9 +524,6 @@ class BaseClient:
 class Client(BaseClient):
     """
     FTP client.
-
-    :param loop: loop to use for creating connection and binding with streams
-    :type loop: :py:class:`asyncio.BaseEventLoop`
 
     :param create_connection: factory for creating
         connection.
@@ -1087,7 +1080,6 @@ class Client(BaseClient):
         reader, writer = await open_connection(
             ip,
             port,
-            self.loop,
             self.create_connection,
             self.ssl,
         )
@@ -1121,7 +1113,6 @@ class Client(BaseClient):
             writer,
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
-            loop=self.loop
         )
         return stream
 

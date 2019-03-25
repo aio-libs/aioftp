@@ -87,7 +87,7 @@ class FakeErrorPathIO(aioftp.MemoryPathIO):
             async def __anext__(self):
                 raise Exception("KERNEL PANIC")
 
-        return Lister(timeout=self.timeout, loop=self.loop)
+        return Lister(timeout=self.timeout)
 
 
 @pytest.mark.asyncio
