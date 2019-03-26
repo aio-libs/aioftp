@@ -175,7 +175,7 @@ class Sleep:
     def is_close(self, delay, *, rel_tol=0.05, abs_tol=0.2):
         ok = math.isclose(self.delay, delay, rel_tol=rel_tol, abs_tol=abs_tol)
         if not ok:
-            print(f"latest sleep: {self.delay}; expected delay: " \
+            print(f"latest sleep: {self.delay}; expected delay: "
                   f"{delay}; rel: {rel_tol}")
         return ok
 
