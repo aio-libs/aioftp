@@ -138,9 +138,7 @@ def test_parse_list_line_unix():
 @pytest.mark.parametrize("read", ["r", "-"])
 @pytest.mark.parametrize("write", ["w", "-"])
 def test_parse_unix_mode(owner, group, others, read, write):
-    t = "{read}{write}{owner}{read}{write}{group}{read}{write}{others}"
-    s = t.format(read=read, write=write, owner=owner,
-                 group=group, others=others)
+    s = f"{read}{write}{owner}{read}{write}{group}{read}{write}{others}"
     if "E" in {owner, group, others}:
         with pytest.raises(ValueError):
             aioftp.Client.parse_unix_mode(s)

@@ -74,12 +74,8 @@ class Permission:
             return False
 
     def __repr__(self):
-        return "{}({!r}, readable={!r}, writable={!r})".format(
-            self.__class__.__name__,
-            self.path,
-            self.readable,
-            self.writable,
-        )
+        return f"{self.__class__.__name__}({self.path!r}, " \
+               f"readable={self.readable!r}, writable={self.writable!r})"
 
 
 class User:
@@ -165,25 +161,17 @@ class User:
         return perm
 
     def __repr__(self):
-        t = (
-            "{}({!r}, {!r}, base_path={!r}, home_path={!r}, permissions={!r}, "
-            "maximum_connections={!r}, read_speed_limit={!r}, "
-            "write_speed_limit={!r}, read_speed_limit_per_connection={!r}, "
-            "write_speed_limit_per_connection={!r})"
-        )
-        return t.format(
-            self.__class__.__name__,
-            self.login,
-            self.password,
-            self.base_path,
-            self.home_path,
-            self.permissions,
-            self.maximum_connections,
-            self.read_speed_limit,
-            self.write_speed_limit,
-            self.read_speed_limit_per_connection,
-            self.write_speed_limit_per_connection,
-        )
+        return f"{self.__class__.__name__}({self.login!r}, " \
+               f"{self.password!r}, base_path={self.base_path!r}, " \
+               f"home_path={self.home_path!r}, " \
+               f"permissions={self.permissions!r}, " \
+               f"maximum_connections={self.maximum_connections!r}, " \
+               f"read_speed_limit={self.read_speed_limit!r}, " \
+               f"write_speed_limit={self.write_speed_limit!r}, " \
+               f"read_speed_limit_per_connection=" \
+               f"{self.read_speed_limit_per_connection!r}, " \
+               f"write_speed_limit_per_connection=" \
+               f"{self.write_speed_limit_per_connection!r})"
 
 
 class AbstractUserManager(abc.ABC):
@@ -269,8 +257,7 @@ class MemoryUserManager(AbstractUserManager):
             info = "no such username"
         elif self.available_connections[user].locked():
             state = AbstractUserManager.GetUserResponse.ERROR
-            template = "too much connections for '{}'"
-            info = template.format(user.login or "anonymous")
+            info = f"too much connections for {user.login or 'anonymous'!r}"
         elif user.login is None:
             state = AbstractUserManager.GetUserResponse.OK
             info = "anonymous login"
@@ -345,7 +332,7 @@ class Connection(collections.defaultdict):
         if name in self:
             return self[name].result()
         else:
-            raise AttributeError("'{}' not in storage".format(name))
+            raise AttributeError(f"{name!r} not in storage")
 
     def __setattr__(self, name, value):
         if name in Connection.__slots__:
@@ -617,8 +604,7 @@ class ConnectionConditions:
                 for future, message in futures.items():
                     if not future.done():
                         if self.fail_info is None:
-                            template = "bad sequence of commands ({})"
-                            info = template.format(message)
+                            info = f"bad sequence of commands ({message})"
                         else:
                             info = self.fail_info
                         connection.response(self.fail_code, info)
@@ -918,7 +904,7 @@ class Server(AbstractServer):
                             if cmd not in ("retr", "stor", "appe"):
                                 connection.restart_offset = 0
                         else:
-                            message = "'{}' not implemented".format(cmd)
+                            message = f"{cmd!r} not implemented"
                             connection.response("502", message)
         except asyncio.CancelledError:
             raise
@@ -1003,7 +989,7 @@ class Server(AbstractServer):
         elif state == AbstractUserManager.GetUserResponse.ERROR:
             code = "530"
         else:
-            message = "Unknown response {}".format(state)
+            message = f"Unknown response {state}"
             raise NotImplementedError(message)
 
         if connection.future.user.done():
@@ -1043,7 +1029,7 @@ class Server(AbstractServer):
 
     @ConnectionConditions(ConnectionConditions.login_required)
     async def pwd(self, connection, rest):
-        code, info = "257", "\"{}\"".format(connection.current_directory)
+        code, info = "257", f"\"{connection.current_directory}\""
         connection.response(code, info)
         return True
 
@@ -1096,7 +1082,7 @@ class Server(AbstractServer):
             stats[fact] = getattr(raw, attr)
         s = ""
         for fact, value in stats.items():
-            s += "{}={};".format(fact, value)
+            s += f"{fact}={value};"
         s += " " + path.name
         return s
 
@@ -1310,7 +1296,7 @@ class Server(AbstractServer):
             connection.transfer_type = rest
             code, info = "200", ""
         else:
-            code, info = "502", "type '{}' not implemented".format(rest)
+            code, info = "502", f"type {rest!r} not implemented"
         connection.response(code, info)
         return True
 
@@ -1396,7 +1382,7 @@ class Server(AbstractServer):
             return False
 
         nums = tuple(map(int, host.split("."))) + (port >> 8, port & 0xff)
-        info.append("({})".format(",".join(map(str, nums))))
+        info.append(f"({','.join(map(str, nums))})")
         if connection.future.data_connection.done():
             connection.data_connection.close()
             del connection.data_connection
@@ -1437,7 +1423,7 @@ class Server(AbstractServer):
                 _, port, *_ = sock.getsockname()
                 break
 
-        info[0] += " (|||{}|)".format(port)
+        info[0] += f" (|||{port}|)"
         if connection.future.data_connection.done():
             connection.data_connection.close()
             del connection.data_connection
@@ -1459,10 +1445,10 @@ class Server(AbstractServer):
     async def rest(self, connection, rest):
         if rest.isdigit():
             connection.restart_offset = int(rest)
-            connection.response("350", "restarting at {}".format(rest))
+            connection.response("350", f"restarting at {rest}")
         else:
             connection.restart_offset = 0
-            message = "syntax error, can't restart at '{}'".format(rest)
+            message = f"syntax error, can't restart at {rest!r}"
             connection.response("501", message)
         return True
 

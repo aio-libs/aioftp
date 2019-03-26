@@ -592,15 +592,9 @@ class Node:
         self.content = content
 
     def __repr__(self):
-        t = "{}(type={!r}, name={!r}, ctime={!r}, mtime={!r}, content={!r})"
-        return t.format(
-            self.__class__.__name__,
-            self.type,
-            self.name,
-            self.ctime,
-            self.mtime,
-            self.content,
-        )
+        return f"{self.__class__.__name__}(type={self.type!r}, " \
+               f"name={self.name!r}, ctime={self.ctime!r}, " \
+               f"mtime={self.mtime!r}, content={self.content!r})"
 
 
 class MemoryPathIO(AbstractPathIO):
@@ -800,7 +794,7 @@ class MemoryPathIO(AbstractPathIO):
                     file_like = node.content
                     file_like.seek(0, io.SEEK_SET)
         else:
-            raise ValueError("invalid mode: {}".format(mode))
+            raise ValueError(f"invalid mode: {mode}")
         return file_like
 
     @universal_exception

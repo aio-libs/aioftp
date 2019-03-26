@@ -705,8 +705,8 @@ class Client(BaseClient):
                 cls.path = local_path
                 cls.parse_line = self.parse_mlsx_line
                 if raw_command not in [None, "MLSD", "LIST"]:
-                    t = "raw_command must be one of MLSD or LIST, but got {}"
-                    raise ValueError(t.format(raw_command))
+                    raise ValueError("raw_command must be one of MLSD or "
+                                     f"LIST, but got {raw_command}")
                 if raw_command in [None, "MLSD"]:
                     try:
                         command = ("MLSD " + str(cls.path)).strip()
@@ -1066,8 +1066,7 @@ class Client(BaseClient):
         for i, name in enumerate(commands, start=1):
             name = name.lower()
             if name not in functions:
-                names = set(functions)
-                raise ValueError("{!r} not in {!r}".format(name, names))
+                raise ValueError(f"{name!r} not in {set(functions)!r}")
             try:
                 ip, port = await functions[name]()
                 break

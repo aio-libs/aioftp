@@ -31,7 +31,7 @@ parser.add_argument("--family", choices=("ipv4", "ipv6", "auto"),
                     help="Socket family [default: %(default)s]")
 
 args = parser.parse_args()
-print("aioftp v{}".format(aioftp.__version__))
+print(f"aioftp v{aioftp.__version__}")
 
 if not args.quiet:
     logging.basicConfig(

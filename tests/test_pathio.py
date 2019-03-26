@@ -11,10 +11,10 @@ def universal_exception_reason(*exc):
         yield
     except aioftp.PathIOError as e:
         type, instance, traceback = e.reason
-        m = "Expect one of {}, got {}".format(exc, instance)
+        m = f"Expect one of {exc}, got {instance}"
         assert isinstance(instance, exc), m
     else:
-        raise Exception("No excepton. Expect one of {}".format(exc))
+        raise Exception(f"No excepton. Expect one of {exc}")
 
 
 def test_has_state(path_io):

@@ -46,7 +46,7 @@ async def test_server_side_throttle(pair_factory, skip_sleep, times, users,
     async with pair_factory() as pair:
         names = []
         for i in range(users):
-            name = "foo{}".format(i)
+            name = f"foo{i}"
             names.append(name)
             await pair.make_server_files(name, size=SIZE)
         throttle = reduce(getattr, [throttle_level, throttle_direction],

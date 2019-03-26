@@ -381,11 +381,8 @@ class Throttle:
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
     def __repr__(self):
-        return "{}(limit={!r}, reset_rate={!r})".format(
-            self.__class__.__name__,
-            self._limit,
-            self.reset_rate
-        )
+        return f"{self.__class__.__name__}(limit={self._limit!r}, " \
+               f"reset_rate={self.reset_rate!r})"
 
 
 class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
