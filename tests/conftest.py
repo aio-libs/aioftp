@@ -146,7 +146,7 @@ def expect_codes_in_exception():
 
 @pytest.fixture(params=[aioftp.MemoryPathIO, aioftp.PathIO,
                         aioftp.AsyncPathIO])
-def path_io(request, event_loop):
+def path_io(request):
     return request.param()
 
 
