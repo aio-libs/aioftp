@@ -378,26 +378,19 @@ to specify global timeout for socket io operations.
 Using proxy
 -----------
 
-Simplest way to use proxy is
-`twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_. aioftp was designed
-with this library in mind.
+Simplest way to use socks proxy with :class:`aioftp.Client`
+is `siosocks <https://github.com/pohmelie/siosocks>`_
 
 ::
 
-    >>> configuration = {
-    ...     "PROXY_SERVERS": [
-    ...         {
-    ...             "TYPE": "SOCKS4",
-    ...             "ADDRESS": "127.0.0.1",
-    ...             "PORT": 9050,
-    ...             "ACCOUNT": {
-    ...                 "NAME": ""
-    ...             }
-    ...         },
-    ...     ]
-    ... }
-    tunnel = twunnel3.proxy_server.create_tunnel(configuration)
-    client = aioftp.Client(create_connection=tunnel.create_connection)
+    >>> client = aioftp.Client(
+    ...     socks_host="localhost",
+    ...     socks_port=9050,
+    ...     socks_version=5,
+    ... )
+
+Don't forget to install `aioftp` as `pip install aioftp[socks]`, or install
+`siosocks` directly with `pip install siosocks`.
 
 WARNING
 -------

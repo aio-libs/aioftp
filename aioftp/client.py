@@ -1,9 +1,14 @@
-import asyncio
 import re
 import collections
 import pathlib
 import logging
 import datetime
+from functools import partial
+
+try:
+    from siosocks.io.asyncio import open_connection
+except ImportError:
+    from asyncio import open_connection
 
 from . import errors
 from . import pathio
@@ -31,16 +36,6 @@ __all__ = (
     "Code",
 )
 logger = logging.getLogger(__name__)
-
-
-async def open_connection(host, port, create_connection, ssl=None):
-    reader = asyncio.StreamReader()
-    protocol = asyncio.StreamReaderProtocol(reader)
-    transport, _ = await create_connection(lambda: protocol,
-                                           host, port, ssl=ssl)
-    writer = asyncio.StreamWriter(transport, protocol, reader,
-                                  asyncio.get_event_loop())
-    return reader, writer
 
 
 class Code(str):
@@ -108,12 +103,10 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
 class BaseClient:
 
-    def __init__(self, *, create_connection=None, socket_timeout=None,
+    def __init__(self, *, socket_timeout=None,
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
-                 encoding="utf-8", ssl=None):
-        loop = asyncio.get_event_loop()
-        self.create_connection = create_connection or loop.create_connection
+                 encoding="utf-8", ssl=None, **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
@@ -124,16 +117,13 @@ class BaseClient:
         self.encoding = encoding
         self.stream = None
         self.ssl = ssl
+        self._open_connection = partial(open_connection, ssl=self.ssl,
+                                        **siosocks_asyncio_kwargs)
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
         self.server_port = port
-        reader, writer = await open_connection(
-            host,
-            port,
-            self.create_connection,
-            self.ssl,
-        )
+        reader, writer = await self._open_connection(host, port)
         self.stream = ThrottleStreamIO(
             reader,
             writer,
@@ -525,12 +515,6 @@ class Client(BaseClient):
     """
     FTP client.
 
-    :param create_connection: factory for creating
-        connection.
-        Using default :py:meth:`asyncio.BaseEventLoop.create_connection`
-        if omitted.
-    :type create_connection: :py:func:`callable`
-
     :param socket_timeout: timeout for read operations
     :type socket_timeout: :py:class:`float`, :py:class:`int` or `None`
 
@@ -558,6 +542,8 @@ class Client(BaseClient):
         ssl.create_default_context() is used.
         Please look :py:meth:`asyncio.loop.create_connection` docs.
     :type ssl: :py:class:`bool` or :py:class:`ssl.SSLContext`
+
+    :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
     async def connect(self, host, port=DEFAULT_PORT):
         """
@@ -1076,12 +1062,7 @@ class Client(BaseClient):
                     raise
         if ip in ("0.0.0.0", None):
             ip = self.server_host
-        reader, writer = await open_connection(
-            ip,
-            port,
-            self.create_connection,
-            self.ssl,
-        )
+        reader, writer = await self._open_connection(ip, port)
         return reader, writer
 
     @async_enterable

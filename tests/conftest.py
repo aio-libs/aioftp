@@ -5,6 +5,8 @@ import tempfile
 import asyncio
 import math
 import time
+import functools
+import socket
 from pathlib import Path
 
 import pytest
@@ -12,6 +14,7 @@ import trustme
 from async_timeout import timeout
 
 import aioftp
+from siosocks.io.asyncio import socks_server_handler
 
 
 # No ssl tests since https://bugs.python.org/issue36098
@@ -186,3 +189,22 @@ def skip_sleep(monkeypatch):
         sleeper = Sleep()
         m.setattr(asyncio, "sleep", sleeper.sleep)
         yield sleeper
+
+
+@pytest.fixture(params=[("127.0.0.1", socket.AF_INET),
+                        ("::1", socket.AF_INET6)])
+async def socks(request, unused_tcp_port):
+    handler = functools.partial(
+        socks_server_handler,
+        allowed_versions={5},
+        username="foo",
+        password="bar",
+    )
+    Socks = collections.namedtuple("Socks", "host port server")
+    host, family = request.param
+    port = unused_tcp_port
+    server = await asyncio.start_server(handler, host=host, port=port,
+                                        family=family)
+    yield Socks(host, port, server)
+    server.close()
+    await server.wait_closed()
