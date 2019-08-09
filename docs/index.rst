@@ -15,7 +15,8 @@ Features
 
 - Simple.
 - Extensible.
-- Proxy via `twunnel3 <https://github.com/jvansteirteghem/twunnel3>`_.
+- Client socks proxy via `siosocks <https://github.com/pohmelie/siosocks>`_
+  (`pip install aioftp[socks]`).
 
 Goals
 -----

@@ -1,3 +1,8 @@
+0.14.0 (xx-xx-xxxx)
+-------------------
+
+- client: add socks proxy support via `siosocks <https://github.com/pohmelie/siosocks>`_ (#94)
+
 0.13.0 (24-03-2019)
 -------------------
 
