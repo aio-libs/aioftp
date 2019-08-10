@@ -98,7 +98,7 @@ async def test_client_list_override_with_custom(pair_factory, Client):
 
     def parser(b):
         import pickle
-        return pickle.loads(bytes.fromhex(b.decode()))
+        return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))
 
     async def builder(_, path):
         import pickle
