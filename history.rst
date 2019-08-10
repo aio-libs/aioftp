@@ -2,6 +2,9 @@
 -------------------
 
 - client: add socks proxy support via `siosocks <https://github.com/pohmelie/siosocks>`_ (#94)
+- client: add custom `list` parser (#95)
+
+Thanks to `purpleskyfall https://github.com/purpleskyfall`_, `VyachAp <https://github.com/VyachAp>`_
 
 0.13.0 (24-03-2019)
 -------------------

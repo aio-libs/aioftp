@@ -90,3 +90,26 @@ def test_client_list_windows():
         assert entities[p]["type"] == "file"
     with pytest.raises(ValueError):
         parse(b" 10/3/2018   2:58 PM    34,35xxx38,368  win10.img")
+
+
+@pytest.mark.asyncio
+async def test_client_list_override_with_custom(pair_factory, Client):
+    meta = {"type": "file", "works": True}
+
+    def parser(b):
+        import pickle
+        return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))
+
+    async def builder(_, path):
+        import pickle
+        return pickle.dumps((path, meta)).hex()
+
+    async with pair_factory(Client(parse_list_line_custom=parser)) as pair:
+        pair.server.mlst = not_implemented
+        pair.server.mlsd = not_implemented
+        pair.server.build_list_string = builder
+        await pair.client.make_directory("bar")
+        (path, stat), *_ = files = await pair.client.list()
+        assert len(files) == 1
+        assert path == pathlib.PurePosixPath("bar")
+        assert stat == meta
