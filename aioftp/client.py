@@ -106,7 +106,8 @@ class BaseClient:
     def __init__(self, *, socket_timeout=None,
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
-                 encoding="utf-8", ssl=None, **siosocks_asyncio_kwargs):
+                 encoding="utf-8", ssl=None, parse_list_line_custom=None,
+                 **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
@@ -117,6 +118,7 @@ class BaseClient:
         self.encoding = encoding
         self.stream = None
         self.ssl = ssl
+        self.parse_list_line_custom = parse_list_line_custom
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
 
@@ -480,8 +482,14 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        parsers = (self.parse_list_line_unix, self.parse_list_line_windows)
+        parsers = (
+            self.parse_list_line_custom,
+            self.parse_list_line_unix,
+            self.parse_list_line_windows,
+        )
         for parser in parsers:
+            if parser is None:
+                continue
             try:
                 return parser(b)
             except (ValueError, KeyError, IndexError) as e:
@@ -543,6 +551,11 @@ class Client(BaseClient):
         Please look :py:meth:`asyncio.loop.create_connection` docs.
     :type ssl: :py:class:`bool` or :py:class:`ssl.SSLContext`
 
+    :param parse_list_line_custom: callable, which receive exactly one
+        argument: line of type bytes. Should return tuple of Path object and
+        dictionary with fields "modify", "type", "type", "size". For more
+        information see sources.
+    :type parse_list_line_custom: callable
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
     async def connect(self, host, port=DEFAULT_PORT):
