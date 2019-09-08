@@ -19,7 +19,7 @@ aioftp
 .. image:: https://img.shields.io/pypi/pyversions/aioftp.svg
     :target: https://pypi.python.org/pypi/aioftp
 
-.. image:: https://pypi-badges.global.ssl.fastly.net/svg?package=aioftp&timeframe=monthly
+.. image:: https://img.shields.io/pypi/dm/aioftp   :alt: PyPI - Downloads
     :target: https://pypi.python.org/pypi/aioftp
 
 ftp client/server for asyncio (http://aioftp.readthedocs.org)
