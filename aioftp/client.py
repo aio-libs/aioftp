@@ -553,7 +553,7 @@ class Client(BaseClient):
 
     :param parse_list_line_custom: callable, which receive exactly one
         argument: line of type bytes. Should return tuple of Path object and
-        dictionary with fields "modify", "type", "type", "size". For more
+        dictionary with fields "modify", "type", "size". For more
         information see sources.
     :type parse_list_line_custom: callable
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
