@@ -1,3 +1,9 @@
+0.15.0 (07-01-2019)
+-------------------
+
+- server: use explicit mapping of available commands for security reasons
+Thanks to `Puddly` for report
+
 0.14.0 (30-12-2019)
 -------------------
 
