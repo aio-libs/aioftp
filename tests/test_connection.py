@@ -177,6 +177,10 @@ async def test_client_session_context_manager(pair_factory):
 async def test_long_login_sequence_fail(pair_factory,
                                         expect_codes_in_exception):
     class CustomServer(aioftp.Server):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.commands_mapping["acct"] = self.acct
+
         async def user(self, connection, rest):
             connection.response("331")
             return True

@@ -15,8 +15,8 @@ async def not_implemented(connection, rest):
 @pytest.mark.asyncio
 async def test_client_fallback_to_list_at_list(pair_factory):
     async with pair_factory() as pair:
-        pair.server.mlst = not_implemented
-        pair.server.mlsd = not_implemented
+        pair.server.commands_mapping["mlst"] = not_implemented
+        pair.server.commands_mapping["mlsd"] = not_implemented
         await pair.make_server_files("bar/foo")
         (path, stat), *_ = files = await pair.client.list()
         assert len(files) == 1
@@ -35,7 +35,7 @@ async def implemented_badly(connection, rest):
 @pytest.mark.asyncio
 async def test_client_list_override(pair_factory):
     async with pair_factory() as pair:
-        pair.server.mlsd = implemented_badly
+        pair.server.commands_mapping["mlsd"] = implemented_badly
         await pair.client.make_directory("bar")
         (path, stat), *_ = files = await pair.client.list(raw_command="LIST")
         assert len(files) == 1
@@ -105,8 +105,8 @@ async def test_client_list_override_with_custom(pair_factory, Client):
         return pickle.dumps((path, meta)).hex()
 
     async with pair_factory(Client(parse_list_line_custom=parser)) as pair:
-        pair.server.mlst = not_implemented
-        pair.server.mlsd = not_implemented
+        pair.server.commands_mapping["mlst"] = not_implemented
+        pair.server.commands_mapping["mlsd"] = not_implemented
         pair.server.build_list_string = builder
         await pair.client.make_directory("bar")
         (path, stat), *_ = files = await pair.client.list()

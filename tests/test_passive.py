@@ -17,7 +17,7 @@ async def test_client_fallback_to_pasv_at_list(pair_factory):
 async def test_client_fail_fallback_to_pasv_at_list(pair_factory,
                                                     expect_codes_in_exception):
     async with pair_factory(host="127.0.0.1") as pair:
-        pair.server.epsv = not_implemented
+        pair.server.commands_mapping["epsv"] = not_implemented
         with expect_codes_in_exception("502"):
             await pair.client.get_passive_connection(commands=["epsv"])
 

@@ -198,13 +198,8 @@ async def test_upload_path_unreachable(pair_factory,
 
 @pytest.mark.asyncio
 async def test_stat_when_no_mlst(pair_factory):
-    class CustomServer(aioftp.Server):
-        def __getattribute__(self, name):
-            if name == "mlst":
-                raise AttributeError
-            return super().__getattribute__(name)
-
-    async with pair_factory(server_factory=CustomServer) as pair:
+    async with pair_factory() as pair:
+        pair.server.commands_mapping.pop("mlst")
         await pair.make_server_files("foo")
         info = await pair.client.stat("foo")
         assert info["type"] == "file"

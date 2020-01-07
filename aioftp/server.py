@@ -831,6 +831,33 @@ class Server(AbstractServer):
         self.throttle_per_user = {}
         self.encoding = encoding
         self.ssl = ssl
+        self.commands_mapping = {
+            "abor": self.abor,
+            "appe": self.appe,
+            "cdup": self.cdup,
+            "cwd": self.cwd,
+            "dele": self.dele,
+            "epsv": self.epsv,
+            "list": self.list,
+            "mkd": self.mkd,
+            "mlsd": self.mlsd,
+            "mlst": self.mlst,
+            "pass_": self.pass_,
+            "pasv": self.pasv,
+            "pbsz": self.pbsz,
+            "prot": self.prot,
+            "pwd": self.pwd,
+            "quit": self.quit,
+            "rest": self.rest,
+            "retr": self.retr,
+            "rmd": self.rmd,
+            "rnfr": self.rnfr,
+            "rnto": self.rnto,
+            "stor": self.stor,
+            "syst": self.syst,
+            "type": self.type,
+            "user": self.user,
+        }
 
     async def dispatcher(self, reader, writer):
         host, port, *_ = writer.transport.get_extra_info("peername", ("", ""))
@@ -899,8 +926,9 @@ class Server(AbstractServer):
                         if cmd == "pass":
                             # is there a better solution?
                             cmd = "pass_"
-                        if hasattr(self, cmd):
-                            pending.add(getattr(self, cmd)(connection, rest))
+                        f = self.commands_mapping.get(cmd)
+                        if f is not None:
+                            pending.add(f(connection, rest))
                             if cmd not in ("retr", "stor", "appe"):
                                 connection.restart_offset = 0
                         else:

@@ -8,6 +8,10 @@ import aioftp
 @pytest.mark.asyncio
 async def test_server_side_exception(pair_factory):
     class CustomServer(aioftp.Server):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.commands_mapping["custom"] = self.custom
+
         async def custom(*args, **kwargs):
             raise RuntimeError("Test error")
     factory = pair_factory(server_factory=CustomServer, do_quit=False)
