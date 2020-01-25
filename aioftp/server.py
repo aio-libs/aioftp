@@ -842,7 +842,7 @@ class Server(AbstractServer):
             "mkd": self.mkd,
             "mlsd": self.mlsd,
             "mlst": self.mlst,
-            "pass_": self.pass_,
+            "pass": self.pass_,
             "pasv": self.pasv,
             "pbsz": self.pbsz,
             "prot": self.prot,
@@ -923,9 +923,6 @@ class Server(AbstractServer):
                     elif isinstance(result, tuple):
                         pending.add(self.parse_command(stream))
                         cmd, rest = result
-                        if cmd == "pass":
-                            # is there a better solution?
-                            cmd = "pass_"
                         f = self.commands_mapping.get(cmd)
                         if f is not None:
                             pending.add(f(connection, rest))
