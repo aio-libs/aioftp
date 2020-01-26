@@ -1,3 +1,9 @@
+x.x.x (xx-xx-xxxx)
+------------------
+
+- server: remove obsolete `pass` to `pass_` command renaming
+Thanks to `Puddly <https://github.com/puddly>`_
+
 0.15.0 (07-01-2019)
 -------------------
 
