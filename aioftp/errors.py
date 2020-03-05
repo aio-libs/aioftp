@@ -2,13 +2,21 @@ from . import common
 
 
 __all__ = (
+    "AIOFTPException",
     "StatusCodeError",
     "PathIsNotAbsolute",
     "PathIOError",
+    "NoAvailablePort",
 )
 
 
-class StatusCodeError(Exception):
+class AIOFTPException(Exception):
+    """
+    Base exception class.
+    """
+
+
+class StatusCodeError(AIOFTPException):
     """
     Raised for unexpected or "bad" status codes.
 
@@ -41,13 +49,13 @@ class StatusCodeError(Exception):
         self.info = info
 
 
-class PathIsNotAbsolute(Exception):
+class PathIsNotAbsolute(AIOFTPException):
     """
     Raised when "path" is not absolute.
     """
 
 
-class PathIOError(Exception):
+class PathIOError(AIOFTPException):
     """
     Universal exception for any path io errors.
 
@@ -67,7 +75,7 @@ class PathIOError(Exception):
         self.reason = reason
 
 
-class NoAvailablePort(OSError):
+class NoAvailablePort(AIOFTPException, OSError):
     """
     Raised when there is no available data port
     """
