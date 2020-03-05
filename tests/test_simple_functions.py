@@ -66,7 +66,7 @@ def test_parse_ls_date_of_leap_year():
         return d.strftime("%Y%m%d%H%M00")
     p = aioftp.Client.parse_ls_date
     d = datetime.datetime(year=2020, month=2, day=29)
-    assert p(aioftp.Client, _c_locale_time(d)) == date_to_p(d)
+    assert p(_c_locale_time(d)) == date_to_p(d)
 
 
 def test_parse_ls_date_not_older_than_6_month_format():
@@ -81,7 +81,7 @@ def test_parse_ls_date_not_older_than_6_month_format():
     deltas = (datetime.timedelta(), dt, -dt)
     for now, delta in itertools.product(dates, deltas):
         d = now + delta
-        assert p(aioftp.Client, _c_locale_time(d), now=now) == date_to_p(d)
+        assert p(_c_locale_time(d), now=now) == date_to_p(d)
 
 
 def test_parse_ls_date_older_than_6_month_format():
@@ -100,7 +100,7 @@ def test_parse_ls_date_older_than_6_month_format():
             expect = date_to_p(d.replace(year=d.year - 1))
         else:
             expect = date_to_p(d.replace(year=d.year + 1))
-        assert p(aioftp.Client, _c_locale_time(d), now=now) == expect
+        assert p(_c_locale_time(d), now=now) == expect
 
 
 def test_parse_ls_date_short():
@@ -113,7 +113,7 @@ def test_parse_ls_date_short():
     )
     for d in dates:
         s = _c_locale_time(d, format="%b %d  %Y")
-        assert p(aioftp.Client, s) == date_to_p(d)
+        assert p(s) == date_to_p(d)
 
 
 def test_parse_list_line_unix():

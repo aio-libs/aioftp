@@ -355,7 +355,8 @@ class BaseClient:
         """
         return d.strftime("%Y%m%d%H%M00")
 
-    def parse_ls_date(self, s, *, now=None):
+    @classmethod
+    def parse_ls_date(cls, s, *, now=None):
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958" and "Nov 18 12:29".
@@ -387,7 +388,7 @@ class BaseClient:
                         d = d.replace(year=now.year - 1)
             except ValueError:
                 d = datetime.datetime.strptime(s, "%b %d  %Y")
-        return self.format_date_time(d)
+        return cls.format_date_time(d)
 
     def parse_list_line_unix(self, b):
         """
