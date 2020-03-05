@@ -1,4 +1,5 @@
 import re
+import calendar
 import collections
 import pathlib
 import logging
@@ -368,13 +369,22 @@ class BaseClient:
             try:
                 if now is None:
                     now = datetime.datetime.now()
-                d = datetime.datetime.strptime(s, "%b %d %H:%M")
-                d = d.replace(year=now.year)
-                diff = (now - d).total_seconds()
-                if diff > HALF_OF_YEAR_IN_SECONDS:
-                    d = d.replace(year=now.year + 1)
-                elif diff < -HALF_OF_YEAR_IN_SECONDS:
-                    d = d.replace(year=now.year - 1)
+                if s.startswith('Feb 29'):
+                    # Need to find the nearest leap year
+                    year = now.year
+                    while not calendar.isleap(year):
+                        year -= 1
+                    d = datetime.datetime.strptime(
+                        f'{year} {s}', "%Y %b %d %H:%M"
+                    )
+                else:
+                    d = datetime.datetime.strptime(s, "%b %d %H:%M")
+                    d = d.replace(year=now.year)
+                    diff = (now - d).total_seconds()
+                    if diff > HALF_OF_YEAR_IN_SECONDS:
+                        d = d.replace(year=now.year + 1)
+                    elif diff < -HALF_OF_YEAR_IN_SECONDS:
+                        d = d.replace(year=now.year - 1)
             except ValueError:
                 d = datetime.datetime.strptime(s, "%b %d  %Y")
         return self.format_date_time(d)
