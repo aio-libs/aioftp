@@ -36,6 +36,7 @@ DEFAULT_USER = "anonymous"
 DEFAULT_PASSWORD = "anon@"
 DEFAULT_ACCOUNT = ""
 HALF_OF_YEAR_IN_SECONDS = 15778476
+TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
 
 
 def _now():

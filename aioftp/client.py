@@ -27,6 +27,7 @@ from .common import (
     async_enterable,
     setlocale,
     HALF_OF_YEAR_IN_SECONDS,
+    TWO_YEARS_IN_SECONDS,
 )
 
 __all__ = (
@@ -371,13 +372,17 @@ class BaseClient:
                 if now is None:
                     now = datetime.datetime.now()
                 if s.startswith('Feb 29'):
-                    # Need to find the nearest leap year
-                    year = now.year
-                    while not calendar.isleap(year):
-                        year -= 1
+                    # Need to find the nearest previous leap year
+                    prev_leap_year = now.year
+                    while not calendar.isleap(prev_leap_year):
+                        prev_leap_year -= 1
                     d = datetime.datetime.strptime(
-                        f'{year} {s}', "%Y %b %d %H:%M"
+                        f"{prev_leap_year} {s}", "%Y %b %d %H:%M"
                     )
+                    # Check if it's next leap year
+                    diff = (now - d).total_seconds()
+                    if diff > TWO_YEARS_IN_SECONDS:
+                        d = d.replace(year=prev_leap_year + 4)
                 else:
                     d = datetime.datetime.strptime(s, "%b %d %H:%M")
                     d = d.replace(year=now.year)
