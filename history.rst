@@ -4,6 +4,10 @@ x.x.x (xx-xx-xxxx)
 - server: remove obsolete `pass` to `pass_` command renaming
 Thanks to `Puddly <https://github.com/puddly>`_
 
+- client: fix leap year bug at `parse_ls_date` method
+- all: add base exception class
+Thanks to `decaz <https://github.com/decaz>`_
+
 0.15.0 (07-01-2019)
 -------------------
 
