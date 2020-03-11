@@ -1,6 +1,9 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.16.0 (11-03-2020)
+------------------
+
 - server: remove obsolete `pass` to `pass_` command renaming
 Thanks to `Puddly <https://github.com/puddly>`_
 
@@ -8,7 +11,7 @@ Thanks to `Puddly <https://github.com/puddly>`_
 - all: add base exception class
 Thanks to `decaz <https://github.com/decaz>`_
 
-0.15.0 (07-01-2019)
+0.15.0 (07-01-2020)
 -------------------
 
 - server: use explicit mapping of available commands for security reasons

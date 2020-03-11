@@ -2,12 +2,12 @@
 # flake8: noqa
 
 from .client import *
-from .server import *
-from .errors import *
 from .common import *
+from .errors import *
 from .pathio import *
+from .server import *
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 version = tuple(map(int, __version__.split(".")))
 
 __all__ = (
