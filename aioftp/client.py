@@ -232,7 +232,11 @@ class BaseClient:
         expected_codes = wrap_with_container(expected_codes)
         wait_codes = wrap_with_container(wait_codes)
         if command:
-            logger.info(command)
+            if command.startswith('PASS'):
+                # Censor the user's password
+                logger.info('PASS ' + '*' * len(command[5:]))
+            else:
+                logger.info(command)
             message = command + END_OF_LINE
             await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
