@@ -232,9 +232,12 @@ class BaseClient:
         expected_codes = wrap_with_container(expected_codes)
         wait_codes = wrap_with_container(wait_codes)
         if command:
-            if command.startswith('PASS'):
+            if command[:5] in {'pass ', 'PASS '}:
                 # Censor the user's password
-                logger.info('PASS ' + '*' * len(command[5:]))
+                line_end = len(command.rstrip("\r\n"))
+                logger.info(
+                    command[:5] + '*' * (line_end - 5) + command[line_end:]
+                )
             else:
                 logger.info(command)
             message = command + END_OF_LINE
