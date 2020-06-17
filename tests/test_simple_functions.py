@@ -157,6 +157,19 @@ def test_parse_ls_date_short():
         assert p(s) == date_to_p(d)
 
 
+def test_parse_ls_date_short_single_space():
+    def date_to_p(d):
+        return d.strftime("%Y%m%d%H%M00")
+    p = aioftp.Client.parse_ls_date
+    dates = (
+        datetime.datetime(year=2002, month=1, day=1),
+        datetime.datetime(year=2002, month=12, day=31),
+    )
+    for d in dates:
+        s = _c_locale_time(d, format="%b %d %Y")
+        assert p(s) == date_to_p(d)
+
+
 def test_parse_list_line_unix():
     lines = {
         "file": [
