@@ -1,9 +1,6 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
-0.16.1 (17-06-2020)
-------------------
-
 - client: strip date before parsing (#113)
 Thanks to `ndhansen <https://github.com/ndhansen>`_
 
