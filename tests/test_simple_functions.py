@@ -165,6 +165,8 @@ def test_parse_list_line_unix():
         ],
         "dir": [
             "drw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",
+            "drw-rw-r--  1 poh  poh   6595 Jan 03 2016  changes.rst",
+            "drw-rw-r--  1 poh  poh   6595 Mar 10  1996 README.rst",
         ],
         "unknown": [
             "Erw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",

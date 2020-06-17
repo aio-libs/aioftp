@@ -360,7 +360,7 @@ class BaseClient:
     def parse_ls_date(cls, s, *, now=None):
         """
         Parsing dates from the ls unix utility. For example,
-        "Nov 18  1958" and "Nov 18 12:29".
+        "Nov 18  1958", "Jan 03 2018", and "Nov 18 12:29".
 
         :param s: ls date
         :type s: :py:class:`str`
@@ -439,7 +439,7 @@ class BaseClient:
             raise ValueError
 
         s = s[i:].lstrip()
-        info["modify"] = self.parse_ls_date(s[:12])
+        info["modify"] = self.parse_ls_date(s[:12].strip())
         s = s[12:].strip()
         if info["type"] == "link":
             i = s.rindex(" -> ")
