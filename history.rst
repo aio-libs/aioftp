@@ -2,6 +2,7 @@ x.x.x (xx-xx-xxxx)
 ------------------
 
 - client: strip date before parsing (#113)
+- client: allow pass through of passive connection commands from directory listing (#115)
 Thanks to `ndhansen <https://github.com/ndhansen>`_
 
 0.16.0 (11-03-2020)
