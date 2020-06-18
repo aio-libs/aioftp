@@ -243,7 +243,7 @@ class BaseClient:
             if censor_after:
                 # Censor the user's command
                 logger.info(
-                    command[:censor_after] + '*' * len(command[censor_after:])
+                    command[:censor_after] + "*" * len(command[censor_after:])
                 )
             else:
                 logger.info(command)

@@ -481,7 +481,7 @@ class AbstractServer(abc.ABC):
                 await write(code + "-" + line)
             await write(code + " " + tail)
 
-    async def parse_command(self, stream, censor_commands=('pass',)):
+    async def parse_command(self, stream, censor_commands=("pass",)):
         """
         :py:func:`asyncio.coroutine`
 
@@ -502,7 +502,7 @@ class AbstractServer(abc.ABC):
         s = line.decode(encoding=self.encoding).rstrip()
 
         if s[:4].lower() in censor_commands:
-            logger.info(s[:5] + '*' * len(s[5:]))
+            logger.info(s[:5] + "*" * len(s[5:]))
         else:
             logger.info(s)
 
