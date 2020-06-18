@@ -31,6 +31,18 @@ async def test_mlsd(pair_factory):
 
 
 @pytest.mark.asyncio
+async def test_pasv(pair_factory):
+    async with pair_factory(host="127.0.0.1") as pair:
+        await pair.make_server_files("test.txt")
+        (path, stat), *_ = files = await pair.client.list(
+            passive_commands=('pasv',)
+        )
+        assert len(files) == 1
+        assert path == pathlib.PurePosixPath("test.txt")
+        assert stat["type"] == "file"
+
+
+@pytest.mark.asyncio
 async def test_resolving_double_dots(pair_factory):
     async with pair_factory() as pair:
         await pair.make_server_files("test.txt")

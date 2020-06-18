@@ -680,7 +680,12 @@ class Client(BaseClient):
         """
         await self.command("RMD " + str(path), "250")
 
-    def list(self, path="", *, recursive=False, raw_command=None):
+    def list(self,
+             path="",
+             *,
+             recursive=False,
+             raw_command=None,
+             passive_commands=("epsv", "pasv")):
         """
         :py:func:`asyncio.coroutine`
 
@@ -695,6 +700,11 @@ class Client(BaseClient):
         :param raw_command: optional ftp command to use in place of
             fallback logic (must be one of "MLSD", "LIST")
         :type raw_command: :py:class:`str`
+
+        :param passive_commands: sequence of commands to try to
+            initiate passive server creation. First success wins. Default is
+            EPSV, then PASV.
+        :type commands: :py:class:`tuple`
 
         :rtype: :py:class:`list` or `async for` context
 
@@ -725,7 +735,9 @@ class Client(BaseClient):
                 if raw_command in [None, "MLSD"]:
                     try:
                         command = ("MLSD " + str(cls.path)).strip()
-                        return await self.get_stream(command, "1xx")
+                        return await self.get_stream(
+                            command, "1xx", passive_commands=passive_commands
+                        )
                     except errors.StatusCodeError as e:
                         code = e.received_codes[-1]
                         if not code.matches("50x") or raw_command is not None:
@@ -733,7 +745,9 @@ class Client(BaseClient):
                 if raw_command in [None, "LIST"]:
                     cls.parse_line = self.parse_list_line
                     command = ("LIST " + str(cls.path)).strip()
-                    return await self.get_stream(command, "1xx")
+                    return await self.get_stream(
+                        command, "1xx", passive_commands=passive_commands
+                    )
 
             def __aiter__(cls):
                 cls.directories = collections.deque()
@@ -1066,7 +1080,7 @@ class Client(BaseClient):
 
         :param commands: sequence of commands to try to initiate passive
             server creation. First success wins. Default is EPSV, then PASV.
-        :type commands: :py:class:`list`
+        :type commands: :py:class:`tuple`
 
         :rtype: (:py:class:`asyncio.StreamReader`,
             :py:class:`asyncio.StreamWriter`)
@@ -1095,7 +1109,11 @@ class Client(BaseClient):
         return reader, writer
 
     @async_enterable
-    async def get_stream(self, *command_args, conn_type="I", offset=0):
+    async def get_stream(self,
+                         *command_args,
+                         conn_type="I",
+                         offset=0,
+                         passive_commands=("epsv", "pasv")):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1110,9 +1128,16 @@ class Client(BaseClient):
         :param offset: byte offset for stream start position
         :type offset: :py:class:`int`
 
+        :param passive_commands: sequence of commands to try to initiate
+            passive server creation. First success wins. Default is EPSV, then
+            PASV.
+        :type commands: :py:class:`tuple`
+
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
-        reader, writer = await self.get_passive_connection(conn_type)
+        reader, writer = await self.get_passive_connection(
+            conn_type, commands=passive_commands
+        )
         if offset:
             await self.command("REST " + str(offset), "350")
         await self.command(*command_args)
