@@ -1,7 +1,8 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
--client: logger no longer prints out plaintext password
+- client: strip date before parsing (#113)
+- client: logger no longer prints out plaintext password
 Thanks to `ndhansen <https://github.com/ndhansen>_`
 
 0.16.0 (11-03-2020)
