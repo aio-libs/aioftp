@@ -738,7 +738,7 @@ class Client(BaseClient):
                         return await self.get_stream(
                             command,
                             "1xx",
-                            passive_commands=passive_commands
+                            passive_commands=passive_commands,
                         )
                     except errors.StatusCodeError as e:
                         code = e.received_codes[-1]
@@ -748,7 +748,9 @@ class Client(BaseClient):
                     cls.parse_line = self.parse_list_line
                     command = ("LIST " + str(cls.path)).strip()
                     return await self.get_stream(
-                        command, "1xx", passive_commands=passive_commands
+                        command,
+                        "1xx",
+                        passive_commands=passive_commands,
                     )
 
             def __aiter__(cls):
@@ -1138,7 +1140,8 @@ class Client(BaseClient):
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
         reader, writer = await self.get_passive_connection(
-            conn_type, commands=passive_commands
+            conn_type,
+            commands=passive_commands,
         )
         if offset:
             await self.command("REST " + str(offset), "350")
