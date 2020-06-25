@@ -208,7 +208,11 @@ class BaseClient:
         if not any(map(received_code.matches, expected_codes)):
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
-    async def command(self, command=None, expected_codes=(), wait_codes=()):
+    async def command(self,
+                      command=None,
+                      expected_codes=(),
+                      wait_codes=(),
+                      censor_after=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -228,11 +232,21 @@ class BaseClient:
         :param wait_codes: tuple of wait codes or wait code
         :type wait_codes: :py:class:`tuple` of :py:class:`str` or
             :py:class:`str`
+
+        :param censor_after: index after which the line should be censored
+            when logging
+        :type censor_after: :py:class:`None` or :py:class:`int`
         """
         expected_codes = wrap_with_container(expected_codes)
         wait_codes = wrap_with_container(wait_codes)
         if command:
-            logger.info(command)
+            if censor_after:
+                # Censor the user's command
+                raw = command[:censor_after]
+                stars = "*" * len(command[censor_after:])
+                logger.info("%s%s", raw, stars)
+            else:
+                logger.info(command)
             message = command + END_OF_LINE
             await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
@@ -610,13 +624,16 @@ class Client(BaseClient):
         """
         code, info = await self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
+            censor_after = None
             if code == "331":
                 cmd = "PASS " + password
+                censor_after = 5
             elif code == "332":
                 cmd = "ACCT " + account
             else:
                 raise errors.StatusCodeError("33x", code, info)
-            code, info = await self.command(cmd, ("230", "33x"))
+            code, info = await self.command(cmd, ("230", "33x"),
+                                            censor_after=censor_after)
 
     async def get_current_directory(self):
         """

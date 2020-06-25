@@ -481,14 +481,17 @@ class AbstractServer(abc.ABC):
                 await write(code + "-" + line)
             await write(code + " " + tail)
 
-    async def parse_command(self, stream):
+    async def parse_command(self, stream, censor_commands=("pass",)):
         """
         :py:func:`asyncio.coroutine`
 
         Complex method for getting command.
 
-        :param stream: connection steram
+        :param stream: connection stream
         :type stream: :py:class:`asyncio.StreamIO`
+
+        :param censor_commands: An optional list of commands to censor.
+        :type censor_commands: :py:class:`tuple` of :py:class:`str`
 
         :return: (code, rest)
         :rtype: (:py:class:`str`, :py:class:`str`)
@@ -497,8 +500,14 @@ class AbstractServer(abc.ABC):
         if not line:
             raise ConnectionResetError
         s = line.decode(encoding=self.encoding).rstrip()
-        logger.info(s)
         cmd, _, rest = s.partition(" ")
+
+        if cmd.lower() in censor_commands:
+            stars = "*" * len(rest)
+            logger.info("%s %s", cmd, stars)
+        else:
+            logger.info("%s %s", cmd, rest)
+
         return cmd.lower(), rest
 
     async def response_writer(self, stream, response_queue):
