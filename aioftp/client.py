@@ -242,9 +242,9 @@ class BaseClient:
         if command:
             if censor_after:
                 # Censor the user's command
-                commands_s = command[:censor_after]
+                raw = command[:censor_after]
                 stars = "*" * len(command[censor_after:])
-                logger.info("%s %s", commands_s, stars)
+                logger.info("%s%s", raw, stars)
             else:
                 logger.info(command)
             message = command + END_OF_LINE
@@ -632,8 +632,7 @@ class Client(BaseClient):
                 cmd = "ACCT " + account
             else:
                 raise errors.StatusCodeError("33x", code, info)
-            code, info = await self.command(cmd,
-                                            ("230", "33x"),
+            code, info = await self.command(cmd, ("230", "33x"),
                                             censor_after=censor_after)
 
     async def get_current_directory(self):
