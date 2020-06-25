@@ -736,7 +736,9 @@ class Client(BaseClient):
                     try:
                         command = ("MLSD " + str(cls.path)).strip()
                         return await self.get_stream(
-                            command, "1xx", passive_commands=passive_commands
+                            command,
+                            "1xx",
+                            passive_commands=passive_commands
                         )
                     except errors.StatusCodeError as e:
                         code = e.received_codes[-1]
