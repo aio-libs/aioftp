@@ -500,13 +500,14 @@ class AbstractServer(abc.ABC):
         if not line:
             raise ConnectionResetError
         s = line.decode(encoding=self.encoding).rstrip()
-
-        if s[:4].lower() in censor_commands:
-            logger.info(s[:5] + "*" * len(s[5:]))
-        else:
-            logger.info(s)
-
         cmd, _, rest = s.partition(" ")
+
+        if cmd.lower() in censor_commands:
+            stars = "*" * len(rest)
+            logger.info("%s %s", cmd, stars)
+        else:
+            logger.info("%s %s", cmd, rest)
+
         return cmd.lower(), rest
 
     async def response_writer(self, stream, response_queue):

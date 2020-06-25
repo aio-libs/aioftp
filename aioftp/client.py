@@ -242,9 +242,9 @@ class BaseClient:
         if command:
             if censor_after:
                 # Censor the user's command
-                logger.info(
-                    command[:censor_after] + "*" * len(command[censor_after:])
-                )
+                commands_s = command[:censor_after]
+                stars = "*" * len(command[censor_after:])
+                logger.info("%s %s", commands_s, stars)
             else:
                 logger.info(command)
             message = command + END_OF_LINE
