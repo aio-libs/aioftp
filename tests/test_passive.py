@@ -42,7 +42,7 @@ async def test_client_only_enhanced_passive_list(pair_factory):
 @pytest.mark.asyncio
 async def test_passive_no_choices(pair_factory):
     async with pair_factory() as pair:
-        pair.client._passive_commands = tuple()
+        pair.client._passive_commands = []
         with pytest.raises(ValueError):
             await pair.client.get_passive_connection(commands=[])
 

@@ -1094,16 +1094,13 @@ class Client(BaseClient):
             "epsv": self._do_epsv,
             "pasv": self._do_pasv,
         }
-        if not commands and not self._passive_commands:
+        if not commands:
+            commands = self._passive_commands
+        if not commands:
             raise ValueError("No passive commands provided")
 
-        passive_commands = self._passive_commands
-        if commands is not None:
-            # Overwrite the default passive commands
-            passive_commands = commands
-
         await self.command("TYPE " + conn_type, "200")
-        for i, name in enumerate(passive_commands, start=1):
+        for i, name in enumerate(commands, start=1):
             name = name.lower()
             if name not in functions:
                 raise ValueError(f"{name!r} not in {set(functions)!r}")
@@ -1111,7 +1108,7 @@ class Client(BaseClient):
                 ip, port = await functions[name]()
                 break
             except errors.StatusCodeError as e:
-                is_last = i == len(passive_commands)
+                is_last = i == len(commands)
                 if is_last or not e.received_codes[-1].matches("50x"):
                     raise
         if ip in ("0.0.0.0", None):
