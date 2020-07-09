@@ -20,11 +20,29 @@ async def test_client_fail_fallback_to_pasv_at_list(pair_factory,
         pair.server.commands_mapping["epsv"] = not_implemented
         with expect_codes_in_exception("502"):
             await pair.client.get_passive_connection(commands=["epsv"])
+        with expect_codes_in_exception("502"):
+            pair.client._passive_commands = ["epsv"]
+            await pair.client.get_passive_connection()
+
+
+@pytest.mark.asyncio
+async def test_client_only_passive_list(pair_factory):
+    async with pair_factory(host="127.0.0.1") as pair:
+        pair.client._passive_commands = ["pasv"]
+        await pair.client.list()
+
+
+@pytest.mark.asyncio
+async def test_client_only_enhanced_passive_list(pair_factory):
+    async with pair_factory(host="127.0.0.1") as pair:
+        pair.client._passive_commands = ["epsv"]
+        await pair.client.list()
 
 
 @pytest.mark.asyncio
 async def test_passive_no_choices(pair_factory):
     async with pair_factory() as pair:
+        pair.client._passive_commands = []
         with pytest.raises(ValueError):
             await pair.client.get_passive_connection(commands=[])
 

@@ -109,7 +109,7 @@ class BaseClient:
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
                  encoding="utf-8", ssl=None, parse_list_line_custom=None,
-                 **siosocks_asyncio_kwargs):
+                 passive_commands=("epsv", "pasv"), **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
@@ -121,6 +121,7 @@ class BaseClient:
         self.stream = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
+        self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
 
@@ -1072,7 +1073,7 @@ class Client(BaseClient):
         return ip, port
 
     async def get_passive_connection(self, conn_type="I",
-                                     commands=("epsv", "pasv")):
+                                     commands=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1083,7 +1084,8 @@ class Client(BaseClient):
 
         :param commands: sequence of commands to try to initiate passive
             server creation. First success wins. Default is EPSV, then PASV.
-        :type commands: :py:class:`list`
+            Overwrites the parameters passed when initializing the client.
+        :type commands: :py:class:`list` or :py:class:`None`
 
         :rtype: (:py:class:`asyncio.StreamReader`,
             :py:class:`asyncio.StreamWriter`)
@@ -1092,6 +1094,8 @@ class Client(BaseClient):
             "epsv": self._do_epsv,
             "pasv": self._do_pasv,
         }
+        if not commands:
+            commands = self._passive_commands
         if not commands:
             raise ValueError("No passive commands provided")
         await self.command("TYPE " + conn_type, "200")
