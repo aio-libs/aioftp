@@ -109,7 +109,7 @@ class BaseClient:
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
                  encoding="utf-8", ssl=None, parse_list_line_custom=None,
-                 **siosocks_asyncio_kwargs):
+                 passive_commands=("epsv", "pasv"), **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
@@ -121,6 +121,7 @@ class BaseClient:
         self.stream = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
+        self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
 
@@ -1072,7 +1073,7 @@ class Client(BaseClient):
         return ip, port
 
     async def get_passive_connection(self, conn_type="I",
-                                     commands=("epsv", "pasv")):
+                                     commands=None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1083,7 +1084,8 @@ class Client(BaseClient):
 
         :param commands: sequence of commands to try to initiate passive
             server creation. First success wins. Default is EPSV, then PASV.
-        :type commands: :py:class:`list`
+            Overwrites the parameters passed when initializing the client.
+        :type commands: :py:class:`list` or :py:class:`None`
 
         :rtype: (:py:class:`asyncio.StreamReader`,
             :py:class:`asyncio.StreamWriter`)
@@ -1092,10 +1094,16 @@ class Client(BaseClient):
             "epsv": self._do_epsv,
             "pasv": self._do_pasv,
         }
-        if not commands:
+        if not commands and not self._passive_commands:
             raise ValueError("No passive commands provided")
+
+        passive_commands = self._passive_commands
+        if commands is not None:
+            # Overwrite the default passive commands
+            passive_commands = commands
+
         await self.command("TYPE " + conn_type, "200")
-        for i, name in enumerate(commands, start=1):
+        for i, name in enumerate(passive_commands, start=1):
             name = name.lower()
             if name not in functions:
                 raise ValueError(f"{name!r} not in {set(functions)!r}")
@@ -1103,7 +1111,7 @@ class Client(BaseClient):
                 ip, port = await functions[name]()
                 break
             except errors.StatusCodeError as e:
-                is_last = i == len(commands)
+                is_last = i == len(passive_commands)
                 if is_last or not e.received_codes[-1].matches("50x"):
                     raise
         if ip in ("0.0.0.0", None):

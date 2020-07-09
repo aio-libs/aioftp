@@ -3,6 +3,7 @@ x.x.x (xx-xx-xxxx)
 
 - client: strip date before parsing (#113)
 - client: logger no longer prints out plaintext password
+- client: add custom passive commands to client
 Thanks to `ndhansen <https://github.com/ndhansen>`_
 
 0.16.0 (11-03-2020)
