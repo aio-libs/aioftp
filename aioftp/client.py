@@ -1098,7 +1098,6 @@ class Client(BaseClient):
             commands = self._passive_commands
         if not commands:
             raise ValueError("No passive commands provided")
-
         await self.command("TYPE " + conn_type, "200")
         for i, name in enumerate(commands, start=1):
             name = name.lower()
