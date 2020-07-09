@@ -43,7 +43,10 @@ async def test_type_success(pair_factory, expect_codes_in_exception):
 async def test_custom_passive_commands(pair_factory):
     async with pair_factory(host="127.0.0.1") as pair:
         pair.client._passive_commands = None
-        await pair.client.get_passive_connection("A", commands=["pasv", "epsv"])
+        await pair.client.get_passive_connection(
+            "A",
+            commands=["pasv", "epsv"]
+        )
 
 
 @pytest.mark.asyncio
