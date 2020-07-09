@@ -1,6 +1,9 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.16.1 (09-07-2020)
+------------------
+
 - client: strip date before parsing (#113)
 - client: logger no longer prints out plaintext password (#114)
 - client: add custom passive commands to client (#116)
