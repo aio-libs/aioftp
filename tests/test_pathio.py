@@ -252,7 +252,7 @@ async def test_unlink_not_exist(path_io, temp_dir):
 
 @pytest.mark.asyncio
 async def test_unlink_on_dir(path_io, temp_dir):
-    with universal_exception_reason(IsADirectoryError):
+    with universal_exception_reason(IsADirectoryError, PermissionError):
         await path_io.unlink(temp_dir)
 
 

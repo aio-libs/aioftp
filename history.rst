@@ -1,6 +1,9 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+- tests: fix test_unlink_on_dir on POSIX compatible systems (#118)
+Thanks to `AMDmi3 <https://github.com/AMDmi3>`_
+
 0.16.1 (09-07-2020)
 ------------------
 
