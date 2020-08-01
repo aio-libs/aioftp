@@ -123,9 +123,9 @@ Client example
 
     loop = asyncio.get_event_loop()
     tasks = (
-        get_mp3("server1.com", 21, "login", "password")),
-        get_mp3("server2.com", 21, "login", "password")),
-        get_mp3("server3.com", 21, "login", "password")),
+        get_mp3("server1.com", 21, "login", "password"),
+        get_mp3("server2.com", 21, "login", "password"),
+        get_mp3("server3.com", 21, "login", "password"),
     )
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()
