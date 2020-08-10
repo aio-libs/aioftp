@@ -4,7 +4,7 @@ Server API
 ==========
 
 .. autoclass :: aioftp.Server
-    :members: start, close
+    :members: start, close, serve_forever, run
     :show-inheritance:
 
 .. autofunction :: aioftp.server.worker
