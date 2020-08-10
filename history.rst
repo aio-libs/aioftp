@@ -2,7 +2,9 @@ x.x.x (xx-xx-xxxx)
 ------------------
 
 - tests: fix test_unlink_on_dir on POSIX compatible systems (#118)
-Thanks to `AMDmi3 <https://github.com/AMDmi3>`_
+- docs: fix extra parentheses (#122)
+Thanks to `AMDmi3 <https://github.com/AMDmi3>`_, `Olegt0rr <https://github.com/Olegt0rr>`_
+
 
 0.16.1 (09-07-2020)
 ------------------
@@ -33,7 +35,7 @@ Thanks to `Puddly` for report
 
 - client: add socks proxy support via `siosocks <https://github.com/pohmelie/siosocks>`_ (#94)
 - client: add custom `list` parser (#95)
-Thanks to `purpleskyfall https://github.com/purpleskyfall`_, `VyachAp <https://github.com/VyachAp>`_
+Thanks to `purpleskyfall <https://github.com/purpleskyfall>`_, `VyachAp <https://github.com/VyachAp>`_
 
 0.13.0 (24-03-2019)
 -------------------
