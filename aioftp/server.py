@@ -435,7 +435,7 @@ class AbstractServer(abc.ABC):
         """
         :py:func:`asyncio.coroutine`
 
-        Single entrypoint to start, serve and finalize.
+        Single entrypoint to start, serve and close.
 
         :param host: ip address to bind for listening.
         :type host: :py:class:`str`
