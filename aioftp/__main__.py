@@ -1,5 +1,6 @@
 """Simple aioftp-based server with one user (anonymous or not)"""
 import asyncio
+import contextlib
 import logging
 import socket
 
@@ -53,12 +54,12 @@ family = {
     "ipv6": socket.AF_INET6,
     "auto": socket.AF_UNSPEC,
 }[args.family]
-server = aioftp.Server([user], path_io_factory=path_io_factory)
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(server.start(args.host, args.port, family=family))
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    loop.run_until_complete(server.close())
-    loop.close()
+
+async def main():
+    server = aioftp.Server([user], path_io_factory=path_io_factory)
+    await server.run()
+
+
+with contextlib.suppress(KeyboardInterrupt):
+    asyncio.run(main())

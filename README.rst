@@ -87,9 +87,10 @@ pyftpdlib 1.5.2
 Dependencies
 ------------
 
-- Python 3.6+
+- Python 3.7+
 
 0.13.0 is the last version which supports python 3.5.3+
+0.16.1 is the last version which supports python 3.6+
 
 License
 -------
@@ -121,14 +122,12 @@ Client example
                     await client.download(path)
 
 
-    loop = asyncio.get_event_loop()
     tasks = (
         get_mp3("server1.com", 21, "login", "password"),
         get_mp3("server2.com", 21, "login", "password"),
         get_mp3("server3.com", 21, "login", "password"),
     )
-    loop.run_until_complete(asyncio.wait(tasks))
-    loop.close()
+    asyncio.run(asyncio.wait(tasks))
 
 Server example
 
@@ -138,14 +137,11 @@ Server example
     import aioftp
 
 
-    loop = asyncio.get_event_loop()
-    server = aioftp.Server()
-    loop.run_until_complete(server.start(None, 8021))
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        loop.run_until_complete(server.close())
-        loop.close()
+    async def main():
+        server = aioftp.Server([user], path_io_factory=path_io_factory)
+        await server.run()
+
+    asyncio.run(main())
 
 Or just use simple server
 

@@ -453,7 +453,7 @@ class PathIO(AbstractPathIO):
 def _blocking_io(f):
     @functools.wraps(f)
     async def wrapper(self, *args, **kwargs):
-        return await asyncio.get_event_loop().run_in_executor(
+        return await asyncio.get_running_loop().run_in_executor(
             self.executor,
             functools.partial(f, self, *args, **kwargs),
         )

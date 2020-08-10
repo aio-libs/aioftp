@@ -423,6 +423,35 @@ class AbstractServer(abc.ABC):
                     self.server_host = host
                 logger.info("serving on %s:%s", host, port)
 
+    async def serve_forever(self):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Proxy to :py:class:`asyncio.Server` `serve_forever` method.
+        """
+        return await self.server.serve_forever()
+
+    async def run(self, host=None, port=0, **kwargs):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Single entrypoint to start, serve and finalize.
+
+        :param host: ip address to bind for listening.
+        :type host: :py:class:`str`
+
+        :param port: port number to bind for listening.
+        :type port: :py:class:`int`
+
+        :param kwargs: keyword arguments, they passed to
+            :py:func:`asyncio.start_server`
+        """
+        await self.start(host=host, port=port, **kwargs)
+        try:
+            await self.serve_forever()
+        finally:
+            await self.close()
+
     @property
     def address(self):
         """
@@ -947,7 +976,7 @@ class Server(AbstractServer):
         finally:
             logger.info("closing connection from %s:%s", host, port)
             tasks_to_wait = []
-            if not asyncio.get_event_loop().is_closed():
+            if not asyncio.get_running_loop().is_closed():
                 for task in pending | connection.extra_workers:
                     if isinstance(task, asyncio.Task):
                         task.cancel()

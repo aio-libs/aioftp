@@ -40,7 +40,7 @@ TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
 
 
 def _now():
-    return asyncio.get_event_loop().time()
+    return asyncio.get_running_loop().time()
 
 
 def _with_timeout(name):

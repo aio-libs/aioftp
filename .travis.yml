@@ -18,36 +18,6 @@ matrix:
           docker run --rm -v $(pwd):/source -w /source python bash -c "
           pip install flake8;
           flake8 aioftp tests"
-    - name: pypy 3.6
-      stage: test
-      before_install:
-        - echo '{"ipv6":true,"fixed-cidr-v6":"2001:db8:1::/64"}' | sudo tee /etc/docker/daemon.json
-        - sudo systemctl restart docker
-      install:
-        - pip install codecov
-      script:
-        - >
-          docker run --rm -v $(pwd):/source -w /source pypy:3.6 bash -c "
-          pip install -e ./[tests];
-          pytest;
-          rm -rf build/ *.egg-info"
-      after_success:
-        - codecov
-    - name: cpython 3.6
-      stage: test
-      before_install:
-        - echo '{"ipv6":true,"fixed-cidr-v6":"2001:db8:1::/64"}' | sudo tee /etc/docker/daemon.json
-        - sudo systemctl restart docker
-      install:
-        - pip install codecov
-      script:
-        - >
-          docker run --rm -v $(pwd):/source -w /source python:3.6 bash -c "
-          pip install -e ./[tests];
-          pytest;
-          rm -rf build/ *.egg-info"
-      after_success:
-        - codecov
     - name: cpython 3.7
       stage: test
       before_install:
