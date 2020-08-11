@@ -179,7 +179,7 @@ async def test_server_shutdown(pair_factory):
 @pytest.mark.asyncio
 async def test_client_session_context_manager(pair_factory):
     async with pair_factory(connected=False) as pair:
-        async with aioftp.ClientSession(*pair.server.address) as client:
+        async with aioftp.Client.context(*pair.server.address) as client:
             await client.list()
 
 

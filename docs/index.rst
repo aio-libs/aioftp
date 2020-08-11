@@ -101,7 +101,7 @@ Client example
 
 
     async def get_mp3(host, port, login, password):
-        async with aioftp.ClientSession(host, port, login, password) as client:
+        async with aioftp.Client.context(host, port, login, password) as client:
             for path, info in (await client.list(recursive=True)):
                 if info["type"] == "file" and path.suffix == ".mp3":
                     await client.download(path)

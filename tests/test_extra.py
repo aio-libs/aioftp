@@ -32,7 +32,7 @@ async def test_stream_close_without_finish(pair_factory):
 @pytest.mark.asyncio
 async def test_no_server(unused_tcp_port):
     with pytest.raises(ConnectionRefusedError):
-        async with aioftp.ClientSession("127.0.0.1", unused_tcp_port):
+        async with aioftp.Client.context("127.0.0.1", unused_tcp_port):
             pass
 
 
