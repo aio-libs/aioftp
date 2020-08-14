@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.17.1 (14-08-2020)
+------------------
+
+- common/stream: add `readexactly` proxy method
+
 0.17.0 (11-08-2020)
 ------------------
 
@@ -8,7 +13,6 @@ x.x.x (xx-xx-xxxx)
 - docs: fix extra parentheses (#122)
 - client: replace `ClientSession` with `Client.context`
 Thanks to `AMDmi3 <https://github.com/AMDmi3>`_, `Olegt0rr <https://github.com/Olegt0rr>`_
-
 
 0.16.1 (09-07-2020)
 ------------------
