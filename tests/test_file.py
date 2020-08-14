@@ -33,6 +33,16 @@ async def test_file_download(pair_factory):
 
 
 @pytest.mark.asyncio
+async def test_file_download_exactly(pair_factory):
+    async with pair_factory() as pair:
+        await pair.make_server_files("foo", size=1, atom=b"foobar")
+        async with pair.client.download_stream("foo") as stream:
+            data1 = await stream.readexactly(3)
+            data2 = await stream.readexactly(3)
+        assert (data1, data2) == (b"foo", b"bar")
+
+
+@pytest.mark.asyncio
 async def test_file_download_enhanced_passive(pair_factory):
     async with pair_factory() as pair:
         pair.client._passive_commands = ["epsv"]

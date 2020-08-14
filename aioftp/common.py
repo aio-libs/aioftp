@@ -286,6 +286,18 @@ class StreamIO:
         """
         return await self.reader.read(count)
 
+    @with_timeout("read_timeout")
+    async def readexactly(self, count):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Proxy for :py:meth:`asyncio.StreamReader.readexactly`.
+
+        :param count: block size for read operation
+        :type count: :py:class:`int`
+        """
+        return await self.reader.readexactly(count)
+
     @with_timeout("write_timeout")
     async def write(self, data):
         """
