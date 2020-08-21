@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.17.2 (21-08-2020)
+------------------
+
+- server: fix broken `python -m aioftp` after 3.7 migration
+
 0.17.1 (14-08-2020)
 ------------------
 
