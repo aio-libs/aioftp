@@ -58,7 +58,7 @@ family = {
 
 async def main():
     server = aioftp.Server([user], path_io_factory=path_io_factory)
-    await server.run()
+    await server.run(args.host, args.port, family=family)
 
 
 with contextlib.suppress(KeyboardInterrupt):
