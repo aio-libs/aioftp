@@ -1141,6 +1141,7 @@ class Server(AbstractServer):
         raw = await connection.path_io.stat(path)
         for attr, fact in Server.path_facts:
             stats[fact] = getattr(raw, attr)
+        stats['Modify'] = time.strftime('%Y%m%d%H%M%S', time.gmtime(stats['Modify']))
         s = ""
         for fact, value in stats.items():
             s += f"{fact}={value};"
