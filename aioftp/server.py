@@ -419,8 +419,6 @@ class AbstractServer(abc.ABC):
                 host, port, *_ = sock.getsockname()
                 if not self.server_port:
                     self.server_port = port
-                if not self.server_host:
-                    self.server_host = host
                 logger.info("serving on %s:%s", host, port)
 
     async def serve_forever(self):
