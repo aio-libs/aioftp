@@ -9,6 +9,7 @@ branches:
 stages:
   - lint
   - test
+  - deploy
 matrix:
   include:
     - name: lint
@@ -48,13 +49,17 @@ matrix:
           rm -rf build/ *.egg-info"
       after_success:
         - codecov
-deploy:
-  provider: pypi
-  user: __token__
-  password:
-    secure: "k2+VW3e+JiFq1KaH1kKPb9n4sM790JIFYxwzmLUIq9nRI35A7FkinWmIa+lz3QHfGOi4HjNqKJospDY1vez0oXKQpeb4QdhTw8FRs+9b+X1Yff48hkA/GEiXiVCiJ6KS26qnUFEqU6xGdjamrdZ8G0e43Ezo/9a03X+Zi2/GIb+g2fWw5c41i87lb0f4APKmL7nfMGkIqHzOBdpPV6UYxIuOAlc1UCpiSoY94PTw8+w+XJKDD2h6+g3okCXXR6Z+iX6NvnGjbIBZ3L574tn8+XvlyhduWuiuArmmWQj5kiG0JH+KYRU/NhdF0vCGib1EfP1UZLsrZ3T1n0YhCHGcUKEFC98pERZdD7i3vkipKHFxaPbu7IBALsCtS/NuzBWk6JSp7uvV1DPX/98gZz3XOrMMbu5sI12LfiwStPhyKFec4NNrbR+DY/wRMvhY2dMXNQK1Jn5/452DqbrAqM5gJH9ifR2QLrwYSdyzzCNZzH/tTuxXrStk3F8oLIU4GOSI0sGtRADgBHZgASXlLg/2Wjhy5K2jb3lgXIBjzA3y2SVomcehVXQ3MyYEEHH7789j5AdwuTaK1uagpeVABDaPqmPvksFphFOPpQLQkS7ROooeRMut8NfqQUYTmek9xHQ2Tx6x/KuEI2W0AKZWpQ9SoXpKw0as+yVdnvXqWuNgv0s="
-  distributions: sdist bdist_wheel
-  skip_existing: true
-  skip_cleanup: true
-  on:
-    branch: master
+    - name: deploy
+      stage: deploy
+      script:
+        - echo "deploy"
+      deploy:
+        provider: pypi
+        username: __token__
+        password:
+          secure: "k2+VW3e+JiFq1KaH1kKPb9n4sM790JIFYxwzmLUIq9nRI35A7FkinWmIa+lz3QHfGOi4HjNqKJospDY1vez0oXKQpeb4QdhTw8FRs+9b+X1Yff48hkA/GEiXiVCiJ6KS26qnUFEqU6xGdjamrdZ8G0e43Ezo/9a03X+Zi2/GIb+g2fWw5c41i87lb0f4APKmL7nfMGkIqHzOBdpPV6UYxIuOAlc1UCpiSoY94PTw8+w+XJKDD2h6+g3okCXXR6Z+iX6NvnGjbIBZ3L574tn8+XvlyhduWuiuArmmWQj5kiG0JH+KYRU/NhdF0vCGib1EfP1UZLsrZ3T1n0YhCHGcUKEFC98pERZdD7i3vkipKHFxaPbu7IBALsCtS/NuzBWk6JSp7uvV1DPX/98gZz3XOrMMbu5sI12LfiwStPhyKFec4NNrbR+DY/wRMvhY2dMXNQK1Jn5/452DqbrAqM5gJH9ifR2QLrwYSdyzzCNZzH/tTuxXrStk3F8oLIU4GOSI0sGtRADgBHZgASXlLg/2Wjhy5K2jb3lgXIBjzA3y2SVomcehVXQ3MyYEEHH7789j5AdwuTaK1uagpeVABDaPqmPvksFphFOPpQLQkS7ROooeRMut8NfqQUYTmek9xHQ2Tx6x/KuEI2W0AKZWpQ9SoXpKw0as+yVdnvXqWuNgv0s="
+        distributions: sdist bdist_wheel
+        skip_existing: true
+        cleanup: false
+        on:
+          branch: master
