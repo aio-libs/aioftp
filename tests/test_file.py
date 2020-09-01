@@ -1,3 +1,5 @@
+import math
+import datetime as dt
 from pathlib import PurePosixPath
 
 import pytest
@@ -223,3 +225,16 @@ async def test_stat_when_no_mlst(pair_factory):
         await pair.make_server_files("foo")
         info = await pair.client.stat("foo")
         assert info["type"] == "file"
+
+
+@pytest.mark.asyncio
+async def test_stat_mlst(pair_factory):
+    async with pair_factory() as pair:
+        now = dt.datetime.utcnow()
+        await pair.make_server_files("foo")
+        info = await pair.client.stat("foo")
+        assert info["type"] == "file"
+        for fact in ("modify", "create"):
+            received = dt.datetime.strptime(info[fact], "%Y%m%d%H%M%S")
+            assert math.isclose(now.timestamp(), received.timestamp(),
+                                abs_tol=10)

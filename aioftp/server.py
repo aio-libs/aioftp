@@ -816,12 +816,6 @@ class Server(AbstractServer):
         Please look :py:meth:`asyncio.loop.create_server` docs.
     :type ssl: :py:class:`ssl.SSLContext`
     """
-    path_facts = (
-        ("st_size", "Size"),
-        ("st_mtime", "Modify"),
-        ("st_ctime", "Create"),
-    )
-
     def __init__(self,
                  users=None,
                  *,
@@ -1131,21 +1125,30 @@ class Server(AbstractServer):
         connection.response("250", "")
         return True
 
-    async def build_mlsx_string(self, connection, path):
-        stats = {}
-        if await connection.path_io.is_file(path):
-            stats["Type"] = "file"
-        elif await connection.path_io.is_dir(path):
-            stats["Type"] = "dir"
-        else:
-            stats["Type"] = "unknown"
+    @staticmethod
+    def _format_mlsx_time(local_seconds):
+        return time.strftime("%Y%m%d%H%M%S", time.gmtime(local_seconds))
 
-        raw = await connection.path_io.stat(path)
-        for attr, fact in Server.path_facts:
-            stats[fact] = getattr(raw, attr)
+    def _build_mlsx_facts_from_stats(self, stats):
+        return {
+            "Size": stats.st_size,
+            "Create": self._format_mlsx_time(stats.st_ctime),
+            "Modify": self._format_mlsx_time(stats.st_mtime),
+        }
+
+    async def build_mlsx_string(self, connection, path):
+        stats = await connection.path_io.stat(path)
+        facts = self._build_mlsx_facts_from_stats(stats)
+        if await connection.path_io.is_file(path):
+            facts["Type"] = "file"
+        elif await connection.path_io.is_dir(path):
+            facts["Type"] = "dir"
+        else:
+            facts["Type"] = "unknown"
+
         s = ""
-        for fact, value in stats.items():
-            s += f"{fact}={value};"
+        for name, value in facts.items():
+            s += f"{name}={value};"
         s += " " + path.name
         return s
 
