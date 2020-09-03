@@ -900,7 +900,7 @@ class Server:
         connection = Connection(
             client_host=host,
             client_port=port,
-            server_host=self.server_host or current_server_host,
+            server_host=current_server_host,
             passive_server_port=0,
             server_port=self.server_port,
             command_connection=stream,

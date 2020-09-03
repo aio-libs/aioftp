@@ -2,6 +2,7 @@ x.x.x (xx-xx-xxxx)
 ------------------
 
 - server: fix `MLSX` time format (#125)
+- server: resolve server address from connection (#125)
 
 0.17.2 (21-08-2020)
 ------------------
