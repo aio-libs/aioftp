@@ -6,6 +6,7 @@ x.x.x (xx-xx-xxxx)
 
 - server: fix `MLSX` time format (#125)
 - server: resolve server address from connection (#125)
+Thanks to `PonyPC <https://github.com/PonyPC>`_
 
 0.17.2 (21-08-2020)
 ------------------
