@@ -1,6 +1,9 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.18.0 (03-09-2020)
+------------------
+
 - server: fix `MLSX` time format (#125)
 - server: resolve server address from connection (#125)
 
