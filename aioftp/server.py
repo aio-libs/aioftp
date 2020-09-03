@@ -1,28 +1,26 @@
+import abc
 import asyncio
-import pathlib
-import functools
-import time
-import errno
-import socket
 import collections
 import enum
+import errno
+import functools
 import logging
+import pathlib
+import socket
 import stat
 import sys
-import abc
+import time
 
-from . import errors
-from . import pathio
+from . import errors, pathio
 from .common import (
-    END_OF_LINE,
-    wrap_with_container,
     DEFAULT_BLOCK_SIZE,
+    END_OF_LINE,
+    HALF_OF_YEAR_IN_SECONDS,
     StreamThrottle,
     ThrottleStreamIO,
     setlocale,
-    HALF_OF_YEAR_IN_SECONDS,
+    wrap_with_container,
 )
-
 
 __all__ = (
     "Permission",
@@ -35,7 +33,6 @@ __all__ = (
     "PathConditions",
     "PathPermissions",
     "worker",
-    "AbstractServer",
     "Server",
 )
 
@@ -386,189 +383,6 @@ class AvailableConnections:
                 raise ValueError("Too many releases")
 
 
-class AbstractServer(abc.ABC):
-
-    async def start(self, host=None, port=0, **kwargs):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Start server.
-
-        :param host: ip address to bind for listening.
-        :type host: :py:class:`str`
-
-        :param port: port number to bind for listening.
-        :type port: :py:class:`int`
-
-        :param kwargs: keyword arguments, they passed to
-            :py:func:`asyncio.start_server`
-        """
-        self._start_server_extra_arguments = kwargs
-        self.connections = {}
-        self.server_host = host
-        self.server_port = port
-        self.server = await asyncio.start_server(
-            self.dispatcher,
-            host,
-            port,
-            ssl=self.ssl,
-            **self._start_server_extra_arguments,
-        )
-        for sock in self.server.sockets:
-            if sock.family in (socket.AF_INET, socket.AF_INET6):
-                host, port, *_ = sock.getsockname()
-                if not self.server_port:
-                    self.server_port = port
-                if not self.server_host:
-                    self.server_host = host
-                logger.info("serving on %s:%s", host, port)
-
-    async def serve_forever(self):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Proxy to :py:class:`asyncio.Server` `serve_forever` method.
-        """
-        return await self.server.serve_forever()
-
-    async def run(self, host=None, port=0, **kwargs):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Single entrypoint to start, serve and close.
-
-        :param host: ip address to bind for listening.
-        :type host: :py:class:`str`
-
-        :param port: port number to bind for listening.
-        :type port: :py:class:`int`
-
-        :param kwargs: keyword arguments, they passed to
-            :py:func:`asyncio.start_server`
-        """
-        await self.start(host=host, port=port, **kwargs)
-        try:
-            await self.serve_forever()
-        finally:
-            await self.close()
-
-    @property
-    def address(self):
-        """
-        Server listen socket host and port as :py:class:`tuple`
-        """
-        return self.server_host, self.server_port
-
-    async def close(self):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Shutdown the server and close all connections.
-        """
-        self.server.close()
-        tasks = [self.server.wait_closed()]
-        for connection in self.connections.values():
-            connection._dispatcher.cancel()
-            tasks.append(connection._dispatcher)
-        logger.info("waiting for %d tasks", len(tasks))
-        await asyncio.wait(tasks)
-
-    async def write_line(self, stream, line):
-        logger.info(line)
-        await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
-
-    async def write_response(self, stream, code, lines="", list=False):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Complex method for sending response.
-
-        :param stream: command connection stream
-        :type stream: :py:class:`aioftp.StreamIO`
-
-        :param code: server response code
-        :type code: :py:class:`str`
-
-        :param lines: line or lines, which are response information
-        :type lines: :py:class:`str` or :py:class:`collections.Iterable`
-
-        :param list: if true, then lines will be sended without code prefix.
-            This is useful for **LIST** FTP command and some others.
-        :type list: :py:class:`bool`
-        """
-        lines = wrap_with_container(lines)
-        write = functools.partial(self.write_line, stream)
-        if list:
-            head, *body, tail = lines
-            await write(code + "-" + head)
-            for line in body:
-                await write(" " + line)
-            await write(code + " " + tail)
-        else:
-            *body, tail = lines
-            for line in body:
-                await write(code + "-" + line)
-            await write(code + " " + tail)
-
-    async def parse_command(self, stream, censor_commands=("pass",)):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Complex method for getting command.
-
-        :param stream: connection stream
-        :type stream: :py:class:`asyncio.StreamIO`
-
-        :param censor_commands: An optional list of commands to censor.
-        :type censor_commands: :py:class:`tuple` of :py:class:`str`
-
-        :return: (code, rest)
-        :rtype: (:py:class:`str`, :py:class:`str`)
-        """
-        line = await stream.readline()
-        if not line:
-            raise ConnectionResetError
-        s = line.decode(encoding=self.encoding).rstrip()
-        cmd, _, rest = s.partition(" ")
-
-        if cmd.lower() in censor_commands:
-            stars = "*" * len(rest)
-            logger.info("%s %s", cmd, stars)
-        else:
-            logger.info("%s %s", cmd, rest)
-
-        return cmd.lower(), rest
-
-    async def response_writer(self, stream, response_queue):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Worker for write_response with current connection. Get data to response
-        from queue, this is for right order of responses. Exits if received
-        :py:class:`None`.
-
-        :param stream: command connection stream
-        :type connection: :py:class:`aioftp.StreamIO`
-
-        :param response_queue:
-        :type response_queue: :py:class:`asyncio.Queue`
-        """
-        while True:
-            args = await response_queue.get()
-            try:
-                await self.write_response(stream, *args)
-            finally:
-                response_queue.task_done()
-
-    @abc.abstractmethod
-    async def dispatcher(self, reader, writer):
-        """
-        :py:func:`asyncio.coroutine`
-
-        Server connection handler (main routine per user).
-        """
-
-
 class ConnectionConditions:
     """
     Decorator for checking `connection` keys for existence or wait for them.
@@ -755,7 +569,7 @@ def worker(f):
     return wrapper
 
 
-class Server(AbstractServer):
+class Server:
     """
     FTP server.
 
@@ -891,7 +705,184 @@ class Server(AbstractServer):
             "user": self.user,
         }
 
+    async def start(self, host=None, port=0, **kwargs):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Start server.
+
+        :param host: ip address to bind for listening.
+        :type host: :py:class:`str`
+
+        :param port: port number to bind for listening.
+        :type port: :py:class:`int`
+
+        :param kwargs: keyword arguments, they passed to
+            :py:func:`asyncio.start_server`
+        """
+        self._start_server_extra_arguments = kwargs
+        self.connections = {}
+        self.server_host = host
+        self.server_port = port
+        self.server = await asyncio.start_server(
+            self.dispatcher,
+            host,
+            port,
+            ssl=self.ssl,
+            **self._start_server_extra_arguments,
+        )
+        for sock in self.server.sockets:
+            if sock.family in (socket.AF_INET, socket.AF_INET6):
+                host, port, *_ = sock.getsockname()
+                if not self.server_port:
+                    self.server_port = port
+                if not self.server_host:
+                    self.server_host = host
+                logger.info("serving on %s:%s", host, port)
+
+    async def serve_forever(self):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Proxy to :py:class:`asyncio.Server` `serve_forever` method.
+        """
+        return await self.server.serve_forever()
+
+    async def run(self, host=None, port=0, **kwargs):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Single entrypoint to start, serve and close.
+
+        :param host: ip address to bind for listening.
+        :type host: :py:class:`str`
+
+        :param port: port number to bind for listening.
+        :type port: :py:class:`int`
+
+        :param kwargs: keyword arguments, they passed to
+            :py:func:`asyncio.start_server`
+        """
+        await self.start(host=host, port=port, **kwargs)
+        try:
+            await self.serve_forever()
+        finally:
+            await self.close()
+
+    @property
+    def address(self):
+        """
+        Server listen socket host and port as :py:class:`tuple`
+        """
+        return self.server_host, self.server_port
+
+    async def close(self):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Shutdown the server and close all connections.
+        """
+        self.server.close()
+        tasks = [self.server.wait_closed()]
+        for connection in self.connections.values():
+            connection._dispatcher.cancel()
+            tasks.append(connection._dispatcher)
+        logger.info("waiting for %d tasks", len(tasks))
+        await asyncio.wait(tasks)
+
+    async def write_line(self, stream, line):
+        logger.info(line)
+        await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
+
+    async def write_response(self, stream, code, lines="", list=False):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Complex method for sending response.
+
+        :param stream: command connection stream
+        :type stream: :py:class:`aioftp.StreamIO`
+
+        :param code: server response code
+        :type code: :py:class:`str`
+
+        :param lines: line or lines, which are response information
+        :type lines: :py:class:`str` or :py:class:`collections.Iterable`
+
+        :param list: if true, then lines will be sended without code prefix.
+            This is useful for **LIST** FTP command and some others.
+        :type list: :py:class:`bool`
+        """
+        lines = wrap_with_container(lines)
+        write = functools.partial(self.write_line, stream)
+        if list:
+            head, *body, tail = lines
+            await write(code + "-" + head)
+            for line in body:
+                await write(" " + line)
+            await write(code + " " + tail)
+        else:
+            *body, tail = lines
+            for line in body:
+                await write(code + "-" + line)
+            await write(code + " " + tail)
+
+    async def parse_command(self, stream, censor_commands=("pass",)):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Complex method for getting command.
+
+        :param stream: connection stream
+        :type stream: :py:class:`asyncio.StreamIO`
+
+        :param censor_commands: An optional list of commands to censor.
+        :type censor_commands: :py:class:`tuple` of :py:class:`str`
+
+        :return: (code, rest)
+        :rtype: (:py:class:`str`, :py:class:`str`)
+        """
+        line = await stream.readline()
+        if not line:
+            raise ConnectionResetError
+        s = line.decode(encoding=self.encoding).rstrip()
+        cmd, _, rest = s.partition(" ")
+
+        if cmd.lower() in censor_commands:
+            stars = "*" * len(rest)
+            logger.info("%s %s", cmd, stars)
+        else:
+            logger.info("%s %s", cmd, rest)
+
+        return cmd.lower(), rest
+
+    async def response_writer(self, stream, response_queue):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Worker for write_response with current connection. Get data to response
+        from queue, this is for right order of responses. Exits if received
+        :py:class:`None`.
+
+        :param stream: command connection stream
+        :type connection: :py:class:`aioftp.StreamIO`
+
+        :param response_queue:
+        :type response_queue: :py:class:`asyncio.Queue`
+        """
+        while True:
+            args = await response_queue.get()
+            try:
+                await self.write_response(stream, *args)
+            finally:
+                response_queue.task_done()
+
     async def dispatcher(self, reader, writer):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Server connection handler (main routine per user).
+        """
         host, port, *_ = writer.transport.get_extra_info("peername", ("", ""))
         current_server_host, *_ = writer.transport.get_extra_info("sockname")
         logger.info("new connection from %s:%s", host, port)

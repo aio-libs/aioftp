@@ -1,13 +1,11 @@
 """Simple aioftp-based server with one user (anonymous or not)"""
+import argparse
 import asyncio
 import contextlib
 import logging
 import socket
 
-import argparse
-
 import aioftp
-
 
 parser = argparse.ArgumentParser(
     prog="aioftp",

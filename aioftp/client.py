@@ -1,35 +1,35 @@
-import re
 import calendar
 import collections
 import contextlib
-import pathlib
-import logging
 import datetime
+import logging
+import pathlib
+import re
 from functools import partial
+
+from . import errors, pathio
+from .common import (
+    DEFAULT_ACCOUNT,
+    DEFAULT_BLOCK_SIZE,
+    DEFAULT_PASSWORD,
+    DEFAULT_PORT,
+    DEFAULT_USER,
+    END_OF_LINE,
+    HALF_OF_YEAR_IN_SECONDS,
+    TWO_YEARS_IN_SECONDS,
+    AsyncListerMixin,
+    StreamThrottle,
+    ThrottleStreamIO,
+    async_enterable,
+    setlocale,
+    wrap_with_container,
+)
 
 try:
     from siosocks.io.asyncio import open_connection
 except ImportError:
     from asyncio import open_connection
 
-from . import errors
-from . import pathio
-from .common import (
-    ThrottleStreamIO,
-    StreamThrottle,
-    DEFAULT_PORT,
-    wrap_with_container,
-    END_OF_LINE,
-    DEFAULT_USER,
-    DEFAULT_PASSWORD,
-    DEFAULT_ACCOUNT,
-    DEFAULT_BLOCK_SIZE,
-    AsyncListerMixin,
-    async_enterable,
-    setlocale,
-    HALF_OF_YEAR_IN_SECONDS,
-    TWO_YEARS_IN_SECONDS,
-)
 
 __all__ = (
     "BaseClient",

@@ -1,18 +1,21 @@
+import abc
 import asyncio
-import functools
 import collections
-import operator
+import functools
 import io
-import time
+import operator
+import pathlib
 import stat
 import sys
-import pathlib
-import abc
+import time
 
-from .common import (with_timeout, AsyncStreamIterator, DEFAULT_BLOCK_SIZE,
-                     AbstractAsyncLister)
 from . import errors
-
+from .common import (
+    DEFAULT_BLOCK_SIZE,
+    AbstractAsyncLister,
+    AsyncStreamIterator,
+    with_timeout,
+)
 
 __all__ = (
     "AbstractPathIO",

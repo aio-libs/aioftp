@@ -1,11 +1,10 @@
+import abc
 import asyncio
-import functools
 import collections
+import functools
 import locale
 import threading
-import abc
 from contextlib import contextmanager
-
 
 __all__ = (
     "with_timeout",
