@@ -84,8 +84,8 @@ def universal_exception(coro):
         except (asyncio.CancelledError, NotImplementedError,
                 StopAsyncIteration):
             raise
-        except Exception:
-            raise errors.PathIOError(reason=sys.exc_info())
+        except Exception as e:
+            raise errors.PathIOError(reason=sys.exc_info()) from e
 
     return wrapper
 
@@ -677,7 +677,7 @@ class MemoryPathIO(AbstractPathIO):
             parent = self.get_node(path.parent)
             if parent is None:
                 raise FileNotFoundError
-            elif parent.type != "dir":
+            if parent.type != "dir":
                 raise NotADirectoryError
             node = Node("dir", path.name, content=[])
             parent.content.append(node)
@@ -701,30 +701,30 @@ class MemoryPathIO(AbstractPathIO):
         node = self.get_node(path)
         if node is None:
             raise FileNotFoundError
-        elif node.type != "dir":
+        if node.type != "dir":
             raise NotADirectoryError
-        elif node.content:
+        if node.content:
             raise OSError("Directory not empty")
-        else:
-            parent = self.get_node(path.parent)
-            for i, node in enumerate(parent.content):
-                if node.name == path.name:
-                    break
-            parent.content.pop(i)
+
+        parent = self.get_node(path.parent)
+        for i, node in enumerate(parent.content):
+            if node.name == path.name:
+                break
+        parent.content.pop(i)
 
     @universal_exception
     async def unlink(self, path):
         node = self.get_node(path)
         if node is None:
             raise FileNotFoundError
-        elif node.type != "file":
+        if node.type != "file":
             raise IsADirectoryError
-        else:
-            parent = self.get_node(path.parent)
-            for i, node in enumerate(parent.content):
-                if node.name == path.name:
-                    break
-            parent.content.pop(i)
+
+        parent = self.get_node(path.parent)
+        for i, node in enumerate(parent.content):
+            if node.name == path.name:
+                break
+        parent.content.pop(i)
 
     def list(self, path):
 
@@ -753,20 +753,20 @@ class MemoryPathIO(AbstractPathIO):
         node = self.get_node(path)
         if node is None:
             raise FileNotFoundError
+
+        if node.type == "file":
+            size = len(node.content.getbuffer())
+            mode = stat.S_IFREG | 0o666
         else:
-            if node.type == "file":
-                size = len(node.content.getbuffer())
-                mode = stat.S_IFREG | 0o666
-            else:
-                size = 0
-                mode = stat.S_IFDIR | 0o777
-            return MemoryPathIO.Stats(
-                size,
-                node.ctime,
-                node.mtime,
-                1,
-                mode,
-            )
+            size = 0
+            mode = stat.S_IFDIR | 0o777
+        return MemoryPathIO.Stats(
+            size,
+            node.ctime,
+            node.mtime,
+            1,
+            mode,
+        )
 
     @universal_exception
     async def _open(self, path, mode="rb", *args, **kwargs):
