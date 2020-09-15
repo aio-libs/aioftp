@@ -84,8 +84,8 @@ def universal_exception(coro):
         except (asyncio.CancelledError, NotImplementedError,
                 StopAsyncIteration):
             raise
-        except Exception as e:
-            raise errors.PathIOError(reason=sys.exc_info()) from e
+        except Exception as exc:
+            raise errors.PathIOError(reason=sys.exc_info()) from exc
 
     return wrapper
 
