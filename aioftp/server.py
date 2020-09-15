@@ -1389,7 +1389,7 @@ class Server:
                     )
                     connection.passive_server_port = port
                     break
-                except asyncio.QueueEmpty as e:
+                except asyncio.QueueEmpty:
                     raise errors.NoAvailablePort
                 except OSError as err:
                     self.available_data_ports.put_nowait((priority + 1, port))
