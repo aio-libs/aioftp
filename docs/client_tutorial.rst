@@ -24,7 +24,7 @@ login and quit automatically
 
 ::
 
-    >>> async with aioftp.Client.context("ftp.server.com", "user", "pass") as client:
+    >>> async with aioftp.Client.context("ftp.server.com", user="user", password="pass") as client:
     ...     # do
 
 Download and upload paths
