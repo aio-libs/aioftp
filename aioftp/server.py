@@ -787,11 +787,11 @@ class Server:
         for connection in self.connections.values():
             connection._dispatcher.cancel()
             tasks.append(connection._dispatcher)
-        logger.info("waiting for %d tasks", len(tasks))
+        logger.debug("waiting for %d tasks", len(tasks))
         await asyncio.wait(tasks)
 
     async def write_line(self, stream, line):
-        logger.info(line)
+        logger.debug(line)
         await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
 
     async def write_response(self, stream, code, lines="", list=False):
@@ -850,9 +850,9 @@ class Server:
 
         if cmd.lower() in censor_commands:
             stars = "*" * len(rest)
-            logger.info("%s %s", cmd, stars)
+            logger.debug("%s %s", cmd, stars)
         else:
-            logger.info("%s %s", cmd, rest)
+            logger.debug("%s %s", cmd, rest)
 
         return cmd.lower(), rest
 
