@@ -162,7 +162,7 @@ class BaseClient:
             self.stream.close()
             raise ConnectionResetError
         s = line.decode(encoding=self.encoding).rstrip()
-        logger.info(s)
+        logger.debug(s)
         return Code(s[:3]), s[3:]
 
     async def parse_response(self):
@@ -245,9 +245,9 @@ class BaseClient:
                 # Censor the user's command
                 raw = command[:censor_after]
                 stars = "*" * len(command[censor_after:])
-                logger.info("%s%s", raw, stars)
+                logger.debug("%s%s", raw, stars)
             else:
-                logger.info(command)
+                logger.debug(command)
             message = command + END_OF_LINE
             await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
