@@ -6,6 +6,7 @@ x.x.x (xx-xx-xxxx)
 
 - sync tests with new `siosocks` (#127)
 - some docs fixes
+- log level changes
 
 0.18.0 (03-09-2020)
 ------------------
