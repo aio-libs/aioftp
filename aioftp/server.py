@@ -783,7 +783,7 @@ class Server:
         Shutdown the server and close all connections.
         """
         self.server.close()
-        tasks = [self.server.wait_closed()]
+        tasks = [asyncio.create_task(self.server.wait_closed())]
         for connection in self.connections.values():
             connection._dispatcher.cancel()
             tasks.append(connection._dispatcher)
@@ -919,9 +919,9 @@ class Server:
         connection.path_io = self.path_io_factory(timeout=self.path_timeout,
                                                   connection=connection)
         pending = {
-            self.greeting(connection, ""),
-            self.response_writer(stream, response_queue),
-            self.parse_command(stream),
+            asyncio.create_task(self.greeting(connection, "")),
+            asyncio.create_task(self.response_writer(stream, response_queue)),
+            asyncio.create_task(self.parse_command(stream)),
         }
         self.connections[key] = connection
         try:
@@ -944,11 +944,15 @@ class Server:
                             return
                     # this is parse_command result
                     elif isinstance(result, tuple):
-                        pending.add(self.parse_command(stream))
+                        pending.add(
+                            asyncio.create_task(self.parse_command(stream))
+                        )
                         cmd, rest = result
                         f = self.commands_mapping.get(cmd)
                         if f is not None:
-                            pending.add(f(connection, rest))
+                            pending.add(
+                                asyncio.create_task(f(connection, rest))
+                            )
                             if cmd not in ("retr", "stor", "appe"):
                                 connection.restart_offset = 0
                         else:
@@ -963,9 +967,8 @@ class Server:
             tasks_to_wait = []
             if not asyncio.get_running_loop().is_closed():
                 for task in pending | connection.extra_workers:
-                    if isinstance(task, asyncio.Task):
-                        task.cancel()
-                        tasks_to_wait.append(task)
+                    task.cancel()
+                    tasks_to_wait.append(task)
                 if connection.future.passive_server.done():
                     connection.passive_server.close()
                     if self.available_data_ports is not None:
@@ -977,7 +980,9 @@ class Server:
             if connection.acquired:
                 self.available_connections.release()
             if connection.future.user.done():
-                task = self.user_manager.notify_logout(connection.user)
+                task = asyncio.create_task(
+                    self.user_manager.notify_logout(connection.user)
+                )
                 tasks_to_wait.append(task)
             self.connections.pop(key)
             if tasks_to_wait:
@@ -1169,7 +1174,7 @@ class Server:
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = mlsd_worker(self, connection, rest)
-        task = asyncio.ensure_future(coro)
+        task = asyncio.create_task(coro)
         connection.extra_workers.add(task)
         connection.response("150", "mlsd transfer started")
         return True
@@ -1227,7 +1232,7 @@ class Server:
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = list_worker(self, connection, rest)
-        task = asyncio.ensure_future(coro)
+        task = asyncio.create_task(coro)
         connection.extra_workers.add(task)
         connection.response("150", "list transfer started")
         return True
@@ -1305,7 +1310,7 @@ class Server:
         real_path, virtual_path = self.get_paths(connection, rest)
         if await connection.path_io.is_dir(real_path.parent):
             coro = stor_worker(self, connection, rest)
-            task = asyncio.ensure_future(coro)
+            task = asyncio.create_task(coro)
             connection.extra_workers.add(task)
             code, info = "150", "data transfer started"
         else:
@@ -1342,7 +1347,7 @@ class Server:
 
         real_path, virtual_path = self.get_paths(connection, rest)
         coro = retr_worker(self, connection, rest)
-        task = asyncio.ensure_future(coro)
+        task = asyncio.create_task(coro)
         connection.extra_workers.add(task)
         connection.response("150", "data transfer started")
         return True

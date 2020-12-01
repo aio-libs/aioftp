@@ -108,9 +108,9 @@ Client example
 
 
     tasks = (
-        get_mp3("server1.com", 21, "login", "password"),
-        get_mp3("server2.com", 21, "login", "password"),
-        get_mp3("server3.com", 21, "login", "password"),
+        asyncio.create_task(get_mp3("server1.com", 21, "login", "password")),
+        asyncio.create_task(get_mp3("server2.com", 21, "login", "password")),
+        asyncio.create_task(get_mp3("server3.com", 21, "login", "password")),
     )
     asyncio.run(asyncio.wait(tasks))
 

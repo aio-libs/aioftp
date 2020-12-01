@@ -473,13 +473,13 @@ class ThrottleStreamIO(StreamIO):
         :param name: name of throttle to acquire ("read" or "write")
         :type name: :py:class:`str`
         """
-        waiters = []
+        tasks = []
         for throttle in self.throttles.values():
             curr_throttle = getattr(throttle, name)
             if curr_throttle.limit:
-                waiters.append(curr_throttle.wait())
-        if waiters:
-            await asyncio.wait(waiters)
+                tasks.append(asyncio.create_task(curr_throttle.wait()))
+        if tasks:
+            await asyncio.wait(tasks)
 
     def append(self, name, data, start):
         """
