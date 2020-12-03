@@ -123,12 +123,15 @@ Client example
                     await client.download(path)
 
 
-    tasks = (
-        asyncio.create_task(get_mp3("server1.com", 21, "login", "password")),
-        asyncio.create_task(get_mp3("server2.com", 21, "login", "password")),
-        asyncio.create_task(get_mp3("server3.com", 21, "login", "password")),
-    )
-    asyncio.run(asyncio.wait(tasks))
+    async def main():
+        tasks = [
+            asyncio.create_task(get_mp3("server1.com", 21, "login", "password")),
+            asyncio.create_task(get_mp3("server2.com", 21, "login", "password")),
+            asyncio.create_task(get_mp3("server3.com", 21, "login", "password")),
+        ]
+        await asyncio.wait(tasks)
+
+    asyncio.run(main())
 
 Server example
 
