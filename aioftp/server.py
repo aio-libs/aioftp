@@ -1133,8 +1133,11 @@ class Server:
         }
 
     async def build_mlsx_string(self, connection, path):
-        stats = await connection.path_io.stat(path)
-        facts = self._build_mlsx_facts_from_stats(stats)
+        if not await connection.path_io.exists(path):
+            facts = {}
+        else:
+            stats = await connection.path_io.stat(path)
+            facts = self._build_mlsx_facts_from_stats(stats)
         if await connection.path_io.is_file(path):
             facts["Type"] = "file"
         elif await connection.path_io.is_dir(path):
