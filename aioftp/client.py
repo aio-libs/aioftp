@@ -5,6 +5,7 @@ import datetime
 import logging
 import pathlib
 import re
+import socket
 from functools import partial
 
 from . import errors, pathio
@@ -109,7 +110,8 @@ class BaseClient:
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
                  encoding="utf-8", ssl=None, parse_list_line_custom=None,
-                 passive_commands=("epsv", "pasv"), **siosocks_asyncio_kwargs):
+                 passive_commands=("epsv", "pasv"), tcp_keepalive=None,
+                 **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
@@ -124,11 +126,36 @@ class BaseClient:
         self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
+        assert tcp_keepalive is None or isinstance(tcp_keepalive, (list, tuple)) and len(tcp_keepalive) == 3 and all(isinstance(x, int) and x > 0 for x in tcp_keepalive)
+        self.tcp_keepalive = tcp_keepalive
+        self._sock = None
+
+    def set_tcp_keepalive(self):
+        """
+        Enable TCP keepalive if asked to do so
+        """
+
+        if self.tcp_keepalive is None:
+            return
+        if self._sock is None:
+            return
+
+        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.tcp_keepalive[0])
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.tcp_keepalive[1])
+        if hasattr(socket, "TCP_KEEPCNT"):
+            self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.tcp_keepalive[2])
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
         self.server_port = port
         reader, writer = await self._open_connection(host, port)
+
+        self._sock = writer.get_extra_info("socket")
+        self.set_tcp_keepalive()
+
         self.stream = ThrottleStreamIO(
             reader,
             writer,
@@ -587,6 +614,12 @@ class Client(BaseClient):
         dictionary with fields "modify", "type", "size". For more
         information see sources.
     :type parse_list_line_custom: callable
+
+    :param tcp_keepalive: optional three elements tuple containing integers
+        to set TCP keepalive on socket (TCP_KEEPIDLE, TCP_KEEPINTVL,
+        TCP_KEEPCNT) or None to disable this feature
+    :type tcp_keepalive: :py:class:`list`, :py:class:`tuple` or `None`
+
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
     async def connect(self, host, port=DEFAULT_PORT):
