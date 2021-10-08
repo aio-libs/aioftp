@@ -1,3 +1,4 @@
+import asyncio
 import calendar
 import collections
 import contextlib
@@ -105,12 +106,15 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
 class BaseClient:
 
-    def __init__(self, *, socket_timeout=None,
+    def __init__(self, *,
+                 socket_timeout=None,
+                 connection_timeout=None,
                  read_speed_limit=None, write_speed_limit=None,
                  path_timeout=None, path_io_factory=pathio.PathIO,
                  encoding="utf-8", ssl=None, parse_list_line_custom=None,
                  passive_commands=("epsv", "pasv"), **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
+        self.connection_timeout = connection_timeout
         self.throttle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
@@ -128,7 +132,7 @@ class BaseClient:
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
         self.server_port = port
-        reader, writer = await self._open_connection(host, port)
+        reader, writer = await asyncio.wait_for(self._open_connection(host, port), self.connection_timeout)
         self.stream = ThrottleStreamIO(
             reader,
             writer,
@@ -556,6 +560,9 @@ class Client(BaseClient):
 
     :param socket_timeout: timeout for read operations
     :type socket_timeout: :py:class:`float`, :py:class:`int` or `None`
+
+    :param connection_timeout: timeout for connection
+    :type connection_timeout: :py:class:`float`, :py:class:`int` or `None`
 
     :param read_speed_limit: download speed limit in bytes per second
     :type server_to_client_speed_limit: :py:class:`int` or `None`
