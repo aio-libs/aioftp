@@ -1,0 +1,27 @@
+name: tps adjust
+on: push
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+    container: python:3.8-slim
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          pip install flake8
+          flake8
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        minor_python_version: [7, 8, 9, 10]
+    container: python:3.${{ minor_python_version }}-slim
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          pip install -e ./[dev]
+          pytest
+
