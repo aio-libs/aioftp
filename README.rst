@@ -8,11 +8,7 @@ aioftp
 
 .. image:: https://github.com/aio-libs/aioftp/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/aio-libs/aioftp/actions/workflows/ci.yml
-   :alt: Github actions tests for master branch
-
-.. image:: https://github.com/aio-libs/aioftp/actions/workflows/cd.yml/badge.svg?branch=master
-   :target: https://github.com/aio-libs/aioftp/actions/workflows/cd.yml
-   :alt: Github actions deploy to pypi for master branch
+   :alt: Github actions ci for master branch
 
 .. image:: https://codecov.io/gh/aio-libs/aioftp/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aioftp
