@@ -132,7 +132,10 @@ class BaseClient:
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
         self.server_port = port
-        reader, writer = await asyncio.wait_for(self._open_connection(host, port), self.connection_timeout)
+        reader, writer = await asyncio.wait_for(
+            self._open_connection(host, port),
+            self.connection_timeout,
+        )
         self.stream = ThrottleStreamIO(
             reader,
             writer,
