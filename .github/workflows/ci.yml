@@ -8,6 +8,9 @@ jobs:
     container: python:3.8-slim
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
       - run: |
           pip install flake8
           flake8
@@ -17,10 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        minor_python_version: [7, 8, 9, 10]
+        python-version: ['3.7', '3.8', '3.9', '3.10', 'pypy-3.7', 'pypy-3.8']
     container: python:3.${{ minor_python_version }}-slim
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
       - run: |
           pip install -e ./[dev]
           pytest
