@@ -1,4 +1,4 @@
-name: tps adjust
+name: aioftp lint and tests
 on: push
 
 jobs:
