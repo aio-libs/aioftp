@@ -1,0 +1,34 @@
+name: tests
+on: push
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - run: |
+          pip install flake8
+          flake8 aioftp tests
+
+  tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: |
+          pip install -e ./[tests]
+          pytest
+      - uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true
