@@ -28,4 +28,8 @@ jobs:
       - run: |
           pip install -e ./[tests]
           pytest
+      - uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true
 
