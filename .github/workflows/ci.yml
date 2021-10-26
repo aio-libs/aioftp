@@ -1,4 +1,4 @@
-name: aioftp lint and tests
+name: tests
 on: push
 
 jobs:
