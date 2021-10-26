@@ -1,6 +1,13 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.19.0 (08-10-2021)
+------------------
+
+- add client connection timeout (#140)
+- remove explicit coroutine passing to `asyncio.wait` (#134)
+Thanks to `decaz <https://github.com/decaz>`_
+
 0.18.1 (03-10-2020)
 ------------------
 
