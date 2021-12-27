@@ -109,10 +109,16 @@ class BaseClient:
     def __init__(self, *,
                  socket_timeout=None,
                  connection_timeout=None,
-                 read_speed_limit=None, write_speed_limit=None,
-                 path_timeout=None, path_io_factory=pathio.PathIO,
-                 encoding="utf-8", ssl=None, parse_list_line_custom=None,
-                 passive_commands=("epsv", "pasv"), **siosocks_asyncio_kwargs):
+                 read_speed_limit=None,
+                 write_speed_limit=None,
+                 path_timeout=None,
+                 path_io_factory=pathio.PathIO,
+                 encoding="utf-8",
+                 ssl=None,
+                 parse_list_line_custom=None,
+                 parse_list_line_custom_first=True,
+                 passive_commands=("epsv", "pasv"),
+                 **siosocks_asyncio_kwargs):
         self.socket_timeout = socket_timeout
         self.connection_timeout = connection_timeout
         self.throttle = StreamThrottle.from_limits(
@@ -125,6 +131,7 @@ class BaseClient:
         self.stream = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
+        self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
@@ -520,11 +527,14 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        parsers = (
-            self.parse_list_line_custom,
+        parsers = [
             self.parse_list_line_unix,
             self.parse_list_line_windows,
-        )
+        ]
+        if self.parse_list_line_custom_first:
+            parsers = [self.parse_list_line_custom] + parsers
+        else:
+            parsers = parsers + [self.parse_list_line_custom]
         for parser in parsers:
             if parser is None:
                 continue

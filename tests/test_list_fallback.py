@@ -115,3 +115,26 @@ async def test_client_list_override_with_custom(pair_factory, Client):
         assert len(files) == 1
         assert path == pathlib.PurePosixPath("bar")
         assert stat == meta
+
+
+@pytest.mark.asyncio
+async def test_client_list_override_with_custom_last(pair_factory, Client):
+    meta = {"type": "file", "works": True}
+
+    def parser(b):
+        import pickle
+        return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))
+
+    async def builder(_, path):
+        import pickle
+        return pickle.dumps((path, meta)).hex()
+
+    async with pair_factory(Client(parse_list_line_custom=parser, parse_list_line_custom_first=False)) as pair:
+        pair.server.commands_mapping["mlst"] = not_implemented
+        pair.server.commands_mapping["mlsd"] = not_implemented
+        pair.server.build_list_string = builder
+        await pair.client.make_directory("bar")
+        (path, stat), *_ = files = await pair.client.list()
+        assert len(files) == 1
+        assert path == pathlib.PurePosixPath("bar")
+        assert stat == meta
