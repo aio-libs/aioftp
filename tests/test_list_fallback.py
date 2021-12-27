@@ -129,7 +129,11 @@ async def test_client_list_override_with_custom_last(pair_factory, Client):
         import pickle
         return pickle.dumps((path, meta)).hex()
 
-    async with pair_factory(Client(parse_list_line_custom=parser, parse_list_line_custom_first=False)) as pair:
+    client = Client(
+        parse_list_line_custom=parser,
+        parse_list_line_custom_first=False,
+    )
+    async with pair_factory(client) as pair:
         pair.server.commands_mapping["mlst"] = not_implemented
         pair.server.commands_mapping["mlsd"] = not_implemented
         pair.server.build_list_string = builder
