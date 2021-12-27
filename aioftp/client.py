@@ -782,11 +782,7 @@ class Client(BaseClient):
                         else:
                             raise StopAsyncIteration
 
-                    try:
-                        name, info = cls.parse_line(line)
-                    except Exception:
-                        continue
-
+                    name, info = cls.parse_line(line)
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
                         cls.directories.append(stat)
