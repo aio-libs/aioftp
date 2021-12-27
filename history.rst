@@ -1,6 +1,13 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.20.0 (27-12-2021)
+------------------
+
+- add client argument to set priority of custom list parser (`parse_list_line_custom_first`) (#145)
+- do not ignore failed parsing of list response (#144)
+Thanks to `spolloni https://github.com/spolloni`_
+
 0.19.0 (08-10-2021)
 ------------------
 
