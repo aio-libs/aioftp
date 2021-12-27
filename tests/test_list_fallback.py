@@ -26,6 +26,8 @@ async def test_client_fallback_to_list_at_list(pair_factory):
         assert len(files) == 1
         assert path == pathlib.PurePosixPath("bar/foo")
         assert stat["type"] == "file"
+        result = await pair.client.list("bar/foo")
+        assert len(result) == 0
 
 
 async def implemented_badly(connection, rest):

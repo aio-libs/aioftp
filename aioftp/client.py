@@ -712,9 +712,10 @@ class Client(BaseClient):
         """
         :py:func:`asyncio.coroutine`
 
-        List all files and directories in "path".
+        List all files and directories in "path". If "path" is a file,
+        then result will be empty
 
-        :param path: directory or file path
+        :param path: directory
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
 
         :param recursive: list recursively

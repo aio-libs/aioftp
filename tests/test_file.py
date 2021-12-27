@@ -26,6 +26,14 @@ async def test_recursive_remove(pair_factory):
 
 
 @pytest.mark.asyncio
+async def test_mlsd_file(pair_factory):
+    async with pair_factory() as pair:
+        await pair.make_server_files("foo/bar.txt")
+        result = await pair.client.list("foo/bar.txt")
+        assert len(result) == 0
+
+
+@pytest.mark.asyncio
 async def test_file_download(pair_factory):
     async with pair_factory() as pair:
         await pair.make_server_files("foo", size=1, atom=b"foobar")
