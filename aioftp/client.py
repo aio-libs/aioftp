@@ -607,6 +607,9 @@ class Client(BaseClient):
         dictionary with fields "modify", "type", "size". For more
         information see sources.
     :type parse_list_line_custom: callable
+    :param parse_list_line_custom_first: Should be custom parser tried first
+        or last
+    :type parse_list_line_custom_first: :py:class:`bool`
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
     async def connect(self, host, port=DEFAULT_PORT):
