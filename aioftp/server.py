@@ -988,7 +988,8 @@ class Server:
             if tasks_to_wait:
                 await asyncio.wait(tasks_to_wait)
 
-    def get_paths(self, connection, path):
+    @staticmethod
+    def get_paths(connection, path):
         """
         Return *real* and *virtual* paths, resolves ".." with "up" action.
         *Real* path is path for path_io, when *virtual* deals with
@@ -1013,11 +1014,13 @@ class Server:
             else:
                 resolved_virtual_path /= part
         base_path = connection.user.base_path
-        real_path = base_path / resolved_virtual_path.relative_to(resolved_virtual_path.anchor)
+        real_path = base_path / resolved_virtual_path.relative_to("/")
+        # replace with `is_relative_to` check after 3.9+ requirements lands
         try:
-            resolved_virtual_path = pathlib.PurePosixPath("/") / real_path.relative_to(base_path)
+            real_path.relative_to(base_path)
         except ValueError:
-            return base_path, pathlib.PurePosixPath("/")
+            real_path = base_path
+            resolved_virtual_path = pathlib.PurePosixPath("/")
         return real_path, resolved_virtual_path
 
     async def greeting(self, connection, rest):
