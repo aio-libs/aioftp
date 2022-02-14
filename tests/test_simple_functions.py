@@ -230,3 +230,17 @@ def test_server_mtime_build():
     b = aioftp.Server.build_list_mtime
     assert b(now, now) == "Jan  1 00:00"
     assert b(past, now) == "Jan  1  2001"
+
+
+def test_get_paths_windows_traverse():
+    base_path = pathlib.PureWindowsPath("C:\\ftp")
+    user = aioftp.User()
+    user.base_path = base_path
+    connection = aioftp.Connection(current_directory=base_path, user=user)
+    virtual_path = pathlib.PurePosixPath("/foo/C:\\windows")
+    real_path, resolved_virtual_path = aioftp.Server.get_paths(
+        connection,
+        virtual_path,
+    )
+    assert real_path == base_path
+    assert resolved_virtual_path == pathlib.PurePosixPath("/")
