@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.20.1 (15-02-2022)
+------------------
+- server: fix real directory resolve for windows (#147)
+Thanks to `ported-pw https://github.com/ported-pw`_
+
 0.20.0 (27-12-2021)
 ------------------
 
