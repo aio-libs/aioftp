@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 
 import pytest
 
@@ -117,6 +118,42 @@ async def test_pasv_connection_port_reused(pair_factory, Server,
         host, port, *_ = w.transport.get_extra_info("peername")
         assert port == unused_tcp_port
         assert pair.server.available_data_ports.qsize() == 0
+
+
+@pytest.mark.asyncio
+async def test_pasv_connection_pasv_forced_response_address(pair_factory,
+                                                            Server,
+                                                            unused_tcp_port):
+    def ipv4_used():
+        try:
+            ipaddress.IPv4Address(pair.host)
+            return True
+        except ValueError:
+            return False
+
+    async with pair_factory(
+        server=Server(ipv4_pasv_forced_response_address='127.0.0.2'),
+    ) as pair:
+        assert pair.server.ipv4_pasv_forced_response_address == '127.0.0.2'
+
+        if ipv4_used():
+            # The connection fails here because the server starts to listen for
+            # the passive connections on the host (IPv4 address) that is used
+            # by the control channel. In reality, if the server is behind NAT,
+            # the server is reached with the defined external IPv4 address,
+            # i.e. we can check that the connection to
+            # pair.server.ipv4_pasv_forced_response_address failed to know that
+            # the server returned correct external IP
+            with pytest.raises(ConnectionRefusedError) as exc_info:
+                await pair.client.get_passive_connection(commands=['pasv'])
+
+            assert pair.server.ipv4_pasv_forced_response_address in \
+                str(exc_info.value)
+
+        # With epsv the connection should open as that does not use the
+        # external IPv4 address but just tells the client the port to connect
+        # to
+        await pair.client.get_passive_connection(commands=['epsv'])
 
 
 @pytest.mark.parametrize("method", ["epsv", "pasv"])

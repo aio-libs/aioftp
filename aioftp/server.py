@@ -619,6 +619,11 @@ class Server:
         connection in bytes per second
     :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
 
+    :param ipv4_pasv_forced_response_address: external IPv4 address for passive
+        connections
+    :type ipv4_pasv_forced_response_address: :py:class:`str` or
+        :py:class:`None`
+
     :param data_ports: port numbers that are available for passive connections
     :type data_ports: :py:class:`collections.Iterable` or :py:class:`None`
 
@@ -644,6 +649,7 @@ class Server:
                  write_speed_limit=None,
                  read_speed_limit_per_connection=None,
                  write_speed_limit_per_connection=None,
+                 ipv4_pasv_forced_response_address=None,
                  data_ports=None,
                  encoding="utf-8",
                  ssl=None):
@@ -653,6 +659,8 @@ class Server:
         self.wait_future_timeout = wait_future_timeout
         self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
+        self.ipv4_pasv_forced_response_address = \
+            ipv4_pasv_forced_response_address
         if data_ports is not None:
             self.available_data_ports = asyncio.PriorityQueue()
             for data_port in data_ports:
@@ -1448,6 +1456,11 @@ class Server:
         for sock in connection.passive_server.sockets:
             if sock.family == socket.AF_INET:
                 host, port = sock.getsockname()
+                # If the FTP server is behind NAT, the server needs to report
+                # its external IP instead of the internal IP so that the client
+                # is able to connect to the server.
+                if self.ipv4_pasv_forced_response_address:
+                    host = self.ipv4_pasv_forced_response_address
                 break
         else:
             connection.response("503", ["this server started in ipv6 mode"])
