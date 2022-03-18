@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.21.0 (18-03-2022)
+------------------
+- server: support PASV response with custom address (#150)
+Thanks to `janneronkko https://github.com/janneronkko`_
+
 0.20.1 (15-02-2022)
 ------------------
 - server: fix real directory resolve for windows (#147)
