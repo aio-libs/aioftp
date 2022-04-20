@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.21.1 (20-04-2022)
+-------------------
+- tests: replace more specific `ConnectionRefusedError` with `OSError` for compatibility with FreeBSD (#152)
+Thanks to `AMDmi3 https://github.com/AMDmi3`_
+
 0.21.0 (18-03-2022)
 ------------------
 - server: support PASV response with custom address (#150)
