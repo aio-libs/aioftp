@@ -144,11 +144,8 @@ async def test_pasv_connection_pasv_forced_response_address(pair_factory,
             # i.e. we can check that the connection to
             # pair.server.ipv4_pasv_forced_response_address failed to know that
             # the server returned correct external IP
-            with pytest.raises(OSError) as exc_info:
+            with pytest.raises(OSError):
                 await pair.client.get_passive_connection(commands=['pasv'])
-
-            assert pair.server.ipv4_pasv_forced_response_address in \
-                str(exc_info.value)
 
         # With epsv the connection should open as that does not use the
         # external IPv4 address but just tells the client the port to connect
