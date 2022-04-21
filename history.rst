@@ -1,6 +1,10 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.21.2 (22-04-2022)
+-------------------
+- tests: remove exception representation check
+
 0.21.1 (20-04-2022)
 -------------------
 - tests: replace more specific `ConnectionRefusedError` with `OSError` for compatibility with FreeBSD (#152)
