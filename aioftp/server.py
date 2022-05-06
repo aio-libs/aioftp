@@ -1242,6 +1242,9 @@ class Server:
             del connection.data_connection
             async with stream:
                 async for path in connection.path_io.list(real_path):
+                    if not (await connection.path_io.exists(path)):
+                        logger.warning("path %r does not exists", path)
+                        continue
                     s = await self.build_list_string(connection, path)
                     b = (s + END_OF_LINE).encode(encoding=self.encoding)
                     await stream.write(b)
