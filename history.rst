@@ -1,6 +1,11 @@
 x.x.x (xx-xx-xxxx)
 ------------------
 
+0.21.3 (15-07-2022)
+-------------------
+- server/`LIST`: prevent broken links are listed, but can't be used with `stat`
+- server: make `User.get_permissions` async
+
 0.21.2 (22-04-2022)
 -------------------
 - tests: remove exception representation check
