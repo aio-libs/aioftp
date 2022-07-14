@@ -139,7 +139,7 @@ class User:
         self.write_speed_limit_per_connection = \
             write_speed_limit_per_connection
 
-    def get_permissions(self, path):
+    async def get_permissions(self, path):
         """
         Return nearest parent permission for `path`.
 
@@ -536,7 +536,9 @@ class PathPermissions:
         @functools.wraps(f)
         async def wrapper(cls, connection, rest, *args):
             real_path, virtual_path = cls.get_paths(connection, rest)
-            current_permission = connection.user.get_permissions(virtual_path)
+            current_permission = await connection.user.get_permissions(
+                virtual_path,
+            )
             for permission in self.permissions:
                 if not getattr(current_permission, permission):
                     connection.response("550", "permission denied")
