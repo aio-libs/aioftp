@@ -1,5 +1,6 @@
 x.x.x (xx-xx-xxxx)
 ------------------
+- tests: use `pytest_asyncio` `strict` mode and proper decorations (#155)
 
 0.21.3 (15-07-2022)
 -------------------

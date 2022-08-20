@@ -10,6 +10,7 @@ import socket
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 import trustme
 from async_timeout import timeout
 
@@ -191,8 +192,8 @@ def skip_sleep(monkeypatch):
         yield sleeper
 
 
-@pytest.fixture(params=[("127.0.0.1", socket.AF_INET),
-                        ("::1", socket.AF_INET6)])
+@pytest_asyncio.fixture(params=[("127.0.0.1", socket.AF_INET),
+                                ("::1", socket.AF_INET6)])
 async def socks(request, unused_tcp_port):
     handler = functools.partial(
         socks_server_handler,
