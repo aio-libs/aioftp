@@ -101,7 +101,7 @@ at first ``MLSx``-family commands (since they have structured, machine readable
 format for all platforms). But old/lazy/nasty servers do not implement this
 commands. In this case ``aioftp`` tries a ``LIST`` command, which have no
 standard format and can not be parsed in all cases. Take a look at
-`FileZilla https://svn.filezilla-project.org/filezilla/FileZilla3/trunk/src/engine/directorylistingparser.cpp?revision=7322&view=markup`_
+`FileZilla <https://svn.filezilla-project.org/filezilla/FileZilla3/trunk/src/engine/directorylistingparser.cpp?revision=7322&view=markup>`_
 «directory listing» parser code. So, before creating new issue be sure this
 is not your case (you can check it with logs). Anyway, you can provide your own
 ``LIST`` parser routine (see the client documentation).
