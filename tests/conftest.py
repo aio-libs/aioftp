@@ -116,7 +116,7 @@ def pair_factory(request):
             return False
 
         async def __aenter__(self):
-            self.timeout.__enter__()
+            await self.timeout.__aenter__()
             await self.server.start(host=self.host)
             if self.connected:
                 await self.client.connect(self.server.server_host,
@@ -130,7 +130,7 @@ def pair_factory(request):
                 await self.client.quit()
             self.client.close()
             await self.server.close()
-            self.timeout.__exit__(*exc_info)
+            await self.timeout.__aexit__(*exc_info)
 
     return Factory
 
