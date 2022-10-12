@@ -1,6 +1,10 @@
 x.x.x (xx-xx-xxxx)
 ------------------
+
+0.21.4 (13-10-2022)
+-------------------
 - tests: use `pytest_asyncio` `strict` mode and proper decorations (#155)
+- setup/tests: set low bound for version of `async-timeout` (#159)
 
 0.21.3 (15-07-2022)
 -------------------

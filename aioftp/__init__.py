@@ -7,7 +7,7 @@ from .errors import *
 from .pathio import *
 from .server import *
 
-__version__ = "0.21.3"
+__version__ = "0.21.4"
 version = tuple(map(int, __version__.split(".")))
 
 __all__ = (
