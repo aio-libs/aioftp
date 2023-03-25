@@ -71,6 +71,19 @@ aioftp 0.8.0
     200 concurrent clients (STOR 10.0M file)              12.56 secs
     200 concurrent clients (QUIT)                          0.03 secs
 
+aioftp 0.21.4 (python 3.11.2)
+
+::
+
+    STOR (client -> server)                              280.17 MB/sec
+    RETR (server -> client)                              399.23 MB/sec
+    200 concurrent clients (connect, login)                0.22 secs
+    STOR (1 file with 200 idle clients)                  248.46 MB/sec
+    RETR (1 file with 200 idle clients)                  362.43 MB/sec
+    200 concurrent clients (RETR 10.0M file)               5.41 secs
+    200 concurrent clients (STOR 10.0M file)               2.04 secs
+    200 concurrent clients (QUIT)                          0.04 secs
+
 pyftpdlib 1.5.2
 
 ::
