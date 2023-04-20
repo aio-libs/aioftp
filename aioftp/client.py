@@ -555,7 +555,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         if isinstance(b, bytes):
-            s = b.decode(encoding=self.encoding)
+            s = b.decode(encoding=self.encoding, errors='replace')
         else:
             s = b
         line = s.rstrip()
