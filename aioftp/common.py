@@ -5,7 +5,7 @@ import functools
 import locale
 import threading
 from contextlib import contextmanager
-
+from typing import Optional, Union
 __all__ = (
     "with_timeout",
     "StreamIO",
@@ -28,7 +28,7 @@ __all__ = (
 
 
 END_OF_LINE = "\r\n"
-DEFAULT_BLOCK_SIZE = 8192
+DEFAULT_BLOCK_SIZE: int = 8192
 
 DEFAULT_PORT = 21
 DEFAULT_USER = "anonymous"
@@ -38,7 +38,7 @@ HALF_OF_YEAR_IN_SECONDS = 15778476
 TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
 
 
-def _now():
+def _now() -> float:
     return asyncio.get_running_loop().time()
 
 
@@ -53,7 +53,7 @@ def _with_timeout(name):
     return decorator
 
 
-def with_timeout(name):
+def with_timeout(name: str):
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -257,15 +257,17 @@ class StreamIO:
         `timeout`
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
-    def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
-                 write_timeout=None):
-        self.reader = reader
-        self.writer = writer
-        self.read_timeout = read_timeout or timeout
-        self.write_timeout = write_timeout or timeout
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, *,
+                 timeout:Union[float, int, None] =None,
+                 read_timeout:Union[float, int, None] =None,
+                 write_timeout:Union[float, int, None] =None):
+        self.reader: asyncio.StreamReader = reader
+        self.writer: asyncio.StreamWriter = writer
+        self.read_timeout:Union[float, int, None] = read_timeout or timeout
+        self.write_timeout:Union[float, int, None] = write_timeout or timeout
 
     @with_timeout("read_timeout")
-    async def readline(self):
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -274,7 +276,7 @@ class StreamIO:
         return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    async def read(self, count=-1):
+    async def read(self, count: int=-1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -417,7 +419,7 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit=None, write_speed_limit=None):
+    def from_limits(cls, read_speed_limit: Optional[int]=None, write_speed_limit: Optional[int]=None) -> 'StreamThrottle':
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
@@ -464,7 +466,7 @@ class ThrottleStreamIO(StreamIO):
         super().__init__(*args, **kwargs)
         self.throttles = throttles
 
-    async def wait(self, name):
+    async def wait(self, name: str):
         """
         :py:func:`asyncio.coroutine`
 
@@ -481,7 +483,7 @@ class ThrottleStreamIO(StreamIO):
         if tasks:
             await asyncio.wait(tasks)
 
-    def append(self, name, data, start):
+    def append(self, name: str, data: bytes, start: float) -> None:
         """
         Update timeout for all throttles
 
@@ -498,7 +500,7 @@ class ThrottleStreamIO(StreamIO):
         for throttle in self.throttles.values():
             getattr(throttle, name).append(data, start)
 
-    async def read(self, count=-1):
+    async def read(self, count: int=-1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -510,7 +512,7 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def readline(self):
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -518,7 +520,7 @@ class ThrottleStreamIO(StreamIO):
         """
         await self.wait("read")
         start = _now()
-        data = await super().readline()
+        data: bytes = await super().readline()
         self.append("read", data, start)
         return data
 
