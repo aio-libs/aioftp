@@ -159,6 +159,7 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         >>> result
         [block, block, block, ...]
     """
+
     def __init__(self, *, timeout=None):
         super().__init__()
         self.timeout = timeout
@@ -257,14 +258,15 @@ class StreamIO:
         `timeout`
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
+
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, *,
-                 timeout:Union[float, int, None] =None,
-                 read_timeout:Union[float, int, None] =None,
-                 write_timeout:Union[float, int, None] =None):
+                 timeout: Union[float, int, None] =None,
+                 read_timeout: Union[float, int, None] =None,
+                 write_timeout: Union[float, int, None] =None):
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
-        self.read_timeout:Union[float, int, None] = read_timeout or timeout
-        self.write_timeout:Union[float, int, None] = write_timeout or timeout
+        self.read_timeout: Union[float, int, None] = read_timeout or timeout
+        self.write_timeout: Union[float, int, None] = write_timeout or timeout
 
     @with_timeout("read_timeout")
     async def readline(self) -> bytes:
@@ -409,6 +411,7 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :param write: stream write throttle
     :type write: :py:class:`aioftp.Throttle`
     """
+
     def clone(self):
         """
         Clone throttles without memory
@@ -419,7 +422,8 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit: Optional[int]=None, write_speed_limit: Optional[int]=None) -> 'StreamThrottle':
+    def from_limits(cls, read_speed_limit: Optional[int]=None,
+                    write_speed_limit: Optional[int] =None) -> 'StreamThrottle':
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 

@@ -47,6 +47,7 @@ class Code(str):
     """
     Representation of server status code.
     """
+
     def matches(self, mask: str):
         """
         :param mask: Template for comparision. If mask symbol is not digit
@@ -77,6 +78,7 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
     :param **kwargs: keyword arguments passed to
         :py:class:`aioftp.ThrottleStreamIO`
     """
+
     def __init__(self, client, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = client
@@ -109,11 +111,11 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 class BaseClient:
 
     def __init__(self, *,
-                 socket_timeout:Union[float, int, None]=None,
-                 connection_timeout:Union[float, int, None]=None,
+                 socket_timeout: Union[float, int, None]=None,
+                 connection_timeout: Union[float, int, None]=None,
                  read_speed_limit: Optional[int]=None,
                  write_speed_limit: Optional[int]=None,
-                 path_timeout:Union[float, int, None]=None,
+                 path_timeout: Union[float, int, None]=None,
                  path_io_factory: Type[pathio.PathIO]=pathio.PathIO,
                  encoding: str="utf-8",
                  ssl=None,
@@ -121,16 +123,17 @@ class BaseClient:
                  parse_list_line_custom_first=True,
                  passive_commands=("epsv", "pasv"),
                  **siosocks_asyncio_kwargs):
-        self.socket_timeout:Union[float, int, None] = socket_timeout
-        self.connection_timeout:Union[float, int, None] = connection_timeout
-        self.throttle:StreamThrottle = StreamThrottle.from_limits(
+        self.socket_timeout: Union[float, int, None] = socket_timeout
+        self.connection_timeout: Union[float, int, None] = connection_timeout
+        self.throttle: StreamThrottle = StreamThrottle.from_limits(
             read_speed_limit,
             write_speed_limit,
         )
         self.path_timeout = path_timeout
-        self.path_io:pathio.AbstractPathIO = path_io_factory(timeout=path_timeout)
+        self.path_io: pathio.AbstractPathIO = path_io_factory(
+            timeout=path_timeout)
         self.encoding: str = encoding
-        self.stream:Optional[ThrottleStreamIO] = None
+        self.stream: Optional[ThrottleStreamIO] = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
@@ -229,8 +232,8 @@ class BaseClient:
     async def command(self,
                       command: Optional[str]=None,
                       expected_code_or_codes: Union[Tuple[str, ...], str]=(),
-                      wait_code_or_codes: Union[Tuple[str,...], str]=(),
-                      censor_after: Optional[int]=None)-> Optional[Tuple[Code, List[str]]]:
+                      wait_code_or_codes: Union[Tuple[str, ...], str]=(),
+                      censor_after: Optional[int]=None) -> Optional[Tuple[Code, List[str]]]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -310,7 +313,7 @@ class BaseClient:
         return ip, port
 
     @staticmethod
-    def parse_directory_response(s: str) ->pathlib.PurePosixPath :
+    def parse_directory_response(s: str) -> pathlib.PurePosixPath:
         """
         Parsing directory server response.
 
@@ -495,7 +498,7 @@ class BaseClient:
         """
         line = b.decode(encoding=self.encoding).rstrip("\r\n")
         date_time_end: int = line.index("M")
-        date_time_str_  = line[:date_time_end + 1].strip().split(" ")
+        date_time_str_ = line[:date_time_end + 1].strip().split(" ")
         date_time_str = " ".join([x for x in date_time_str_ if len(x) > 0])
         line = line[date_time_end + 1:].lstrip()
         with setlocale("C"):
@@ -562,7 +565,7 @@ class BaseClient:
             s = b.decode(encoding=self.encoding)
         else:
             s = b
-        line:str = s.rstrip()
+        line: str = s.rstrip()
         facts_found, _, name = line.partition(" ")
         entry = {}
         for fact in facts_found[:-1].split(";"):
@@ -616,7 +619,7 @@ class Client(BaseClient):
     :type parse_list_line_custom_first: :py:class:`bool`
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
-    async def connect(self, host:str, port:int=DEFAULT_PORT):
+    async def connect(self, host: str, port: int=DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
 
@@ -840,7 +843,7 @@ class Client(BaseClient):
                 Code("550"),
                 "path does not exists",
             )
-        
+
     async def size(self, path: Union[str, pathlib.PurePosixPath]) -> int:
         path = pathlib.PurePosixPath(path)
         try:
@@ -848,7 +851,7 @@ class Client(BaseClient):
             return int(info[0])
         except errors.StatusCodeError as e:
             if not e.received_codes[-1].matches("50x"):
-                raise     
+                raise
 
     async def is_file(self, path: Union[str, pathlib.PurePosixPath]) -> bool:
         """
@@ -897,7 +900,7 @@ class Client(BaseClient):
                 return False
             raise
 
-    async def rename(self, source:  Union[str, pathlib.PurePosixPath], destination: Union[str, pathlib.PurePosixPath]):
+    async def rename(self, source: Union[str, pathlib.PurePosixPath], destination: Union[str, pathlib.PurePosixPath]):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1033,7 +1036,7 @@ class Client(BaseClient):
                         )
 
     def download_stream(self, source: Union[str, pathlib.PurePosixPath],
-                        *, offset: int=0) ->DataConnectionThrottleStreamIO :
+                        *, offset: int=0) -> DataConnectionThrottleStreamIO:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1101,7 +1104,7 @@ class Client(BaseClient):
         await self.command("QUIT", "2xx")
         self.close()
 
-    async def _do_epsv(self) :
+    async def _do_epsv(self):
         code, info = await self.command("EPSV", "229")
         ip, port = self.parse_epsv_response(info[-1])
         return ip, port
@@ -1156,7 +1159,7 @@ class Client(BaseClient):
 
     @async_enterable
     async def get_stream(self, *command_args, conn_type: str="I",
-                         offset: int=0) ->DataConnectionThrottleStreamIO :
+                         offset: int=0) -> DataConnectionThrottleStreamIO:
         """
         :py:func:`asyncio.coroutine`
 
