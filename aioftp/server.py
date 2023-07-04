@@ -146,7 +146,8 @@ class User:
         self.maximum_connections: Optional[int] = maximum_connections
         self.read_speed_limit: Optional[int] = read_speed_limit
         self.write_speed_limit: Optional[int] = write_speed_limit
-        self.read_speed_limit_per_connection: Optional[int] = read_speed_limit_per_connection
+        self.read_speed_limit_per_connection: Optional[int] = \
+            read_speed_limit_per_connection
         # damn 80 symbols
         self.write_speed_limit_per_connection: Optional[int] = \
             write_speed_limit_per_connection
@@ -688,8 +689,8 @@ class Server:
         self.ipv4_pasv_forced_response_address = \
             ipv4_pasv_forced_response_address
         if data_ports is not None:
-            self.available_data_ports: Optional[asyncio.PriorityQueue] = asyncio.PriorityQueue(
-            )
+            self.available_data_ports: Optional[asyncio.PriorityQueue] = \
+                asyncio.PriorityQueue()
             for data_port in data_ports:
                 self.available_data_ports.put_nowait((0, data_port))
         else:
@@ -830,7 +831,9 @@ class Server:
         logger.debug(line)
         await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
 
-    async def write_response(self, stream: StreamIO, code: str, line_or_lines: Union[str, Iterator[str]] = "", list=False):
+    async def write_response(self, stream: StreamIO, code: str,
+                             line_or_lines: Union[str, Iterator[str]] = '',
+                             list=False):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1025,7 +1028,9 @@ class Server:
                 await asyncio.wait(tasks_to_wait)
 
     @staticmethod
-    def get_paths(connection: Connection, path: Union[str, pathlib.PurePosixPath]) -> Tuple[pathlib.Path, pathlib.PurePosixPath]:
+    def get_paths(connection: Connection,
+                  path: Union[str, pathlib.PurePosixPath]) \
+            -> Tuple[pathlib.Path, pathlib.PurePosixPath]:
         """
         Return *real* and *virtual* paths, resolves ".." with "up" action.
         *Real* path is path for path_io, when *virtual* deals with
@@ -1435,7 +1440,11 @@ class Server:
         connection.response(code, info)
         return True
 
-    async def _start_passive_server(self, connection: Connection, handler_callback) -> asyncio.base_events.Server:
+    async def _start_passive_server(self,
+                                    connection: Connection,
+                                    handler_callback) \
+            -> asyncio.base_events.Server:
+
         if self.available_data_ports is not None:
             viewed_ports = set()
             while True:

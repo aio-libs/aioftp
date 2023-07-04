@@ -778,7 +778,8 @@ class MemoryPathIO(AbstractPathIO):
         )
 
     @universal_exception
-    async def _open(self, path: pathlib.PurePosixPath, mode: str = "rb", *args, **kwargs):
+    async def _open(self, path: pathlib.PurePosixPath,
+                    mode: str = "rb", *args, **kwargs):
         if mode == "rb":
             node = self.get_node(path)
             if node is None:
@@ -831,7 +832,8 @@ class MemoryPathIO(AbstractPathIO):
         pass
 
     @universal_exception
-    async def rename(self, source: pathlib.PurePosixPath, destination: pathlib.PurePosixPath):
+    async def rename(self, source: pathlib.PurePosixPath,
+                     destination: pathlib.PurePosixPath):
         if source != destination:
             sparent = self.get_node(source.parent)
             dparent = self.get_node(destination.parent)

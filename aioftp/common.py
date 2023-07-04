@@ -259,10 +259,11 @@ class StreamIO:
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, *,
-                 timeout: Union[float, int, None] =None,
-                 read_timeout: Union[float, int, None] =None,
-                 write_timeout: Union[float, int, None] =None):
+    def __init__(self, reader: asyncio.StreamReader,
+                 writer: asyncio.StreamWriter, *,
+                 timeout: Union[float, int, None] = None,
+                 read_timeout: Union[float, int, None] = None,
+                 write_timeout: Union[float, int, None] = None):
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
         self.read_timeout: Union[float, int, None] = read_timeout or timeout
@@ -278,7 +279,7 @@ class StreamIO:
         return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    async def read(self, count: int=-1) -> bytes:
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -422,8 +423,10 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit: Optional[int]=None,
-                    write_speed_limit: Optional[int] =None) -> 'StreamThrottle':
+    def from_limits(cls,
+                    read_speed_limit: Optional[int] = None,
+                    write_speed_limit: Optional[int] = None) \
+            -> 'StreamThrottle':
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
@@ -504,7 +507,7 @@ class ThrottleStreamIO(StreamIO):
         for throttle in self.throttles.values():
             getattr(throttle, name).append(data, start)
 
-    async def read(self, count: int=-1) -> bytes:
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
