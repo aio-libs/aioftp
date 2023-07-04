@@ -440,7 +440,7 @@ class BaseClient:
         Attempt to parse a LIST line (similar to unix ls utility).
 
         :param b: response line
-        :type b: :py:class:`bytes` 
+        :type b: :py:class:`bytes`
 
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
@@ -496,7 +496,7 @@ class BaseClient:
         Parsing Microsoft Windows `dir` output
 
         :param b: response line
-        :type b: :py:class:`bytes` 
+        :type b: :py:class:`bytes`
 
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
