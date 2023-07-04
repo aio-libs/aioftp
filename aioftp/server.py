@@ -67,8 +67,8 @@ class Permission:
     :type writable: :py:class:`bool`
     """
 
-    def __init__(self, path: Union[str, pathlib.PurePosixPath]="/", *,
-                 readable: bool=True, writable: bool=True):
+    def __init__(self, path: Union[str, pathlib.PurePosixPath] = "/", *,
+                 readable: bool = True, writable: bool = True):
         self.path: pathlib.PurePosixPath = pathlib.PurePosixPath(path)
         self.readable: bool = readable
         self.writable: bool = writable
@@ -125,16 +125,16 @@ class User:
     """
 
     def __init__(self,
-                 login: Optional[str]=None,
+                 login: Optional[str] = None,
                  password=None, *,
                  base_path=pathlib.Path("."),
                  home_path=pathlib.PurePosixPath("/"),
                  permissions=None,
-                 maximum_connections: Optional[int]=None,
-                 read_speed_limit: Optional[int]=None,
-                 write_speed_limit: Optional[int]=None,
-                 read_speed_limit_per_connection: Optional[int]=None,
-                 write_speed_limit_per_connection: Optional[int]=None):
+                 maximum_connections: Optional[int] = None,
+                 read_speed_limit: Optional[int] = None,
+                 write_speed_limit: Optional[int] = None,
+                 read_speed_limit_per_connection: Optional[int] = None,
+                 write_speed_limit_per_connection: Optional[int] = None):
         self.login: Optional[str] = login
         self.password: Optional[str] = password
         self.base_path: pathlib.Path = pathlib.Path(base_path)
@@ -661,22 +661,23 @@ class Server:
     """
 
     def __init__(self,
-                 users: Union[Sequence[User], AbstractUserManager, None]=None,
+                 users: Union[Sequence[User],
+                              AbstractUserManager, None] = None,
                  *,
-                 block_size: int=DEFAULT_BLOCK_SIZE,
-                 socket_timeout: Union[float, int, None]=None,
-                 idle_timeout: Union[float, int, None]=None,
-                 wait_future_timeout: Union[float, int, None]=1,
-                 path_timeout: Union[float, int, None]=None,
-                 path_io_factory: Type[pathio.AbstractPathIO]=pathio.PathIO,
-                 maximum_connections: Optional[int]=None,
-                 read_speed_limit: Optional[int]=None,
-                 write_speed_limit: Optional[int]=None,
-                 read_speed_limit_per_connection: Optional[int]=None,
-                 write_speed_limit_per_connection: Optional[int]=None,
-                 ipv4_pasv_forced_response_address: Optional[str]=None,
-                 data_ports: Optional[Iterator[int]]=None,
-                 encoding: str="utf-8",
+                 block_size: int = DEFAULT_BLOCK_SIZE,
+                 socket_timeout: Union[float, int, None] = None,
+                 idle_timeout: Union[float, int, None] = None,
+                 wait_future_timeout: Union[float, int, None] = 1,
+                 path_timeout: Union[float, int, None] = None,
+                 path_io_factory: Type[pathio.AbstractPathIO] = pathio.PathIO,
+                 maximum_connections: Optional[int] = None,
+                 read_speed_limit: Optional[int] = None,
+                 write_speed_limit: Optional[int] = None,
+                 read_speed_limit_per_connection: Optional[int] = None,
+                 write_speed_limit_per_connection: Optional[int] = None,
+                 ipv4_pasv_forced_response_address: Optional[str] = None,
+                 data_ports: Optional[Iterator[int]] = None,
+                 encoding: str = "utf-8",
                  ssl=None):
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -740,7 +741,7 @@ class Server:
             "size": self.size,
         }
 
-    async def start(self, host: Optional[str]=None, port: int=0, **kwargs):
+    async def start(self, host: Optional[str] = None, port: int = 0, **kwargs):
         """
         :py:func:`asyncio.coroutine`
 
@@ -829,7 +830,7 @@ class Server:
         logger.debug(line)
         await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
 
-    async def write_response(self, stream: StreamIO, code: str, line_or_lines: Union[str, Iterator[str]]="", list=False):
+    async def write_response(self, stream: StreamIO, code: str, line_or_lines: Union[str, Iterator[str]] = "", list=False):
         """
         :py:func:`asyncio.coroutine`
 

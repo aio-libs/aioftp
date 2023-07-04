@@ -8,7 +8,7 @@ import pathlib
 import re
 from functools import partial
 from typing import Optional, Union, Type, Tuple, Dict, List
-#from collections.abc import Sequence, Iterator
+# from collections.abc import Sequence, Iterator
 
 from . import errors, pathio
 from .common import (
@@ -111,13 +111,13 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 class BaseClient:
 
     def __init__(self, *,
-                 socket_timeout: Union[float, int, None]=None,
-                 connection_timeout: Union[float, int, None]=None,
-                 read_speed_limit: Optional[int]=None,
-                 write_speed_limit: Optional[int]=None,
-                 path_timeout: Union[float, int, None]=None,
-                 path_io_factory: Type[pathio.PathIO]=pathio.PathIO,
-                 encoding: str="utf-8",
+                 socket_timeout: Union[float, int, None] = None,
+                 connection_timeout: Union[float, int, None] = None,
+                 read_speed_limit: Optional[int] = None,
+                 write_speed_limit: Optional[int] = None,
+                 path_timeout: Union[float, int, None] = None,
+                 path_io_factory: Type[pathio.PathIO] = pathio.PathIO,
+                 encoding: str = 'utf-8',
                  ssl=None,
                  parse_list_line_custom=None,
                  parse_list_line_custom_first=True,
@@ -141,7 +141,7 @@ class BaseClient:
         self._open_connection = partial(open_connection, ssl=self.ssl,
                                         **siosocks_asyncio_kwargs)
 
-    async def connect(self, host, port: int=DEFAULT_PORT):
+    async def connect(self, host, port: int = DEFAULT_PORT):
         self.server_host = host
         self.server_port = port
         reader, writer = await asyncio.wait_for(
@@ -230,10 +230,10 @@ class BaseClient:
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
     async def command(self,
-                      command: Optional[str]=None,
-                      expected_code_or_codes: Union[Tuple[str, ...], str]=(),
-                      wait_code_or_codes: Union[Tuple[str, ...], str]=(),
-                      censor_after: Optional[int]=None) -> Optional[Tuple[Code, List[str]]]:
+                      command: Optional[str] = None,
+                      expected_code_or_codes: Union[Tuple[str, ...], str] = (),
+                      wait_code_or_codes: Union[Tuple[str, ...], str] = (),
+                      censor_after: Optional[int] = None) -> Optional[Tuple[Code, List[str]]]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -393,7 +393,7 @@ class BaseClient:
         return d.strftime("%Y%m%d%H%M00")
 
     @classmethod
-    def parse_ls_date(cls, s: str, *, now: Optional[datetime.datetime]=None) -> str:
+    def parse_ls_date(cls, s: str, *, now: Optional[datetime.datetime] = None) -> str:
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958", "Jan 03 2018", and "Nov 18 12:29".
@@ -619,7 +619,7 @@ class Client(BaseClient):
     :type parse_list_line_custom_first: :py:class:`bool`
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
-    async def connect(self, host: str, port: int=DEFAULT_PORT):
+    async def connect(self, host: str, port: int = DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
 
@@ -635,8 +635,8 @@ class Client(BaseClient):
         code, info = await self.command(None, "220", "120")
         return info
 
-    async def login(self, user: str=DEFAULT_USER, password: str=DEFAULT_PASSWORD,
-                    account: str=DEFAULT_ACCOUNT) -> None:
+    async def login(self, user: str = DEFAULT_USER, password: str = DEFAULT_PASSWORD,
+                    account: str = DEFAULT_ACCOUNT) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -679,7 +679,7 @@ class Client(BaseClient):
         return directory
 
     async def change_directory(self,
-                               path: Union[str, pathlib.PurePosixPath]="..") -> None:
+                               path: Union[str, pathlib.PurePosixPath] = "..") -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -696,7 +696,7 @@ class Client(BaseClient):
         await self.command(cmd, "2xx")
 
     async def make_directory(self, path: Union[str, pathlib.PurePosixPath], *,
-                             parents: bool=True) -> None:
+                             parents: bool = True) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -730,8 +730,8 @@ class Client(BaseClient):
         """
         await self.command("RMD " + str(path), "250")
 
-    def list(self, path: Union[str, pathlib.PurePosixPath]="", *,
-             recursive: bool=False, raw_command: Optional[str]=None):
+    def list(self, path: Union[str, pathlib.PurePosixPath] = "", *,
+             recursive: bool = False, raw_command: Optional[str] = None):
         """
         :py:func:`asyncio.coroutine`
 
@@ -946,7 +946,7 @@ class Client(BaseClient):
                         await self.remove(name)
                 await self.remove_directory(path)
 
-    def upload_stream(self, destination: Union[str, pathlib.PurePosixPath], *, offset: int=0) -> DataConnectionThrottleStreamIO:
+    def upload_stream(self, destination: Union[str, pathlib.PurePosixPath], *, offset: int = 0) -> DataConnectionThrottleStreamIO:
         """
         Create stream for write data to `destination` file.
 
@@ -964,7 +964,7 @@ class Client(BaseClient):
             offset=offset,
         )
 
-    def append_stream(self, destination: Union[str, pathlib.PurePosixPath], *, offset: int=0) -> DataConnectionThrottleStreamIO:
+    def append_stream(self, destination: Union[str, pathlib.PurePosixPath], *, offset: int = 0) -> DataConnectionThrottleStreamIO:
         """
         Create stream for append (write) data to `destination` file.
 
@@ -982,8 +982,8 @@ class Client(BaseClient):
             offset=offset,
         )
 
-    async def upload(self, source: Union[str, pathlib.Path], destination: Union[str, pathlib.PurePosixPath]="", *, write_into: bool=False,
-                     block_size: int=DEFAULT_BLOCK_SIZE) -> None:
+    async def upload(self, source: Union[str, pathlib.Path], destination: Union[str, pathlib.PurePosixPath] = "", *, write_into: bool = False,
+                     block_size: int = DEFAULT_BLOCK_SIZE) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1036,7 +1036,7 @@ class Client(BaseClient):
                         )
 
     def download_stream(self, source: Union[str, pathlib.PurePosixPath],
-                        *, offset: int=0) -> DataConnectionThrottleStreamIO:
+                        *, offset: int = 0) -> DataConnectionThrottleStreamIO:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1053,9 +1053,9 @@ class Client(BaseClient):
         return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
     async def download(self, source: Union[str, pathlib.PurePosixPath],
-                       destination: Union[str, pathlib.Path]="",
-                       *, write_into: bool=False,
-                       block_size: int=DEFAULT_BLOCK_SIZE):
+                       destination: Union[str, pathlib.Path] = "",
+                       *, write_into: bool = False,
+                       block_size: int = DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1114,8 +1114,8 @@ class Client(BaseClient):
         ip, port = self.parse_pasv_response(info[-1])
         return ip, port
 
-    async def get_passive_connection(self, conn_type: str="I",
-                                     commands: Optional[List]=None) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    async def get_passive_connection(self, conn_type: str = "I",
+                                     commands: Optional[List] = None) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1158,8 +1158,8 @@ class Client(BaseClient):
         return reader, writer
 
     @async_enterable
-    async def get_stream(self, *command_args, conn_type: str="I",
-                         offset: int=0) -> DataConnectionThrottleStreamIO:
+    async def get_stream(self, *command_args, conn_type: str = "I",
+                         offset: int = 0) -> DataConnectionThrottleStreamIO:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1205,8 +1205,8 @@ class Client(BaseClient):
 
     @classmethod
     @contextlib.asynccontextmanager
-    async def context(cls, host: str, port: int=DEFAULT_PORT, user: str=DEFAULT_USER,
-                      password: str=DEFAULT_PASSWORD, account: str=DEFAULT_ACCOUNT,
+    async def context(cls, host: str, port: int = DEFAULT_PORT, user: str = DEFAULT_USER,
+                      password: str = DEFAULT_PASSWORD, account: str = DEFAULT_ACCOUNT,
                       **kwargs):
         """
         Classmethod async context manager. This create

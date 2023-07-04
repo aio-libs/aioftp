@@ -778,7 +778,7 @@ class MemoryPathIO(AbstractPathIO):
         )
 
     @universal_exception
-    async def _open(self, path: pathlib.PurePosixPath, mode: str="rb", *args, **kwargs):
+    async def _open(self, path: pathlib.PurePosixPath, mode: str = "rb", *args, **kwargs):
         if mode == "rb":
             node = self.get_node(path)
             if node is None:
