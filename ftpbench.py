@@ -205,7 +205,7 @@ def timethis(what):
     """
     @contextlib.contextmanager
     def benchmark():
-        timer = time.clock if sys.platform == "win32" else time.time
+        timer = time.perf_counter
         start = timer()
         yield
         stop = timer()
@@ -291,13 +291,13 @@ def bytes_per_second(ftp, retr=True):
                     stop_at += time.time() - a
                 tot_bytes += len(chunk)
 
-        try:
-            while chunk:
-                chunk = conn.recv(BUFFER_LEN)
-            ftp.voidresp()
-            conn.close()
-        except (ftplib.error_temp, ftplib.error_perm):
-            pass
+            try:
+                while chunk:
+                    chunk = conn.recv(BUFFER_LEN)
+                ftp.voidresp()
+                conn.close()
+            except (ftplib.error_temp, ftplib.error_perm):
+                pass
     else:
         ftp.voidcmd('TYPE I')
         with contextlib.closing(ftp.transfercmd("STOR " + TESTFN)) as conn:
