@@ -9,7 +9,7 @@ import pathlib
 import stat
 import sys
 import time
-
+from typing import TYPE_CHECKING
 from . import errors
 from .common import (
     DEFAULT_BLOCK_SIZE,
@@ -25,6 +25,9 @@ __all__ = (
     "MemoryPathIO",
     "PathIONursery",
 )
+
+if TYPE_CHECKING:
+    from .server import Connection
 
 
 class AsyncPathIOContext:
@@ -133,9 +136,10 @@ class AbstractPathIO(abc.ABC):
     """
 
     def __init__(self, timeout: float | int | None = None,
-                 connection: 'Connection'=None, state=None):
-        self.timeout = timeout
-        self.connection = connection
+                 connection: 'Connection' | None = None,
+                 state=None):
+        self.timeout: float | int | None = timeout
+        self.connection:  'Connection' | None = connection
 
     @property
     def state(self):
@@ -737,7 +741,7 @@ class MemoryPathIO(AbstractPathIO):
                 break
         parent.content.pop(i)
 
-    def list(self, path: pathlib.PurePosixPath):
+    def list(self, path: pathlib.Path):
 
         class Lister(AbstractAsyncLister):
             iter = None

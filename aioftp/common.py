@@ -265,7 +265,7 @@ class StreamIO:
                  writer: asyncio.StreamWriter, *,
                  timeout: float | int | None = None,
                  read_timeout: float | int | None = None,
-                 write_timeout: float | int | None= None):
+                 write_timeout: float | int | None = None):
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
         self.read_timeout: float | int | None = read_timeout or timeout
@@ -425,8 +425,8 @@ class StreamThrottle(collections.namedtuple('StreamThrottle', 'read write')):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit: int | None=None,
-                    write_speed_limit: int | None=None) -> 'StreamThrottle':
+    def from_limits(cls, read_speed_limit: int | None = None,
+                    write_speed_limit: int | None = None) -> 'StreamThrottle':
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 

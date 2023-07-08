@@ -9,7 +9,7 @@ import pathlib
 import re
 from functools import partial
 
-from typing import Annotated, Literal, List
+from typing import Literal, List
 
 from . import errors, pathio
 from .common import (
@@ -236,7 +236,7 @@ class BaseClient:
                       expected_code_or_codes: tuple[str, ...] | str = (),
                       wait_code_or_codes: tuple[str, ...] | str = (),
                       censor_after: int | None = None) \
-            -> COMMAND_ANNOTED:
+            -> tuple[Code, list[str]]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1129,14 +1129,14 @@ class Client(BaseClient):
         ip, port = self.parse_epsv_response(info[-1])
         return ip, port
 
-    async def _do_pasv(self) -> Tuple[str, int]:
+    async def _do_pasv(self) -> tuple[str, int]:
         code, info = await self.command("PASV", "227")
         ip, port = self.parse_pasv_response(info[-1])
         return ip, port
 
     async def get_passive_connection(self,
-                       conn_type: Literal['I','A', 'E', 'L'] = 'I',
-                       commands: List[str] | None = None) \
+                        conn_type: Literal['I', 'A', 'E', 'L'] = 'I',
+                        commands: List[str] | None = None) \
             -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
         :py:func:`asyncio.coroutine`
