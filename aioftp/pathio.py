@@ -132,7 +132,8 @@ class AbstractPathIO(abc.ABC):
     :param state: shared pathio state per server
     """
 
-    def __init__(self, timeout=None, connection=None, state=None):
+    def __init__(self, timeout: float | int | None = None,
+                 connection: 'Connection'=None, state=None):
         self.timeout = timeout
         self.connection = connection
 
@@ -271,7 +272,7 @@ class AbstractPathIO(abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def _open(self, path, mode):
+    async def _open(self, path: pathlib.Path, mode: str):
         """
         :py:func:`asyncio.coroutine`
 
@@ -290,7 +291,7 @@ class AbstractPathIO(abc.ABC):
         :return: file-object
         """
 
-    def open(self, *args, **kwargs):
+    def open(self, *args, **kwargs) -> AsyncPathIOContext:
         """
         Create instance of :py:class:`aioftp.pathio.AsyncPathIOContext`,
         parameters passed to :py:meth:`aioftp.AbstractPathIO._open`
@@ -364,7 +365,8 @@ class AbstractPathIO(abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def rename(self, source, destination):
+    async def rename(self, source: pathlib.Path,
+                     destination: pathlib.Path) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -432,7 +434,7 @@ class PathIO(AbstractPathIO):
         return path.stat()
 
     @universal_exception
-    async def _open(self, path, *args, **kwargs):
+    async def _open(self, path: pathlib.Path, *args, **kwargs):
         return path.open(*args, **kwargs)
 
     @universal_exception
