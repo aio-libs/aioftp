@@ -1135,8 +1135,9 @@ class Client(BaseClient):
         return ip, port
 
     async def get_passive_connection(self,
-                        conn_type: Literal['I', 'A', 'E', 'L'] = 'I',
-                        commands: List[str] | None = None) \
+                                     conn_type: Literal['I',
+                                                        'A', 'E', 'L'] = 'I',
+                                     commands: List[str] | None = None) \
             -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
         :py:func:`asyncio.coroutine`

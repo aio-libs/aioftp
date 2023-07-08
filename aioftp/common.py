@@ -5,7 +5,6 @@ import functools
 import locale
 import threading
 from contextlib import contextmanager
-from typing import Optional, Union
 __all__ = (
     'with_timeout',
     'StreamIO',
