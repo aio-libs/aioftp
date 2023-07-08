@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import abc
 import asyncio
@@ -136,10 +137,10 @@ class AbstractPathIO(abc.ABC):
     """
 
     def __init__(self, timeout: float | int | None = None,
-                 connection: 'Connection' | None = None,
+                 connection: Connection | None = None,
                  state=None):
         self.timeout: float | int | None = timeout
-        self.connection:  'Connection' | None = connection
+        self.connection:  Connection | None = connection
 
     @property
     def state(self):

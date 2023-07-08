@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .common import (
     DEFAULT_BLOCK_SIZE,
     DEFAULT_MAXIMUM_CONNECTIONS,
