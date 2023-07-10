@@ -11,10 +11,10 @@ __version__ = "0.21.4"
 version = tuple(map(int, __version__.split(".")))
 
 __all__ = (
-    client.__all__ +
-    server.__all__ +
-    errors.__all__ +
-    common.__all__ +
-    pathio.__all__ +
-    ("version", "__version__")
+    client.__all__
+    + server.__all__
+    + errors.__all__
+    + common.__all__
+    + pathio.__all__
+    + ("version", "__version__")
 )

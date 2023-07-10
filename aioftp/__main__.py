@@ -10,24 +10,42 @@ import aioftp
 parser = argparse.ArgumentParser(
     prog="aioftp",
     usage="%(prog)s [options]",
-    description="Simple aioftp-based server with one user (anonymous or not)."
+    description="Simple aioftp-based server with one user (anonymous or not).",
 )
-parser.add_argument("--user", metavar="LOGIN", dest="login",
-                    help="user name to login")
-parser.add_argument("--pass", metavar="PASSWORD", dest="password",
-                    help="password to login")
-parser.add_argument("-d", metavar="DIRECTORY", dest="home",
-                    help="the directory to share (default current directory)")
-parser.add_argument("-q", "--quiet", action="store_true",
-                    help="set logging level to 'ERROR' instead of 'INFO'")
+parser.add_argument(
+    "--user", metavar="LOGIN", dest="login", help="user name to login"
+)
+parser.add_argument(
+    "--pass", metavar="PASSWORD", dest="password", help="password to login"
+)
+parser.add_argument(
+    "-d",
+    metavar="DIRECTORY",
+    dest="home",
+    help="the directory to share (default current directory)",
+)
+parser.add_argument(
+    "-q",
+    "--quiet",
+    action="store_true",
+    help="set logging level to 'ERROR' instead of 'INFO'",
+)
 parser.add_argument("--memory", action="store_true", help="use memory storage")
-parser.add_argument("--host", default=None,
-                    help="host for binding [default: %(default)s]")
-parser.add_argument("--port", type=int, default=2121,
-                    help="port for binding [default: %(default)s]")
-parser.add_argument("--family", choices=("ipv4", "ipv6", "auto"),
-                    default="auto",
-                    help="Socket family [default: %(default)s]")
+parser.add_argument(
+    "--host", default=None, help="host for binding [default: %(default)s]"
+)
+parser.add_argument(
+    "--port",
+    type=int,
+    default=2121,
+    help="port for binding [default: %(default)s]",
+)
+parser.add_argument(
+    "--family",
+    choices=("ipv4", "ipv6", "auto"),
+    default="auto",
+    help="Socket family [default: %(default)s]",
+)
 
 args = parser.parse_args()
 print(f"aioftp v{aioftp.__version__}")

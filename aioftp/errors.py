@@ -41,9 +41,12 @@ class StatusCodeError(AIOFTPException):
 
     Exception members are tuples, even for one code.
     """
+
     def __init__(self, expected_codes, received_codes, info):
-        super().__init__(f"Waiting for {expected_codes} but got "
-                         f"{received_codes} {info!r}")
+        super().__init__(
+            f"Waiting for {expected_codes} but got "
+            f"{received_codes} {info!r}"
+        )
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
         self.info = info
@@ -70,6 +73,7 @@ class PathIOError(AIOFTPException):
         ...     elif ...
         ...         # handle
     """
+
     def __init__(self, *args, reason=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.reason = reason

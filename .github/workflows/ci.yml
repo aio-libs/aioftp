@@ -12,7 +12,7 @@ jobs:
           python-version: '3.x'
       - run: |
           pip install flake8
-          flake8 aioftp tests
+          flake8 --ignore E203,W503,Q000 aioftp tests
 
   tests:
     needs: lint
