@@ -7,9 +7,10 @@ import datetime
 import logging
 import pathlib
 import re
+from ssl import SSLContext
 from functools import partial
 
-from typing import Literal, List
+from typing import Literal, List, Callable
 
 from . import errors, pathio
 from .common import (
@@ -124,7 +125,7 @@ class BaseClient:
         path_timeout: float | int | None = None,
         path_io_factory: type[pathio.PathIO] = pathio.PathIO,
         encoding: str = "utf-8",
-        ssl=None,
+        ssl: SSLContext | True | None = None,
         parse_list_line_custom=None,
         parse_list_line_custom_first=True,
         passive_commands=("epsv", "pasv"),
@@ -142,11 +143,11 @@ class BaseClient:
         )
         self.encoding: str = encoding
         self.stream: ThrottleStreamIO | None = None
-        self.ssl = ssl
-        self.parse_list_line_custom = parse_list_line_custom
-        self.parse_list_line_custom_first = parse_list_line_custom_first
-        self._passive_commands = passive_commands
-        self._open_connection = partial(
+        self.ssl: SSLContext | bool | None = ssl
+        self.parse_list_line_custom: Callable | None = parse_list_line_custom
+        self.parse_list_line_custom_first: bool = parse_list_line_custom_first
+        self._passive_commands: tuple[str, ...] = passive_commands
+        self._open_connection: Callable = partial(
             open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs
         )
 
