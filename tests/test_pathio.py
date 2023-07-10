@@ -89,7 +89,15 @@ async def test_list(path_io, temp_dir):
         paths.add(p)
     assert set(paths) == {d, f}
 
-
+@pytest.mark.asyncio
+async def test_size(path_io, temp_dir):
+    p = temp_dir / "foo"
+    async with path_io.open(p, mode="wb"):
+        pass
+    assert await path_io.exists(p)
+    size = await path_io.size(p)
+    assert size >=0
+        
 @pytest.mark.asyncio
 async def test_stat(path_io, temp_dir):
     stat = await path_io.stat(temp_dir)

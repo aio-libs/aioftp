@@ -572,6 +572,12 @@ class AsyncPathIO(AbstractPathIO):
     @universal_exception
     @with_timeout
     @_blocking_io
+    def size(self, path: pathlib.Path):
+        return os.path.getsize(path)
+
+    @universal_exception
+    @with_timeout
+    @_blocking_io
     def _open(self, path, *args, **kwargs):
         return path.open(*args, **kwargs)
 
@@ -794,6 +800,18 @@ class MemoryPathIO(AbstractPathIO):
             1,
             mode,
         )
+
+    @universal_exception
+    async def size(self, path: pathlib.PurePosixPath):
+        node = self.get_node(path)
+        if node is None:
+            raise FileNotFoundError
+
+        if node.type == "file":
+            size = len(node.content.getbuffer())
+        else:
+            size = 0
+        return size
 
     @universal_exception
     async def _open(
