@@ -246,11 +246,11 @@ async def test_stat_mlst(pair_factory):
             received = dt.datetime.strptime(info[fact], "%Y%m%d%H%M%S")
             assert math.isclose(now.timestamp(), received.timestamp(),
                                 abs_tol=10)
-            
-            
+
+
 @pytest.mark.asyncio
 async def test_size(pair_factory):
     async with pair_factory() as pair:
         await pair.make_server_files("foo", size=5000)
         size = await pair.client.size("foo")
-        assert size == 5000      
+        assert size == 5000
