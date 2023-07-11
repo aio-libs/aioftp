@@ -805,7 +805,6 @@ class Client(BaseClient):
                         cls.directories.append(stat)
                     return stat
 
-
         return AsyncLister()
 
     async def stat(self, path):
