@@ -781,7 +781,7 @@ class Client(BaseClient):
                 cls.directories = collections.deque()
                 return cls
 
-              async def __anext__(cls):
+            async def __anext__(cls):
                 if cls.stream is None:
                     cls.stream = await cls._new_stream(path)
                 while True:
