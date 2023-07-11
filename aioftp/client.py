@@ -781,25 +781,30 @@ class Client(BaseClient):
                 cls.directories = collections.deque()
                 return cls
 
-            async def __anext__(cls):
+              async def __anext__(cls):
                 if cls.stream is None:
                     cls.stream = await cls._new_stream(path)
                 while True:
-                    line = await cls.stream.readline()
-                    while not line:
-                        await cls.stream.finish()
-                        if cls.directories:
-                            current_path, info = cls.directories.popleft()
-                            cls.stream = await cls._new_stream(current_path)
-                            line = await cls.stream.readline()
-                        else:
-                            raise StopAsyncIteration
+                    continue_reading = True
+                    while continue_reading:
+                        line = await cls.stream.readline()
+                        while not line:
+                            await cls.stream.finish()
+                            if cls.directories:
+                                current_path, info = cls.directories.popleft()
+                                cls.stream = await cls._new_stream(current_path)
+                                line = await cls.stream.readline()
+                            else:
+                                raise StopAsyncIteration
 
-                    name, info = cls.parse_line(line)
+                        name, info = cls.parse_line(line)
+                        # skipping . and .. as these are symlinks in Unix 
+                        continue_reading = str(name) in (".", "..")
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
                         cls.directories.append(stat)
                     return stat
+
 
         return AsyncLister()
 
