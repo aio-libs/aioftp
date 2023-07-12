@@ -29,6 +29,7 @@ jobs:
           pip install -e ./[tests]
           pytest
       - uses: codecov/codecov-action@v2
+        if: github.ref == 'refs/heads/master'
         with:
           fail_ci_if_error: true
           verbose: true
