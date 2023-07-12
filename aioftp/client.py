@@ -785,21 +785,20 @@ class Client(BaseClient):
                 if cls.stream is None:
                     cls.stream = await cls._new_stream(path)
                 while True:
-                    continue_reading = True
-                    while continue_reading:
-                        line = await cls.stream.readline()
-                        while not line:
-                            await cls.stream.finish()
-                            if cls.directories:
-                                current_path, info = cls.directories.popleft()
-                                cls.stream = await cls._new_stream(current_path)
-                                line = await cls.stream.readline()
-                            else:
-                                raise StopAsyncIteration
+                    line = await cls.stream.readline()
+                    while not line:
+                        await cls.stream.finish()
+                        if cls.directories:
+                            current_path, info = cls.directories.popleft()
+                            cls.stream = await cls._new_stream(current_path)
+                            line = await cls.stream.readline()
+                        else:
+                            raise StopAsyncIteration
 
-                        name, info = cls.parse_line(line)
-                        # skipping . and .. as these are symlinks in Unix 
-                        continue_reading = str(name) in (".", "..")
+                    name, info = cls.parse_line(line)
+                    # skipping . and .. as these are symlinks in Unix 
+                    if str(name) in (".", ".."):
+                        continue
                     stat = cls.path / name, info
                     if info["type"] == "dir" and recursive:
                         cls.directories.append(stat)
