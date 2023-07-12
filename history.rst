@@ -1,7 +1,7 @@
 x.x.x (xx-xx-xxxx)
 
 0.22.0 (xx-xx-xxxx)
-------------------
+-------------------
 - client.list: fix infinite symlink loop for `.` and `..` on FTP servers with UNIX-like filesystem for `client.list(path, recursive=True)`
 
 0.21.4 (13-10-2022)
