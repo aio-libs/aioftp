@@ -260,7 +260,9 @@ async def test_size(pair_factory, expect_codes_in_exception):
             await pair.client.size("foo/bar")
         assert await pair.client.is_dir("foo")
         with expect_codes_in_exception("550"):
-            await pair.client.size("foo")        
+            await pair.client.size("foo")
+
+
 @pytest.mark.asyncio
 async def test_size_ascii_mode(pair_factory, expect_codes_in_exception):
     async with pair_factory() as pair:
