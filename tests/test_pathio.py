@@ -98,6 +98,9 @@ async def test_size(path_io, temp_dir):
     assert await path_io.exists(p)
     size = await path_io.size(p)
     assert size >= 0
+    await path_io.unlink(p)
+    with universal_exception_reason(FileNotFoundError):
+        await path_io.size(p)
 
 
 @pytest.mark.asyncio

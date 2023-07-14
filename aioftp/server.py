@@ -1374,7 +1374,14 @@ class Server:
         PathConditions.path_must_exists, PathConditions.path_must_be_file
     )
     async def size(self, connection: Connection, rest):
+        if connection.transfer_type == 'A':
+            connection.response("550", "SIZE not allowed in ASCII mode")
+            return True
         real_path, virtual_path = self.get_paths(connection, rest)
+        is_file: bool = await connection.path_io.is_file(real_path)
+        if not is_file:
+            connection.response("550", "%s is not retrievable" % rest)
+            return True            
         file_size = await connection.path_io.size(real_path)
         connection.response("213", str(file_size))
         return True

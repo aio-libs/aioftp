@@ -249,8 +249,22 @@ async def test_stat_mlst(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_size(pair_factory):
+async def test_size(pair_factory, expect_codes_in_exception):
+    async with pair_factory() as pair:
+        await pair.make_server_files("foo/bar", size=5000)
+        size = await pair.client.size("foo/bar")
+        assert size == 5000
+        await pair.client.remove_file("foo/bar")
+        assert await pair.server_paths_exists("foo/bar") is False
+        with expect_codes_in_exception("550"):
+            await pair.client.size("foo/bar")
+        assert await pair.client.is_dir("foo")
+        with expect_codes_in_exception("550"):
+            await pair.client.size("foo")        
+@pytest.mark.asyncio
+async def test_size_ascii_mode(pair_factory, expect_codes_in_exception):
     async with pair_factory() as pair:
         await pair.make_server_files("foo", size=5000)
-        size = await pair.client.size("foo")
-        assert size == 5000
+        reader, writer = await pair.client.get_passive_connection(conn_type="A")
+        with expect_codes_in_exception("550"):
+            await pair.client.size("foo")
