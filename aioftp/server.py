@@ -140,9 +140,7 @@ class User:
         self.login: str | None = login
         self.password: str | None = password
         self.base_path: pathlib.Path = pathlib.Path(base_path)
-        self.home_path: pathlib.PurePosixPath = pathlib.PurePosixPath(
-            home_path
-        )
+        self.home_path: pathlib.PurePosixPath = pathlib.PurePosixPath(home_path)
         if not self.home_path.is_absolute():
             raise errors.PathIsNotAbsolute(home_path)
         self.permissions: Sequence[Permission] = permissions or [Permission()]
@@ -157,9 +155,7 @@ class User:
             write_speed_limit_per_connection
         )
 
-    async def get_permissions(
-        self, path: str | pathlib.PurePosixPath
-    ) -> Permission:
+    async def get_permissions(self, path: str | pathlib.PurePosixPath) -> Permission:
         """
         Return nearest parent permission for `path`.
 
@@ -264,7 +260,7 @@ class MemoryUserManager(AbstractUserManager):
     def __init__(self, users, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.users: Sequence[User] = users or [User()]
-        self.available_connections: dict[User|None, AvailableConnections] = dict(
+        self.available_connections: dict[User | None, AvailableConnections] = dict(
             (user, AvailableConnections(user.maximum_connections))
             for user in self.users
         )
@@ -700,9 +696,7 @@ class Server:
         self.wait_future_timeout = wait_future_timeout
         self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
-        self.ipv4_pasv_forced_response_address = (
-            ipv4_pasv_forced_response_address
-        )
+        self.ipv4_pasv_forced_response_address = ipv4_pasv_forced_response_address
         if data_ports is not None:
             self.available_data_ports: asyncio.PriorityQueue | None = (
                 asyncio.PriorityQueue()
@@ -917,9 +911,7 @@ class Server:
 
         return cmd.lower(), rest
 
-    async def response_writer(
-        self, stream: StreamIO, response_queue: asyncio.Queue
-    ):
+    async def response_writer(self, stream: StreamIO, response_queue: asyncio.Queue):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1012,15 +1004,11 @@ class Server:
                             return
                     # this is parse_command result
                     elif isinstance(result, tuple):
-                        pending.add(
-                            asyncio.create_task(self.parse_command(stream))
-                        )
+                        pending.add(asyncio.create_task(self.parse_command(stream)))
                         cmd, rest = result
                         f = self.commands_mapping.get(cmd)
                         if f is not None:
-                            pending.add(
-                                asyncio.create_task(f(connection, rest))
-                            )
+                            pending.add(asyncio.create_task(f(connection, rest)))
                             if cmd not in ("retr", "stor", "appe"):
                                 connection.restart_offset = 0
                         else:
@@ -1164,9 +1152,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_dir
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_dir)
     @PathPermissions(PathPermissions.readable)
     async def cwd(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1188,9 +1174,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_dir
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_dir)
     @PathPermissions(PathPermissions.writable)
     async def rmd(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1209,9 +1193,7 @@ class Server:
             "Modify": self._format_mlsx_time(stats.st_mtime),
         }
 
-    async def build_mlsx_string(
-        self, connection: Connection, path: pathlib.Path
-    ):
+    async def build_mlsx_string(self, connection: Connection, path: pathlib.Path):
         if not await connection.path_io.exists(path):
             facts = {}
         else:
@@ -1274,9 +1256,7 @@ class Server:
                 s = time.strftime("%b %e  %Y", mtime)
         return s
 
-    async def build_list_string(
-        self, connection: Connection, path: pathlib.Path
-    ):
+    async def build_list_string(self, connection: Connection, path: pathlib.Path):
         stats = await connection.path_io.stat(path)
         mtime = self.build_list_mtime(stats.st_mtime)
         fields = (
@@ -1359,9 +1339,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.writable)
     async def dele(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1370,9 +1348,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     async def size(self, connection: Connection, rest):
         if connection.transfer_type == "A":
             connection.response("550", "SIZE not allowed in ASCII mode")
@@ -1426,9 +1402,7 @@ class Server:
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
     )
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.readable)
     async def retr(self, connection: Connection, rest: str):
         @ConnectionConditions(

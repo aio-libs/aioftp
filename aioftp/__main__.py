@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """Simple aioftp-based server with one user (anonymous or not)"""
 import argparse
 import asyncio
@@ -13,9 +14,7 @@ parser = argparse.ArgumentParser(
     usage="%(prog)s [options]",
     description="Simple aioftp-based server with one user (anonymous or not).",
 )
-parser.add_argument(
-    "--user", metavar="LOGIN", dest="login", help="user name to login"
-)
+parser.add_argument("--user", metavar="LOGIN", dest="login", help="user name to login")
 parser.add_argument(
     "--pass", metavar="PASSWORD", dest="password", help="password to login"
 )
@@ -59,7 +58,9 @@ if not args.quiet:
     )
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
-    path_io_factory: Type[aioftp.MemoryPathIO] | Type[aioftp.PathIO] = aioftp.MemoryPathIO
+    path_io_factory: Type[aioftp.MemoryPathIO] | Type[
+        aioftp.PathIO
+    ] = aioftp.MemoryPathIO
 else:
     if args.home:
         user = aioftp.User(args.login, args.password, base_path=args.home)

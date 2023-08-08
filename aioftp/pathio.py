@@ -380,9 +380,7 @@ class AbstractPathIO(abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def rename(
-        self, source: pathlib.Path, destination: pathlib.Path
-    ) -> None:
+    async def rename(self, source: pathlib.Path, destination: pathlib.Path) -> None:
         """
         :py:func:`asyncio.coroutine`
 

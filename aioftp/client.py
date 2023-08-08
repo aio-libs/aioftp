@@ -138,9 +138,7 @@ class BaseClient:
             write_speed_limit,
         )
         self.path_timeout = path_timeout
-        self.path_io: pathio.AbstractPathIO = path_io_factory(
-            timeout=path_timeout
-        )
+        self.path_io: pathio.AbstractPathIO = path_io_factory(timeout=path_timeout)
         self.encoding: str = encoding
         self.stream: ThrottleStreamIO | None = None
         self.ssl: SSLContext | bool | None = ssl
@@ -295,7 +293,7 @@ class BaseClient:
             if expected_codes:
                 self.check_codes(expected_codes, code, info)
             return code, info
-        return Code(''), []
+        return Code(""), []
 
     @staticmethod
     def parse_epsv_response(s: str) -> tuple[None, int]:
@@ -411,9 +409,7 @@ class BaseClient:
         return d.strftime("%Y%m%d%H%M00")
 
     @classmethod
-    def parse_ls_date(
-        cls, s: str, *, now: datetime.datetime | None = None
-    ) -> str:
+    def parse_ls_date(cls, s: str, *, now: datetime.datetime | None = None) -> str:
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958", "Jan 03 2018", and "Nov 18 12:29".
@@ -560,7 +556,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        parsers: list[Callable|None] = [
+        parsers: list[Callable | None] = [
             self.parse_list_line_unix,
             self.parse_list_line_windows,
         ]
@@ -712,9 +708,7 @@ class Client(BaseClient):
         directory = self.parse_directory_response(info[-1])
         return directory
 
-    async def change_directory(
-        self, path: str | pathlib.PurePosixPath = ".."
-    ) -> None:
+    async def change_directory(self, path: str | pathlib.PurePosixPath = "..") -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -772,7 +766,7 @@ class Client(BaseClient):
         *,
         recursive: bool = False,
         raw_command: str | None = None,
-    ) -> Awaitable[ list[tuple[pathlib.PurePosixPath, dict]]]:
+    ) -> Awaitable[list[tuple[pathlib.PurePosixPath, dict]]]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -820,7 +814,7 @@ class Client(BaseClient):
                         "raw_command must be one of MLSD or "
                         f"LIST, but got {raw_command}"
                     )
-                #assert raw_command  in [None, "MLSD", "LIST"]
+                # assert raw_command  in [None, "MLSD", "LIST"]
                 if raw_command in [None, "MLSD"]:
                     try:
                         command = ("MLSD " + str(cls.path)).strip()
@@ -1151,9 +1145,7 @@ class Client(BaseClient):
         if not write_into:
             destination = destination / source.name
         if await self.is_file(source):
-            await self.path_io.mkdir(
-                destination.parent, parents=True, exist_ok=True
-            )
+            await self.path_io.mkdir(destination.parent, parents=True, exist_ok=True)
             async with self.path_io.open(
                 destination, mode="wb"
             ) as file_out, self.download_stream(source) as stream:
