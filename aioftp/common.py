@@ -126,7 +126,7 @@ class AsyncListerMixin:
         >>> results = await Context(...)
     """
 
-    async def _to_list(self):
+    async def _to_list(self) ->list:
         items = []
         async for item in self:
             items.append(item)

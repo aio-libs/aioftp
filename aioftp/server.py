@@ -70,7 +70,7 @@ class Permission:
         self.readable: bool = readable
         self.writable: bool = writable
 
-    def is_parent(self, other: pathlib.Path):
+    def is_parent(self, other: pathlib.PurePosixPath):
         try:
             other.relative_to(self.path)
             return True
@@ -264,7 +264,7 @@ class MemoryUserManager(AbstractUserManager):
     def __init__(self, users, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.users: Sequence[User] = users or [User()]
-        self.available_connections: dict[User, AvailableConnections] = dict(
+        self.available_connections: dict[User|None, AvailableConnections] = dict(
             (user, AvailableConnections(user.maximum_connections))
             for user in self.users
         )

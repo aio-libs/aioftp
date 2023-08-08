@@ -1,11 +1,12 @@
+from __future__ import annotations
 """Simple aioftp-based server with one user (anonymous or not)"""
 import argparse
 import asyncio
 import contextlib
 import logging
 import socket
-
 import aioftp
+from typing import Type
 
 parser = argparse.ArgumentParser(
     prog="aioftp",
@@ -58,7 +59,7 @@ if not args.quiet:
     )
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
-    path_io_factory = aioftp.MemoryPathIO
+    path_io_factory: Type[aioftp.MemoryPathIO] | Type[aioftp.PathIO] = aioftp.MemoryPathIO
 else:
     if args.home:
         user = aioftp.User(args.login, args.password, base_path=args.home)
