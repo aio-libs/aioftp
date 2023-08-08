@@ -11,11 +11,11 @@ jobs:
         with:
           python-version: '3.x'
       - name: flake8
-         run: |
+        run: |
              pip install flake8
              flake8 --ignore E203,W503,Q000 aioftp tests
       - name: mypy
-         run: |
+        run: |
             pip install mypy
             mypy aioftp/
 
