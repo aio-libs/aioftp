@@ -1,11 +1,11 @@
 from __future__ import annotations
 import abc
 import asyncio
-import collections
 import functools
 import locale
 import threading
 from contextlib import contextmanager
+from typing import Any
 
 __all__ = (
     "with_timeout",
@@ -45,7 +45,7 @@ def _now() -> float:
     return asyncio.get_running_loop().time()
 
 
-def _with_timeout(name):
+def _with_timeout(name: str):
     def decorator(f):
         @functools.wraps(f)
         def wrapper(cls, *args, **kwargs):
@@ -58,7 +58,7 @@ def _with_timeout(name):
     return decorator
 
 
-def with_timeout(name: str):
+def with_timeout(name):
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -115,7 +115,7 @@ class AsyncStreamIterator:
             raise StopAsyncIteration
 
 
-class AsyncListerMixin:
+class AsyncListerMixin(abc.ABC):
     """
     Add ability to `async for` context to collect data to list via await.
 
@@ -126,7 +126,7 @@ class AsyncListerMixin:
         >>> results = await Context(...)
     """
 
-    async def _to_list(self) -> list:
+    async def _to_list(self) -> Any:
         items = []
         async for item in self:
             items.append(item)
@@ -134,6 +134,10 @@ class AsyncListerMixin:
 
     def __await__(self):
         return self._to_list().__await__()
+
+    @abc.abstractmethod
+    def __aiter__(self):
+        pass
 
 
 class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
@@ -415,7 +419,7 @@ class Throttle:
         )
 
 
-class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
+class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
     """
     Stream throttle with `read` and `write` :py:class:`aioftp.Throttle`
 
@@ -425,6 +429,12 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :param write: stream write throttle
     :type write: :py:class:`aioftp.Throttle`
     """
+
+    def __init__(
+        self, read_speed_limit: int | None, write_speed_limit: int | None
+    ):
+        self.read: Throttle = Throttle(limit=read_speed_limit)
+        self.write: Throttle = Throttle(limit=write_speed_limit)
 
     def clone(self):
         """
@@ -449,10 +459,11 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
             :py:class:`None` for unlimited
         :type write_speed_limit: :py:class:`int` or :py:class:`None`
         """
-        return cls(
-            read=Throttle(limit=read_speed_limit),
-            write=Throttle(limit=write_speed_limit),
-        )
+        return cls(read_speed_limit, write_speed_limit)
+        # return cls(
+        # read=Throttle(limit=read_speed_limit),
+        # write=Throttle(limit=write_speed_limit),
+        # )
 
 
 class ThrottleStreamIO(StreamIO):
