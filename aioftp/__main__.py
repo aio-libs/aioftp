@@ -14,7 +14,9 @@ parser = argparse.ArgumentParser(
     usage="%(prog)s [options]",
     description="Simple aioftp-based server with one user (anonymous or not).",
 )
-parser.add_argument("--user", metavar="LOGIN", dest="login", help="user name to login")
+parser.add_argument(
+    "--user", metavar="LOGIN", dest="login", help="user name to login"
+)
 parser.add_argument(
     "--pass", metavar="PASSWORD", dest="password", help="password to login"
 )
