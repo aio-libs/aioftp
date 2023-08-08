@@ -31,7 +31,7 @@ from .common import (
 )
 
 try:
-    from siosocks.io.asyncio import open_connection
+    from siosocks.io.asyncio import open_connection # type: ignore
 except ImportError:
     from asyncio import open_connection
 
