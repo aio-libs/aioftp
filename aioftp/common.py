@@ -430,11 +430,9 @@ class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
     :type write: :py:class:`aioftp.Throttle`
     """
 
-    def __init__(
-        self, read_speed_limit: int | None, write_speed_limit: int | None
-    ):
-        self.read: Throttle = Throttle(limit=read_speed_limit)
-        self.write: Throttle = Throttle(limit=write_speed_limit)
+    def __init__(self, read: Throttle, write: Throttle):
+        self.read: Throttle = read
+        self.write: Throttle = write
 
     def clone(self):
         """
@@ -459,11 +457,10 @@ class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
             :py:class:`None` for unlimited
         :type write_speed_limit: :py:class:`int` or :py:class:`None`
         """
-        return cls(read_speed_limit, write_speed_limit)
-        # return cls(
-        # read=Throttle(limit=read_speed_limit),
-        # write=Throttle(limit=write_speed_limit),
-        # )
+        return cls(
+            read=Throttle(limit=read_speed_limit),
+            write=Throttle(limit=write_speed_limit),
+        )
 
 
 class ThrottleStreamIO(StreamIO):
