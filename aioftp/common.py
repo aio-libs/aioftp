@@ -1,30 +1,31 @@
-from __future__ import annotations
 import abc
 import asyncio
+import collections
 import functools
 import locale
 import threading
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Self
 
 __all__ = (
-    "with_timeout",
-    "StreamIO",
-    "Throttle",
-    "StreamThrottle",
-    "ThrottleStreamIO",
-    "END_OF_LINE",
-    "DEFAULT_BLOCK_SIZE",
-    "wrap_with_container",
-    "AsyncStreamIterator",
     "AbstractAsyncLister",
-    "AsyncListerMixin",
     "async_enterable",
+    "AsyncListerMixin",
+    "AsyncStreamIterator",
+    "Connection",
+    "DEFAULT_ACCOUNT",
+    "DEFAULT_BLOCK_SIZE",
+    "DEFAULT_PASSWORD",
     "DEFAULT_PORT",
     "DEFAULT_USER",
-    "DEFAULT_PASSWORD",
-    "DEFAULT_ACCOUNT",
+    "END_OF_LINE",
     "setlocale",
+    "StreamIO",
+    "StreamThrottle",
+    "Throttle",
+    "ThrottleStreamIO",
+    "with_timeout",
+    "wrap_with_container",
 )
 
 
@@ -39,6 +40,73 @@ DEFAULT_PASSWORD = "anon@"
 DEFAULT_ACCOUNT = ""
 HALF_OF_YEAR_IN_SECONDS = 15778476
 TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
+
+
+class Connection(collections.defaultdict):
+    """
+    Connection state container for transparent work with futures for async
+    wait
+
+    :param kwargs: initialization parameters
+
+    Container based on :py:class:`collections.defaultdict`, which holds
+    :py:class:`asyncio.Future` as default factory. There is two layers of
+    abstraction:
+
+    * Low level based on simple dictionary keys to attributes mapping and
+        available at Connection.future.
+    * High level based on futures result and dictionary keys to attributes
+        mapping and available at Connection.
+
+    To clarify, here is groups of equal expressions
+    ::
+
+        >>> connection.future.foo
+        >>> connection["foo"]
+
+        >>> connection.foo
+        >>> connection["foo"].result()
+
+        >>> del connection.future.foo
+        >>> del connection.foo
+        >>> del connection["foo"]
+    """
+
+    __slots__ = ("future",)
+
+    class Container:
+        def __init__(self, storage):
+            self.storage = storage
+
+        def __getattr__(self, name):
+            return self.storage[name]
+
+        def __delattr__(self, name):
+            self.storage.pop(name)
+
+    def __init__(self, **kwargs):
+        super().__init__(asyncio.Future)
+        self.future = Connection.Container(self)
+        for k, v in kwargs.items():
+            self[k].set_result(v)
+
+    def __getattr__(self, name):
+        if name in self:
+            return self[name].result()
+        else:
+            raise AttributeError(f"{name!r} not in storage")
+
+    def __setattr__(self, name, value):
+        if name in Connection.__slots__:
+            super().__setattr__(name, value)
+        else:
+            if self[name].done():
+                self[name] = super().default_factory()
+            self[name].set_result(value)
+
+    def __delattr__(self, name):
+        if name in self:
+            self.pop(name)
 
 
 def _now() -> float:
@@ -359,11 +427,7 @@ class Throttle:
 
         Wait until can do IO
         """
-        if (
-            self._limit is not None
-            and self._limit > 0
-            and self._start is not None
-        ):
+        if self._limit is not None and self._limit > 0 and self._start is not None:
             now = _now()
             end = self._start + self._sum / self._limit
             await asyncio.sleep(max(0, end - now))
@@ -413,10 +477,7 @@ class Throttle:
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(limit={self._limit!r}, "
-            f"reset_rate={self.reset_rate!r})"
-        )
+        return f"{self.__class__.__name__}(limit={self._limit!r}, " f"reset_rate={self.reset_rate!r})"
 
 
 class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
@@ -445,7 +506,7 @@ class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
         cls,
         read_speed_limit: int | None = None,
         write_speed_limit: int | None = None,
-    ) -> "StreamThrottle":
+    ) -> Self:
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 

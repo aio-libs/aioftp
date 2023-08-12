@@ -1,34 +1,31 @@
-from __future__ import annotations
-import os
 import abc
 import asyncio
 import collections
 import functools
 import io
 import operator
+import os
 import pathlib
 import stat
 import sys
 import time
-from typing import TYPE_CHECKING
-from . import errors
-from .common import (
+
+from aioftp import errors
+from aioftp.common import (
     DEFAULT_BLOCK_SIZE,
     AbstractAsyncLister,
     AsyncStreamIterator,
+    Connection,
     with_timeout,
 )
 
 __all__ = (
     "AbstractPathIO",
-    "PathIO",
     "AsyncPathIO",
     "MemoryPathIO",
+    "PathIO",
     "PathIONursery",
 )
-
-if TYPE_CHECKING:
-    from .server import Connection
 
 
 class AsyncPathIOContext:
@@ -121,10 +118,7 @@ def defend_file_methods(coro):
     @functools.wraps(coro)
     async def wrapper(self, file, *args, **kwargs):
         if isinstance(file, AsyncPathIOContext):
-            raise ValueError(
-                "Native path io file methods can not be used "
-                "with wrapped file object"
-            )
+            raise ValueError("Native path io file methods can not be used " "with wrapped file object")
         return await coro(self, file, *args, **kwargs)
 
     return wrapper
@@ -380,9 +374,7 @@ class AbstractPathIO(abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def rename(
-        self, source: pathlib.Path, destination: pathlib.Path
-    ) -> None:
+    async def rename(self, source: pathlib.Path, destination: pathlib.Path) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -699,9 +691,7 @@ class MemoryPathIO(AbstractPathIO):
         return not (node is None or node.type != "file")
 
     @universal_exception
-    async def mkdir(
-        self, path: pathlib.PurePosixPath, *, parents=False, exist_ok=False
-    ):
+    async def mkdir(self, path: pathlib.PurePosixPath, *, parents=False, exist_ok=False):
         path = self._absolute(path)
         node = self.get_node(path)
         if node:
@@ -814,9 +804,7 @@ class MemoryPathIO(AbstractPathIO):
         return size
 
     @universal_exception
-    async def _open(
-        self, path: pathlib.PurePosixPath, mode: str = "rb", *args, **kwargs
-    ):
+    async def _open(self, path: pathlib.PurePosixPath, mode: str = "rb", *args, **kwargs):
         if mode == "rb":
             node = self.get_node(path)
             if node is None:
@@ -869,9 +857,7 @@ class MemoryPathIO(AbstractPathIO):
         pass
 
     @universal_exception
-    async def rename(
-        self, source: pathlib.PurePosixPath, destination: pathlib.PurePosixPath
-    ):
+    async def rename(self, source: pathlib.PurePosixPath, destination: pathlib.PurePosixPath):
         if source != destination:
             sparent = self.get_node(source.parent)
             dparent = self.get_node(destination.parent)

@@ -1,20 +1,5 @@
-from __future__ import annotations
-from .common import (
-    DEFAULT_BLOCK_SIZE,
-    DEFAULT_MAXIMUM_CONNECTIONS,
-    DEFAULT_MAXIMUM_CONNECTIONS_PER_USER,
-    END_OF_LINE,
-    HALF_OF_YEAR_IN_SECONDS,
-    StreamThrottle,
-    ThrottleStreamIO,
-    setlocale,
-    wrap_with_container,
-    StreamIO,
-)
-from . import errors, pathio
 import abc
 import asyncio
-import collections
 import enum
 import errno
 import functools
@@ -24,22 +9,35 @@ import pathlib
 import socket
 import stat
 import time
-from typing import Callable
-from collections.abc import Sequence, Iterator
+from collections.abc import Callable, Iterator, Sequence
 
+from aioftp import errors, pathio
+from aioftp.common import (
+    DEFAULT_BLOCK_SIZE,
+    DEFAULT_MAXIMUM_CONNECTIONS,
+    DEFAULT_MAXIMUM_CONNECTIONS_PER_USER,
+    END_OF_LINE,
+    HALF_OF_YEAR_IN_SECONDS,
+    Connection,
+    StreamIO,
+    StreamThrottle,
+    ThrottleStreamIO,
+    setlocale,
+    wrap_with_container,
+)
 
 __all__ = (
-    "Permission",
-    "User",
     "AbstractUserManager",
-    "MemoryUserManager",
-    "Connection",
     "AvailableConnections",
+    "Connection",
     "ConnectionConditions",
+    "MemoryUserManager",
     "PathConditions",
     "PathPermissions",
-    "worker",
+    "Permission",
     "Server",
+    "User",
+    "worker",
 )
 get_current_task = asyncio.current_task
 logger = logging.getLogger(__name__)
@@ -78,10 +76,7 @@ class Permission:
             return False
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.path!r}, "
-            f"readable={self.readable!r}, writable={self.writable!r})"
-        )
+        return f"{self.__class__.__name__}({self.path!r}, " f"readable={self.readable!r}, writable={self.writable!r})"
 
 
 class User:
@@ -140,26 +135,18 @@ class User:
         self.login: str | None = login
         self.password: str | None = password
         self.base_path: pathlib.Path = pathlib.Path(base_path)
-        self.home_path: pathlib.PurePosixPath = pathlib.PurePosixPath(
-            home_path
-        )
+        self.home_path: pathlib.PurePosixPath = pathlib.PurePosixPath(home_path)
         if not self.home_path.is_absolute():
             raise errors.PathIsNotAbsolute(home_path)
         self.permissions: Sequence[Permission] = permissions or [Permission()]
         self.maximum_connections: int = maximum_connections
         self.read_speed_limit: int | None = read_speed_limit
         self.write_speed_limit: int | None = write_speed_limit
-        self.read_speed_limit_per_connection: int | None = (
-            read_speed_limit_per_connection
-        )
+        self.read_speed_limit_per_connection: int | None = read_speed_limit_per_connection
         # damn 80 symbols
-        self.write_speed_limit_per_connection: int | None = (
-            write_speed_limit_per_connection
-        )
+        self.write_speed_limit_per_connection: int | None = write_speed_limit_per_connection
 
-    async def get_permissions(
-        self, path: str | pathlib.PurePosixPath
-    ) -> Permission:
+    async def get_permissions(self, path: str | pathlib.PurePosixPath) -> Permission:
         """
         Return nearest parent permission for `path`.
 
@@ -195,6 +182,13 @@ class User:
     enum.Enum("UserManagerResponse", "OK PASSWORD_REQUIRED ERROR")
 
 
+class GetUserResponse(enum.Enum):
+    # "UserManagerResponse",
+    OK = 1
+    PASSWORD_REQUIRED = 2
+    ERROR = 3
+
+
 class AbstractUserManager(abc.ABC):
     """
     Abstract user manager.
@@ -203,19 +197,11 @@ class AbstractUserManager(abc.ABC):
     :type timeout: :py:class:`float`, :py:class:`int` or :py:class:`None`
     """
 
-    class GetUserResponse(enum.Enum):
-        # "UserManagerResponse",
-        OK = 1
-        PASSWORD_REQUIRED = 2
-        ERROR = 3
-
     def __init__(self, *, timeout=None):
         self.timeout = timeout
 
     @abc.abstractmethod
-    async def get_user(
-        self, login: str
-    ) -> tuple["AbstractUserManager.GetUserResponse", User | None, str]:
+    async def get_user(self, login: str) -> tuple[GetUserResponse, User | None, str]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -264,16 +250,11 @@ class MemoryUserManager(AbstractUserManager):
     def __init__(self, users, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.users: Sequence[User] = users or [User()]
-        self.available_connections: dict[
-            User | None, AvailableConnections
-        ] = dict(
-            (user, AvailableConnections(user.maximum_connections))
-            for user in self.users
+        self.available_connections: dict[User | None, AvailableConnections] = dict(
+            (user, AvailableConnections(user.maximum_connections)) for user in self.users
         )
 
-    async def get_user(
-        self, login: str | None
-    ) -> tuple[AbstractUserManager.GetUserResponse, User | None, str]:
+    async def get_user(self, login: str | None) -> tuple[GetUserResponse, User | None, str]:
         user: User | None = None
         for u in self.users:
             if u.login is None and user is None:
@@ -282,22 +263,22 @@ class MemoryUserManager(AbstractUserManager):
                 user = u
                 break
         if user is None:
-            state = AbstractUserManager.GetUserResponse.ERROR
+            state = GetUserResponse.ERROR
             info = "no such username"
         elif self.available_connections[user].locked():
-            state = AbstractUserManager.GetUserResponse.ERROR
+            state = GetUserResponse.ERROR
             info = f"too much connections for {user.login or 'anonymous'!r}"
         elif user.login is None:
-            state = AbstractUserManager.GetUserResponse.OK
+            state = GetUserResponse.OK
             info = "anonymous login"
         elif user.password is None:
-            state = AbstractUserManager.GetUserResponse.OK
+            state = GetUserResponse.OK
             info = "login without password"
         else:
-            state = AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED
+            state = GetUserResponse.PASSWORD_REQUIRED
             info = "password required"
 
-        if state != AbstractUserManager.GetUserResponse.ERROR:
+        if state != GetUserResponse.ERROR:
             self.available_connections[user].acquire()
         return state, user, info
 
@@ -306,73 +287,6 @@ class MemoryUserManager(AbstractUserManager):
 
     async def notify_logout(self, user: User) -> None:
         self.available_connections[user].release()
-
-
-class Connection(collections.defaultdict):
-    """
-    Connection state container for transparent work with futures for async
-    wait
-
-    :param kwargs: initialization parameters
-
-    Container based on :py:class:`collections.defaultdict`, which holds
-    :py:class:`asyncio.Future` as default factory. There is two layers of
-    abstraction:
-
-    * Low level based on simple dictionary keys to attributes mapping and
-        available at Connection.future.
-    * High level based on futures result and dictionary keys to attributes
-        mapping and available at Connection.
-
-    To clarify, here is groups of equal expressions
-    ::
-
-        >>> connection.future.foo
-        >>> connection["foo"]
-
-        >>> connection.foo
-        >>> connection["foo"].result()
-
-        >>> del connection.future.foo
-        >>> del connection.foo
-        >>> del connection["foo"]
-    """
-
-    __slots__ = ("future",)
-
-    class Container:
-        def __init__(self, storage):
-            self.storage = storage
-
-        def __getattr__(self, name):
-            return self.storage[name]
-
-        def __delattr__(self, name):
-            self.storage.pop(name)
-
-    def __init__(self, **kwargs):
-        super().__init__(asyncio.Future)
-        self.future = Connection.Container(self)
-        for k, v in kwargs.items():
-            self[k].set_result(v)
-
-    def __getattr__(self, name):
-        if name in self:
-            return self[name].result()
-        else:
-            raise AttributeError(f"{name!r} not in storage")
-
-    def __setattr__(self, name, value):
-        if name in Connection.__slots__:
-            super().__setattr__(name, value)
-        else:
-            if self[name].done():
-                self[name] = super().default_factory()
-            self[name].set_result(value)
-
-    def __delattr__(self, name):
-        if name in self:
-            self.pop(name)
 
 
 class AvailableConnections:
@@ -702,13 +616,9 @@ class Server:
         self.wait_future_timeout = wait_future_timeout
         self.path_io_factory = pathio.PathIONursery(path_io_factory)
         self.path_timeout = path_timeout
-        self.ipv4_pasv_forced_response_address = (
-            ipv4_pasv_forced_response_address
-        )
+        self.ipv4_pasv_forced_response_address = ipv4_pasv_forced_response_address
         if data_ports is not None:
-            self.available_data_ports: asyncio.PriorityQueue | None = (
-                asyncio.PriorityQueue()
-            )
+            self.available_data_ports: asyncio.PriorityQueue | None = asyncio.PriorityQueue()
             for data_port in data_ports:
                 self.available_data_ports.put_nowait((0, data_port))
         else:
@@ -888,9 +798,7 @@ class Server:
                 await write(code + "-" + line)
             await write(code + " " + tail)
 
-    async def parse_command(
-        self, stream: StreamIO, censor_commands: tuple[str, ...] = ("pass",)
-    ) -> tuple[str, str]:
+    async def parse_command(self, stream: StreamIO, censor_commands: tuple[str, ...] = ("pass",)) -> tuple[str, str]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -919,9 +827,7 @@ class Server:
 
         return cmd.lower(), rest
 
-    async def response_writer(
-        self, stream: StreamIO, response_queue: asyncio.Queue
-    ):
+    async def response_writer(self, stream: StreamIO, response_queue: asyncio.Queue):
         """
         :py:func:`asyncio.coroutine`
 
@@ -985,9 +891,7 @@ class Server:
             restart_offset=0,
             _dispatcher=get_current_task(),
         )
-        connection.path_io = self.path_io_factory(
-            timeout=self.path_timeout, connection=connection
-        )
+        connection.path_io = self.path_io_factory(timeout=self.path_timeout, connection=connection)
         pending = {
             asyncio.create_task(self.greeting(connection, "")),
             asyncio.create_task(self.response_writer(stream, response_queue)),
@@ -1014,15 +918,11 @@ class Server:
                             return
                     # this is parse_command result
                     elif isinstance(result, tuple):
-                        pending.add(
-                            asyncio.create_task(self.parse_command(stream))
-                        )
+                        pending.add(asyncio.create_task(self.parse_command(stream)))
                         cmd, rest = result
                         f = self.commands_mapping.get(cmd)
                         if f is not None:
-                            pending.add(
-                                asyncio.create_task(f(connection, rest))
-                            )
+                            pending.add(asyncio.create_task(f(connection, rest)))
                             if cmd not in ("retr", "stor", "appe"):
                                 connection.restart_offset = 0
                         else:
@@ -1050,9 +950,7 @@ class Server:
             if connection.acquired:
                 self.available_connections.release()
             if connection.future.user.done():
-                task = asyncio.create_task(
-                    self.user_manager.notify_logout(connection.user)
-                )
+                task = asyncio.create_task(self.user_manager.notify_logout(connection.user))
                 tasks_to_wait.append(task)
             self.connections.pop(key)
             if tasks_to_wait:
@@ -1060,7 +958,8 @@ class Server:
 
     @staticmethod
     def get_paths(
-        connection: Connection, path: str | pathlib.PurePosixPath
+        connection: Connection,
+        path: str | pathlib.PurePosixPath,
     ) -> tuple[pathlib.Path, pathlib.PurePosixPath]:
         """
         Return *real* and *virtual* paths, resolves ".." with "up" action.
@@ -1111,14 +1010,14 @@ class Server:
         del connection.user
         del connection.logged
         state, user, info = await self.user_manager.get_user(rest)
-        if state == AbstractUserManager.GetUserResponse.OK:
+        if state == GetUserResponse.OK:
             code = "230"
             connection.logged = True
             connection.user = user
-        elif state == AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED:
+        elif state == GetUserResponse.PASSWORD_REQUIRED:
             code = "331"
             connection.user = user
-        elif state == AbstractUserManager.GetUserResponse.ERROR:
+        elif state == GetUserResponse.ERROR:
             code = "530"
         else:
             message = f"Unknown response {state}"
@@ -1166,9 +1065,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_dir
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_dir)
     @PathPermissions(PathPermissions.readable)
     async def cwd(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1190,9 +1087,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_dir
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_dir)
     @PathPermissions(PathPermissions.writable)
     async def rmd(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1211,9 +1106,7 @@ class Server:
             "Modify": self._format_mlsx_time(stats.st_mtime),
         }
 
-    async def build_mlsx_string(
-        self, connection: Connection, path: pathlib.Path
-    ):
+    async def build_mlsx_string(self, connection: Connection, path: pathlib.Path):
         if not await connection.path_io.exists(path):
             facts = {}
         else:
@@ -1276,9 +1169,7 @@ class Server:
                 s = time.strftime("%b %e  %Y", mtime)
         return s
 
-    async def build_list_string(
-        self, connection: Connection, path: pathlib.Path
-    ):
+    async def build_list_string(self, connection: Connection, path: pathlib.Path):
         stats = await connection.path_io.stat(path)
         mtime = self.build_list_mtime(stats.st_mtime)
         fields = (
@@ -1361,9 +1252,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.writable)
     async def dele(self, connection: Connection, rest: str):
         real_path, virtual_path = self.get_paths(connection, rest)
@@ -1372,9 +1261,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     async def size(self, connection: Connection, rest):
         if connection.transfer_type == "A":
             connection.response("550", "SIZE not allowed in ASCII mode")
@@ -1428,9 +1315,7 @@ class Server:
         ConnectionConditions.login_required,
         ConnectionConditions.passive_server_started,
     )
-    @PathConditions(
-        PathConditions.path_must_exists, PathConditions.path_must_be_file
-    )
+    @PathConditions(PathConditions.path_must_exists, PathConditions.path_must_be_file)
     @PathPermissions(PathPermissions.readable)
     async def retr(self, connection: Connection, rest: str):
         @ConnectionConditions(
@@ -1484,7 +1369,9 @@ class Server:
         return True
 
     async def _start_passive_server(
-        self, connection: Connection, handler_callback: Callable
+        self,
+        connection: Connection,
+        handler_callback: Callable,
     ) -> asyncio.base_events.Server:
         if self.available_data_ports is not None:
             viewed_ports = set()

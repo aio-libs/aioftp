@@ -1,5 +1,5 @@
-import math
 import datetime as dt
+import math
 from pathlib import PurePosixPath
 
 import pytest
@@ -201,11 +201,8 @@ async def test_download_file_write_into(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_upload_file_os_error(pair_factory, Server,
-                                    expect_codes_in_exception):
-
+async def test_upload_file_os_error(pair_factory, Server, expect_codes_in_exception):
     class OsErrorPathIO(aioftp.MemoryPathIO):
-
         @aioftp.pathio.universal_exception
         async def write(self, fout, data):
             raise OSError("test os error")
@@ -218,8 +215,7 @@ async def test_upload_file_os_error(pair_factory, Server,
 
 
 @pytest.mark.asyncio
-async def test_upload_path_unreachable(pair_factory,
-                                       expect_codes_in_exception):
+async def test_upload_path_unreachable(pair_factory, expect_codes_in_exception):
     async with pair_factory() as pair:
         with expect_codes_in_exception("550"):
             async with pair.client.upload_stream("foo/bar/foo") as stream:
@@ -244,8 +240,7 @@ async def test_stat_mlst(pair_factory):
         assert info["type"] == "file"
         for fact in ("modify", "create"):
             received = dt.datetime.strptime(info[fact], "%Y%m%d%H%M%S")
-            assert math.isclose(now.timestamp(), received.timestamp(),
-                                abs_tol=10)
+            assert math.isclose(now.timestamp(), received.timestamp(), abs_tol=10)
 
 
 @pytest.mark.asyncio

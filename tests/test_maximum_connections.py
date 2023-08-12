@@ -7,8 +7,7 @@ import aioftp
 
 @pytest.mark.asyncio
 async def test_multiply_connections_no_limits(pair_factory):
-    Client = functools.partial(aioftp.Client,
-                               path_io_factory=aioftp.MemoryPathIO)
+    Client = functools.partial(aioftp.Client, path_io_factory=aioftp.MemoryPathIO)
     async with pair_factory() as pair:
         s = pair.server
         clients = [Client() for _ in range(4)]
@@ -20,10 +19,8 @@ async def test_multiply_connections_no_limits(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_multiply_connections_limited_error(pair_factory, Server,
-                                                  expect_codes_in_exception):
-    Client = functools.partial(aioftp.Client,
-                               path_io_factory=aioftp.MemoryPathIO)
+async def test_multiply_connections_limited_error(pair_factory, Server, expect_codes_in_exception):
+    Client = functools.partial(aioftp.Client, path_io_factory=aioftp.MemoryPathIO)
     s = Server(maximum_connections=4)
     async with pair_factory(None, s) as pair:
         s = pair.server
@@ -46,10 +43,8 @@ async def test_multiply_user_commands(pair_factory, Server):
 
 
 @pytest.mark.asyncio
-async def test_multiply_connections_with_user_limited_error(
-        pair_factory, Server, expect_codes_in_exception):
-    Client = functools.partial(aioftp.Client,
-                               path_io_factory=aioftp.MemoryPathIO)
+async def test_multiply_connections_with_user_limited_error(pair_factory, Server, expect_codes_in_exception):
+    Client = functools.partial(aioftp.Client, path_io_factory=aioftp.MemoryPathIO)
     s = Server([aioftp.User("foo", maximum_connections=4)])
     async with pair_factory(None, s, connected=False) as pair:
         s = pair.server
@@ -65,10 +60,8 @@ async def test_multiply_connections_with_user_limited_error(
 
 
 @pytest.mark.asyncio
-async def test_multiply_connections_relogin_balanced(
-        pair_factory, Server, expect_codes_in_exception):
-    Client = functools.partial(aioftp.Client,
-                               path_io_factory=aioftp.MemoryPathIO)
+async def test_multiply_connections_relogin_balanced(pair_factory, Server, expect_codes_in_exception):
+    Client = functools.partial(aioftp.Client, path_io_factory=aioftp.MemoryPathIO)
     s = Server(maximum_connections=4)
     async with pair_factory(None, s, connected=False) as pair:
         s = pair.server

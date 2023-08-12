@@ -1,25 +1,18 @@
-from __future__ import annotations
-
-"""Simple aioftp-based server with one user (anonymous or not)"""
 import argparse
 import asyncio
 import contextlib
 import logging
 import socket
+
 import aioftp
-from typing import Type
 
 parser = argparse.ArgumentParser(
     prog="aioftp",
     usage="%(prog)s [options]",
     description="Simple aioftp-based server with one user (anonymous or not).",
 )
-parser.add_argument(
-    "--user", metavar="LOGIN", dest="login", help="user name to login"
-)
-parser.add_argument(
-    "--pass", metavar="PASSWORD", dest="password", help="password to login"
-)
+parser.add_argument("--user", metavar="LOGIN", dest="login", help="user name to login")
+parser.add_argument("--pass", metavar="PASSWORD", dest="password", help="password to login")
 parser.add_argument(
     "-d",
     metavar="DIRECTORY",
@@ -33,9 +26,7 @@ parser.add_argument(
     help="set logging level to 'ERROR' instead of 'INFO'",
 )
 parser.add_argument("--memory", action="store_true", help="use memory storage")
-parser.add_argument(
-    "--host", default=None, help="host for binding [default: %(default)s]"
-)
+parser.add_argument("--host", default=None, help="host for binding [default: %(default)s]")
 parser.add_argument(
     "--port",
     type=int,
@@ -60,9 +51,7 @@ if not args.quiet:
     )
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
-    path_io_factory: Type[aioftp.MemoryPathIO] | Type[
-        aioftp.PathIO
-    ] = aioftp.MemoryPathIO
+    path_io_factory: type[aioftp.MemoryPathIO] | type[aioftp.PathIO] = aioftp.MemoryPathIO
 else:
     if args.home:
         user = aioftp.User(args.login, args.password, base_path=args.home)

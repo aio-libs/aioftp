@@ -1,6 +1,6 @@
+import contextlib
 import pathlib
 import textwrap
-import contextlib
 
 import pytest
 
@@ -53,7 +53,8 @@ async def test_client_list_override_invalid_raw_command(pair_factory):
 
 
 def test_client_list_windows():
-    test_str = textwrap.dedent("""\
+    test_str = textwrap.dedent(
+        """\
          11/4/2018   9:09 PM  <DIR>         .
          8/10/2018   1:02 PM  <DIR>         ..
          9/23/2018   2:16 PM  <DIR>         bin
@@ -70,7 +71,8 @@ def test_client_list_windows():
         10/29/2018  10:55 AM           219  win7.sh
                6 files           75,978,506,648 bytes
                3 directories     22,198,362,112 bytes free
-    """)
+    """,
+    )
     test_str = test_str.strip().split("\n")
     entities = {}
     parse = aioftp.Client(encoding="utf-8").parse_list_line_windows
@@ -79,8 +81,7 @@ def test_client_list_windows():
             path, stat = parse(x.encode("utf-8"))
             entities[path] = stat
     dirs = ["bin", "Desktop", "dow", "Downloads", "msc", "opt"]
-    files = ["win10.img", "win10.iso", "win10.sh", "win7.img",
-             "win7.iso", "win7.sh"]
+    files = ["win10.img", "win10.iso", "win10.sh", "win7.img", "win7.iso", "win7.sh"]
     assert len(entities) == len(dirs + files)
     for d in dirs:
         p = pathlib.PurePosixPath(d)
@@ -100,10 +101,12 @@ async def test_client_list_override_with_custom(pair_factory, Client):
 
     def parser(b):
         import pickle
+
         return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))
 
     async def builder(_, path):
         import pickle
+
         return pickle.dumps((path, meta)).hex()
 
     async with pair_factory(Client(parse_list_line_custom=parser)) as pair:
@@ -123,10 +126,12 @@ async def test_client_list_override_with_custom_last(pair_factory, Client):
 
     def parser(b):
         import pickle
+
         return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))
 
     async def builder(_, path):
         import pickle
+
         return pickle.dumps((path, meta)).hex()
 
     client = Client(

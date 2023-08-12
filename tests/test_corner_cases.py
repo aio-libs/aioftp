@@ -14,6 +14,7 @@ async def test_server_side_exception(pair_factory):
 
         async def custom(*args, **kwargs):
             raise RuntimeError("Test error")
+
     factory = pair_factory(server_factory=CustomServer, do_quit=False)
     async with factory as pair:
         with pytest.raises(ConnectionResetError):
@@ -56,8 +57,7 @@ async def test_epsv_extra_arg(pair_factory, expect_codes_in_exception):
 
 
 @pytest.mark.asyncio
-async def test_bad_server_path_io(pair_factory, Server,
-                                  expect_codes_in_exception):
+async def test_bad_server_path_io(pair_factory, Server, expect_codes_in_exception):
     class BadPathIO(aioftp.MemoryPathIO):
         async def is_file(*a, **kw):
             return False

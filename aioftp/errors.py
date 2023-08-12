@@ -1,13 +1,11 @@
-from __future__ import annotations
-from . import common
-
+from aioftp import common
 
 __all__ = (
     "AIOFTPException",
-    "StatusCodeError",
-    "PathIsNotAbsolute",
-    "PathIOError",
     "NoAvailablePort",
+    "PathIOError",
+    "PathIsNotAbsolute",
+    "StatusCodeError",
 )
 
 
@@ -44,10 +42,7 @@ class StatusCodeError(AIOFTPException):
     """
 
     def __init__(self, expected_codes, received_codes, info):
-        super().__init__(
-            f"Waiting for {expected_codes} but got "
-            f"{received_codes} {info!r}"
-        )
+        super().__init__(f"Waiting for {expected_codes} but got " f"{received_codes} {info!r}")
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
         self.info = info
