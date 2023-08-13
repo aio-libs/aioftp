@@ -124,7 +124,7 @@ async def test_client_list_override_with_custom(pair_factory, Client):
 async def test_client_list_override_with_custom_last(pair_factory, Client):
     meta = {"type": "file", "works": True}
 
-    def parser(b):
+    def parser(b: bytes):
         import pickle
 
         return pickle.loads(bytes.fromhex(b.decode().rstrip("\r\n")))

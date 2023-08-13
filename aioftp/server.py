@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import abc
 import asyncio
 import enum
@@ -10,8 +11,8 @@ import pathlib
 import socket
 import stat
 import time
-from typing import Any, Awaitable, Self
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Sequence
+from typing import Any, Self
 
 from aioftp import errors, pathio
 from aioftp.common import (
@@ -391,9 +392,9 @@ class ConnectionConditions:
         self.fail_code: str = fail_code
         self.fail_info: str | None = fail_info
 
-    def __call__(self, f: Callable[["Server", Connection, str, list[Any]], Awaitable[bool]]) -> Any:
+    def __call__(self, f: Callable[[Server, Connection, str, list[Any]], Awaitable[bool]]) -> Any:
         @functools.wraps(f)
-        async def wrapper(cls: "Server", connection: Connection, rest: str, *args: list[Any]) -> bool:
+        async def wrapper(cls: Server, connection: Connection, rest: str, *args: list[Any]) -> bool:
             futures = {connection[name]: msg for name, msg in self.fields}
             aggregate = asyncio.gather(*futures)
             if self.wait:
@@ -486,9 +487,9 @@ class PathPermissions:
     def __init__(self, *permissions: list[str]):
         self.permissions = permissions
 
-    def __call__(self, f: Callable[["Server", Connection, str, list[Any]], Awaitable[bool]]) -> Any:
+    def __call__(self, f: Callable[[Server, Connection, str, list[Any]], Awaitable[bool]]) -> Any:
         @functools.wraps(f)
-        async def wrapper(cls: "Server", connection: Connection, rest: str, *args: list[Any]) -> bool:
+        async def wrapper(cls: Server, connection: Connection, rest: str, *args: list[Any]) -> bool:
             real_path, virtual_path = cls.get_paths(connection, rest)
             current_permission: Permission = await connection.user.get_permissions(
                 virtual_path,

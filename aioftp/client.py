@@ -6,11 +6,11 @@ import datetime
 import logging
 import pathlib
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable
 from functools import partial
 from ssl import SSLContext
-from typing import Literal, Any, Iterator, Generator, TypeVar, Type, AsyncIterable, Self
 from types import TracebackType
+from typing import Any, Literal, Self, TypeVar
 
 from aioftp import errors, pathio
 from aioftp.common import (
@@ -1259,7 +1259,7 @@ class Client(BaseClient):
     @classmethod
     @contextlib.asynccontextmanager
     async def context(
-        cls: Type[T],
+        cls: type[T],
         host: str,
         port: int = DEFAULT_PORT,
         user: str = DEFAULT_USER,

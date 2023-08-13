@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import abc
 import asyncio
 import collections
 import functools
 import locale
 import threading
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
-from typing import Any, Self, Callable, Awaitable, Iterator
 from types import TracebackType
+from typing import Any, Self
 
 __all__ = (
     "AbstractAsyncLister",

@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Any
+
 from types import TracebackType
+from typing import TYPE_CHECKING, Any
+
 from aioftp import common
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aioftp.client import Code

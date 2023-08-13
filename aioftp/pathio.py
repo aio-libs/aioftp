@@ -9,8 +9,9 @@ import pathlib
 import stat
 import sys
 import time
-from typing import Self, BinaryIO, IO, Any, List
 from io import BufferedRandom
+from typing import Any, BinaryIO, List, Self
+
 from aioftp import errors
 from aioftp.common import (
     DEFAULT_BLOCK_SIZE,
@@ -50,7 +51,7 @@ class AsyncPathIOContext:
 
     """
 
-    def __init__(self, pathio: "AbstractPathIO", args: List[Any], kwargs: dict[Any, Any]):
+    def __init__(self, pathio: "AbstractPathIO", args: list[Any], kwargs: dict[Any, Any]):
         self.close = None
         self.pathio = pathio
         self.args = args
