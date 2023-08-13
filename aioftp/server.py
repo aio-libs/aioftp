@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 import asyncio
 import enum
@@ -9,6 +10,7 @@ import pathlib
 import socket
 import stat
 import time
+from typing import Any, Awaitable, Self
 from collections.abc import Callable, Iterator, Sequence
 
 from aioftp import errors, pathio
@@ -68,14 +70,14 @@ class Permission:
         self.readable: bool = readable
         self.writable: bool = writable
 
-    def is_parent(self, other: pathlib.PurePosixPath):
+    def is_parent(self, other: pathlib.PurePosixPath) -> bool:
         try:
             other.relative_to(self.path)
             return True
         except ValueError:
             return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.path!r}, " f"readable={self.readable!r}, writable={self.writable!r})"
 
 
@@ -121,11 +123,11 @@ class User:
     def __init__(
         self,
         login: str | None = None,
-        password=None,
+        password: str | None = None,
         *,
-        base_path=pathlib.Path("."),
-        home_path=pathlib.PurePosixPath("/"),
-        permissions=None,
+        base_path: pathlib.Path = pathlib.Path("."),
+        home_path: pathlib.PurePosixPath = pathlib.PurePosixPath("/"),
+        permissions: Sequence[Permission] | None = None,
         maximum_connections: int = DEFAULT_MAXIMUM_CONNECTIONS_PER_USER,
         read_speed_limit: int | None = None,
         write_speed_limit: int | None = None,
@@ -164,7 +166,7 @@ class User:
         )
         return perm
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}({self.login!r}, "
             f"{self.password!r}, base_path={self.base_path!r}, "
@@ -197,7 +199,7 @@ class AbstractUserManager(abc.ABC):
     :type timeout: :py:class:`float`, :py:class:`int` or :py:class:`None`
     """
 
-    def __init__(self, *, timeout=None):
+    def __init__(self, *, timeout: float | int | None = None):
         self.timeout = timeout
 
     @abc.abstractmethod
@@ -247,7 +249,7 @@ class MemoryUserManager(AbstractUserManager):
         :py:class:`aioftp.User`
     """
 
-    def __init__(self, users, *args, **kwargs):
+    def __init__(self, users: Sequence[User], *args: list[Any], **kwargs: dict[Any, Any]):
         super().__init__(*args, **kwargs)
         self.users: Sequence[User] = users or [User()]
         self.available_connections: dict[User | None, AvailableConnections] = dict(
@@ -298,10 +300,10 @@ class AvailableConnections:
     :type value: :py:class:`int` or :py:class:`None`
     """
 
-    def __init__(self, value=None):
+    def __init__(self, value: int | None = None):
         self.value = self.maximum_value = value
 
-    def locked(self):
+    def locked(self) -> bool:
         """
         Returns True if semaphore-like can not be acquired.
 
@@ -309,7 +311,7 @@ class AvailableConnections:
         """
         return self.value == 0
 
-    def acquire(self):
+    def acquire(self) -> None:
         """
         Acquire, decrementing the internal counter by one.
         """
@@ -318,10 +320,11 @@ class AvailableConnections:
             if self.value < 0:
                 raise ValueError("Too many acquires")
 
-    def release(self):
+    def release(self) -> None:
         """
         Release, incrementing the internal counter by one.
         """
+        assert self.maximum_value is not None
         if self.value is not None:
             self.value += 1
             if self.value > self.maximum_value:
@@ -378,7 +381,7 @@ class ConnectionConditions:
 
     def __init__(
         self,
-        *fields,
+        *fields: list[Any],
         wait: bool = False,
         fail_code: str = "503",
         fail_info: str | None = None,
@@ -388,9 +391,9 @@ class ConnectionConditions:
         self.fail_code: str = fail_code
         self.fail_info: str | None = fail_info
 
-    def __call__(self, f):
+    def __call__(self, f: Callable[["Server", Connection, str, list[Any]], Awaitable[bool]]) -> Any:
         @functools.wraps(f)
-        async def wrapper(cls, connection: Connection, rest: str, *args):
+        async def wrapper(cls: "Server", connection: Connection, rest: str, *args: list[Any]) -> bool:
             futures = {connection[name]: msg for name, msg in self.fields}
             aggregate = asyncio.gather(*futures)
             if self.wait:
@@ -440,7 +443,7 @@ class PathConditions:
     path_must_be_dir = ("is_dir", False, "path is not a directory")
     path_must_be_file = ("is_file", False, "path is not a file")
 
-    def __init__(self, *conditions):
+    def __init__(self, *conditions: list[tuple[str, bool, str]]):
         self.conditions = conditions
 
     def __call__(self, f):
@@ -480,14 +483,14 @@ class PathPermissions:
     readable = "readable"
     writable = "writable"
 
-    def __init__(self, *permissions):
+    def __init__(self, *permissions: list[str]):
         self.permissions = permissions
 
-    def __call__(self, f):
+    def __call__(self, f: Callable[["Server", Connection, str, list[Any]], Awaitable[bool]]) -> Any:
         @functools.wraps(f)
-        async def wrapper(cls, connection, rest, *args):
+        async def wrapper(cls: "Server", connection: Connection, rest: str, *args: list[Any]) -> bool:
             real_path, virtual_path = cls.get_paths(connection, rest)
-            current_permission = await connection.user.get_permissions(
+            current_permission: Permission = await connection.user.get_permissions(
                 virtual_path,
             )
             for permission in self.permissions:
@@ -495,6 +498,7 @@ class PathPermissions:
                     connection.response("550", "permission denied")
                     return True
                 return await f(cls, connection, rest, *args)
+            return False
 
         return wrapper
 
@@ -670,7 +674,7 @@ class Server:
             "size": self.size,
         }
 
-    async def start(self, host: str | None = None, port: int = 0, **kwargs):
+    async def start(self, host: str | None = None, port: int = 0, **kwargs: dict[Any, Any]):
         """
         :py:func:`asyncio.coroutine`
 
@@ -695,6 +699,7 @@ class Server:
             port,
             ssl=self.ssl,
             **self._start_server_extra_arguments,
+            # kwds=self._start_server_extra_arguments
         )
         for sock in self.server.sockets:
             if sock.family in (socket.AF_INET, socket.AF_INET6):
@@ -705,7 +710,7 @@ class Server:
                     self.server_host = host
                 logger.info("serving on %s:%s", host, port)
 
-    async def serve_forever(self):
+    async def serve_forever(self) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -735,13 +740,13 @@ class Server:
             await self.close()
 
     @property
-    def address(self):
+    def address(self) -> tuple[str | None, int]:
         """
         Server listen socket host and port as :py:class:`tuple`
         """
         return self.server_host, self.server_port
 
-    async def close(self):
+    async def close(self) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -755,17 +760,17 @@ class Server:
         logger.debug("waiting for %d tasks", len(tasks))
         await asyncio.wait(tasks)
 
-    async def write_line(self, stream: StreamIO, line: str):
+    async def write_line(self, stream: StreamIO, line: str) -> None:
         logger.debug(line)
         await stream.write((line + END_OF_LINE).encode(encoding=self.encoding))
 
     async def write_response(
-        self,
+        self: Self,
         stream: StreamIO,
         code: str,
         line_or_lines: str | Iterator[str] = "",
-        list=False,
-    ):
+        list: bool = False,
+    ) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -827,7 +832,7 @@ class Server:
 
         return cmd.lower(), rest
 
-    async def response_writer(self, stream: StreamIO, response_queue: asyncio.Queue):
+    async def response_writer(self, stream: StreamIO, response_queue: asyncio.Queue) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -852,7 +857,7 @@ class Server:
         self,
         reader: asyncio.streams.StreamReader,
         writer: asyncio.streams.StreamWriter,
-    ):
+    ) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1276,7 +1281,7 @@ class Server:
         ConnectionConditions.passive_server_started,
     )
     @PathPermissions(PathPermissions.writable)
-    async def stor(self, connection: Connection, rest: str, mode="wb"):
+    async def stor(self, connection: Connection, rest: str, mode="wb") -> bool:
         @ConnectionConditions(
             ConnectionConditions.data_connection_made,
             wait=True,
@@ -1452,7 +1457,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    async def epsv(self, connection: Connection, rest: str):
+    async def epsv(self, connection: Connection, rest: str) -> bool:
         async def handler(reader, writer):
             if connection.future.data_connection.done():
                 writer.close()
@@ -1492,7 +1497,7 @@ class Server:
         return True
 
     @ConnectionConditions(ConnectionConditions.login_required)
-    async def abor(self, connection: Connection, rest: str):
+    async def abor(self, connection: Connection, rest: str) -> bool:
         if connection.extra_workers:
             for worker in connection.extra_workers:
                 worker.cancel()
@@ -1500,10 +1505,10 @@ class Server:
             connection.response("226", "nothing to abort")
         return True
 
-    async def appe(self, connection: Connection, rest: str):
+    async def appe(self, connection: Connection, rest: str) -> bool:
         return await self.stor(connection, rest, "ab")
 
-    async def rest(self, connection: Connection, rest: str):
+    async def rest(self, connection: Connection, rest: str) -> bool:
         if rest.isdigit():
             connection.restart_offset = int(rest)
             connection.response("350", f"restarting at {rest}")
@@ -1513,7 +1518,7 @@ class Server:
             connection.response("501", message)
         return True
 
-    async def syst(self, connection: Connection, rest: str):
+    async def syst(self, connection: Connection, rest: str) -> bool:
         """Return system type (always returns UNIX type: L8)."""
         connection.response("215", "UNIX Type: L8")
         return True

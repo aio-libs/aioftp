@@ -9,7 +9,8 @@ import pathlib
 import stat
 import sys
 import time
-
+from typing import Self, BinaryIO, IO, Any, List
+from io import BufferedRandom
 from aioftp import errors
 from aioftp.common import (
     DEFAULT_BLOCK_SIZE,
@@ -49,13 +50,13 @@ class AsyncPathIOContext:
 
     """
 
-    def __init__(self, pathio, args, kwargs):
+    def __init__(self, pathio: "AbstractPathIO", args: List[Any], kwargs: dict[Any, Any]):
         self.close = None
         self.pathio = pathio
         self.args = args
         self.kwargs = kwargs
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         self.file = await self.pathio._open(*self.args, **self.kwargs)
         self.seek = functools.partial(self.pathio.seek, self.file)
         self.write = functools.partial(self.pathio.write, self.file)
@@ -102,7 +103,7 @@ class PathIONursery:
         self.factory = factory
         self.state = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: list[Any], **kwargs: dict[Any, Any]):
         instance = self.factory(*args, state=self.state, **kwargs)
         if self.state is None:
             self.state = instance.state
@@ -116,7 +117,7 @@ def defend_file_methods(coro):
     """
 
     @functools.wraps(coro)
-    async def wrapper(self, file, *args, **kwargs):
+    async def wrapper(self, file, *args: list[Any], **kwargs: dict[Any, Any]):
         if isinstance(file, AsyncPathIOContext):
             raise ValueError("Native path io file methods can not be used " "with wrapped file object")
         return await coro(self, file, *args, **kwargs)
@@ -138,7 +139,7 @@ class AbstractPathIO(abc.ABC):
     """
 
     def __init__(
-        self,
+        self: Self,
         timeout: float | int | None = None,
         connection: Connection | None = None,
         state=None,
@@ -331,7 +332,7 @@ class AbstractPathIO(abc.ABC):
     @universal_exception
     @defend_file_methods
     @abc.abstractmethod
-    async def write(self, file, data):
+    async def write(self, file: BinaryIO, data: bytes):
         """
         :py:func:`asyncio.coroutine`
 
@@ -346,7 +347,7 @@ class AbstractPathIO(abc.ABC):
     @universal_exception
     @defend_file_methods
     @abc.abstractmethod
-    async def read(self, file, block_size):
+    async def read(self, file: BinaryIO, block_size: int) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -363,7 +364,7 @@ class AbstractPathIO(abc.ABC):
     @universal_exception
     @defend_file_methods
     @abc.abstractmethod
-    async def close(self, file):
+    async def close(self, file: BinaryIO) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -406,15 +407,15 @@ class PathIO(AbstractPathIO):
         return path.is_file()
 
     @universal_exception
-    async def mkdir(self, path, *, parents=False, exist_ok=False):
+    async def mkdir(self, path: pathlib.Path, *, parents: bool = False, exist_ok: bool = False) -> None:
         return path.mkdir(parents=parents, exist_ok=exist_ok)
 
     @universal_exception
-    async def rmdir(self, path: pathlib.Path):
+    async def rmdir(self, path: pathlib.Path) -> None:
         return path.rmdir()
 
     @universal_exception
-    async def unlink(self, path: pathlib.Path):
+    async def unlink(self, path: pathlib.Path) -> None:
         return path.unlink()
 
     @universal_exception
@@ -437,11 +438,11 @@ class PathIO(AbstractPathIO):
         return Lister(timeout=self.timeout)
 
     @universal_exception
-    async def stat(self, path: pathlib.Path):
+    async def stat(self, path: pathlib.Path) -> os.stat_result:
         return path.stat()
 
     @universal_exception
-    async def _open(self, path: pathlib.Path, *args, **kwargs):
+    async def _open(self, path: pathlib.Path, *args: List[Any], **kwargs: dict[Any, Any]) -> BufferedRandom:
         return path.open(*args, **kwargs)
 
     @universal_exception

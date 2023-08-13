@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 import asyncio
 import collections
@@ -5,7 +6,8 @@ import functools
 import locale
 import threading
 from contextlib import contextmanager
-from typing import Any, Self
+from typing import Any, Self, Callable, Awaitable, Iterator
+from types import TracebackType
 
 __all__ = (
     "AbstractAsyncLister",
@@ -75,28 +77,28 @@ class Connection(collections.defaultdict):
     __slots__ = ("future",)
 
     class Container:
-        def __init__(self, storage):
+        def __init__(self, storage: dict[str, Any]) -> None:
             self.storage = storage
 
-        def __getattr__(self, name):
+        def __getattr__(self, name: str) -> Any:
             return self.storage[name]
 
-        def __delattr__(self, name):
+        def __delattr__(self, name: str) -> None:
             self.storage.pop(name)
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: dict[str, Any]) -> None:
         super().__init__(asyncio.Future)
         self.future = Connection.Container(self)
         for k, v in kwargs.items():
             self[k].set_result(v)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         if name in self:
             return self[name].result()
         else:
             raise AttributeError(f"{name!r} not in storage")
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name in Connection.__slots__:
             super().__setattr__(name, value)
         else:
@@ -104,7 +106,7 @@ class Connection(collections.defaultdict):
                 self[name] = super().default_factory()
             self[name].set_result(value)
 
-    def __delattr__(self, name):
+    def __delattr__(self, name: str) -> None:
         if name in self:
             self.pop(name)
 
@@ -126,7 +128,7 @@ def _with_timeout(name: str):
     return decorator
 
 
-def with_timeout(name):
+def with_timeout(name: str):
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -169,13 +171,13 @@ def with_timeout(name):
 
 
 class AsyncStreamIterator:
-    def __init__(self, read_coro):
+    def __init__(self, read_coro: Callable[[], Awaitable[bytes]]):
         self.read_coro = read_coro
 
-    def __aiter__(self):
+    def __aiter__(self) -> Self:
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> bytes:
         data = await self.read_coro()
         if data:
             return data
@@ -415,7 +417,7 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    def __init__(self, *, limit=None, reset_rate=10):
+    def __init__(self, *, limit: int | None = None, reset_rate=10):
         self._limit = limit
         self.reset_rate = reset_rate
         self._start = None
@@ -432,7 +434,7 @@ class Throttle:
             end = self._start + self._sum / self._limit
             await asyncio.sleep(max(0, end - now))
 
-    def append(self, data, start):
+    def append(self, data: bytes, start: float) -> None:
         """
         Count `data` for throttle
 
@@ -452,14 +454,14 @@ class Throttle:
             self._sum += len(data)
 
     @property
-    def limit(self):
+    def limit(self) -> int | None:
         """
         Throttle limit
         """
         return self._limit
 
     @limit.setter
-    def limit(self, value):
+    def limit(self, value: int | None) -> None:
         """
         Set throttle limit
 
@@ -470,13 +472,13 @@ class Throttle:
         self._start = None
         self._sum = 0
 
-    def clone(self):
+    def clone(self) -> Throttle:
         """
         Clone throttle without memory
         """
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(limit={self._limit!r}, " f"reset_rate={self.reset_rate!r})"
 
 
@@ -495,7 +497,7 @@ class StreamThrottle:  # collections.namedtuple("StreamThrottle", "read write")
         self.read: Throttle = read
         self.write: Throttle = write
 
-    def clone(self):
+    def clone(self) -> StreamThrottle:
         """
         Clone throttles without memory
         """
@@ -613,7 +615,7 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def write(self, data):
+    async def write(self, data: bytes) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -627,10 +629,15 @@ class ThrottleStreamIO(StreamIO):
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
 
-    def iter_by_line(self):
+    def iter_by_line(self) -> AsyncStreamIterator:
         """
         Read/iterate stream by line.
 
@@ -643,7 +650,7 @@ class ThrottleStreamIO(StreamIO):
         """
         return AsyncStreamIterator(self.readline)
 
-    def iter_by_block(self, count: int = DEFAULT_BLOCK_SIZE):
+    def iter_by_block(self, count: int = DEFAULT_BLOCK_SIZE) -> AsyncStreamIterator:
         """
         Read/iterate stream by block.
 
@@ -661,7 +668,7 @@ LOCALE_LOCK = threading.Lock()
 
 
 @contextmanager
-def setlocale(name):
+def setlocale(name: str) -> Iterator[str]:
     """
     Context manager with threading lock for set locale on enter, and set it
     back to original state on exit.
