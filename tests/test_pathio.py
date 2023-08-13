@@ -91,6 +91,19 @@ async def test_list(path_io, temp_dir):
 
 
 @pytest.mark.asyncio
+async def test_size(path_io, temp_dir):
+    p = temp_dir / "foo"
+    async with path_io.open(p, mode="wb"):
+        pass
+    assert await path_io.exists(p)
+    size = await path_io.size(p)
+    assert size >= 0
+    await path_io.unlink(p)
+    with universal_exception_reason(FileNotFoundError):
+        await path_io.size(p)
+
+
+@pytest.mark.asyncio
 async def test_stat(path_io, temp_dir):
     stat = await path_io.stat(temp_dir)
     for a in ["st_size", "st_mtime", "st_ctime", "st_nlink", "st_mode"]:

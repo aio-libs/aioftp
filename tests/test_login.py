@@ -37,8 +37,7 @@ async def test_login_with_login_and_password(pair_factory, Server):
 
 
 @pytest.mark.asyncio
-async def test_login_with_login_and_password_no_such_user(
-        pair_factory, Server, expect_codes_in_exception):
+async def test_login_with_login_and_password_no_such_user(pair_factory, Server, expect_codes_in_exception):
     s = Server([aioftp.User("foo", "bar")])
     async with pair_factory(None, s, logged=False) as pair:
         with expect_codes_in_exception("530"):
@@ -46,8 +45,7 @@ async def test_login_with_login_and_password_no_such_user(
 
 
 @pytest.mark.asyncio
-async def test_login_with_login_and_password_bad_password(
-        pair_factory, Server, expect_codes_in_exception):
+async def test_login_with_login_and_password_bad_password(pair_factory, Server, expect_codes_in_exception):
     s = Server([aioftp.User("foo", "bar")])
     async with pair_factory(None, s, logged=False) as pair:
         with expect_codes_in_exception("530"):
@@ -55,8 +53,7 @@ async def test_login_with_login_and_password_bad_password(
 
 
 @pytest.mark.asyncio
-async def test_pass_after_login(pair_factory, Server,
-                                expect_codes_in_exception):
+async def test_pass_after_login(pair_factory, Server, expect_codes_in_exception):
     s = Server([aioftp.User("foo", "bar")])
     async with pair_factory(None, s, logged=False) as pair:
         await pair.client.login("foo", "bar")

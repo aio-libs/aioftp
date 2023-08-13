@@ -20,8 +20,7 @@ async def test_restart_stor_appe(pair_factory, offset, method):
         atom = b"foobar"
         name = "foo.txt"
         insert = b"123"
-        expect = atom[:offset] + b"\x00" * (offset - len(atom)) + insert + \
-            atom[offset + len(insert):]
+        expect = atom[:offset] + b"\x00" * (offset - len(atom)) + insert + atom[offset + len(insert) :]
         await pair.make_server_files(name, size=1, atom=atom)
         stream_factory = getattr(pair.client, method)
         async with stream_factory(name, offset=offset) as stream:

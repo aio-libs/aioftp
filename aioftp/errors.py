@@ -1,12 +1,19 @@
-from . import common
+from __future__ import annotations
 
+from types import TracebackType
+from typing import TYPE_CHECKING, Any
+
+from aioftp import common
+
+if TYPE_CHECKING:
+    from aioftp.client import Code
 
 __all__ = (
     "AIOFTPException",
-    "StatusCodeError",
-    "PathIsNotAbsolute",
-    "PathIOError",
     "NoAvailablePort",
+    "PathIOError",
+    "PathIsNotAbsolute",
+    "StatusCodeError",
 )
 
 
@@ -14,6 +21,9 @@ class AIOFTPException(Exception):
     """
     Base exception class.
     """
+
+
+EXE_INFO_TYPE = tuple[type[BaseException] | None, BaseException | None, TracebackType | None]
 
 
 class StatusCodeError(AIOFTPException):
@@ -41,9 +51,9 @@ class StatusCodeError(AIOFTPException):
 
     Exception members are tuples, even for one code.
     """
-    def __init__(self, expected_codes, received_codes, info):
-        super().__init__(f"Waiting for {expected_codes} but got "
-                         f"{received_codes} {info!r}")
+
+    def __init__(self, expected_codes: tuple[str, ...] | str, received_codes: tuple[Code, ...] | Code, info: list[str]):
+        super().__init__(f"Waiting for {expected_codes} but got " f"{received_codes} {info!r}")
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
         self.info = info
@@ -70,9 +80,10 @@ class PathIOError(AIOFTPException):
         ...     elif ...
         ...         # handle
     """
-    def __init__(self, *args, reason=None, **kwargs):
+
+    def __init__(self, *args: list[Any], reason: EXE_INFO_TYPE | None = None, **kwargs: dict[Any, Any]):
         super().__init__(*args, **kwargs)
-        self.reason = reason
+        self.reason: EXE_INFO_TYPE | None = reason
 
 
 class NoAvailablePort(AIOFTPException, OSError):

@@ -18,7 +18,6 @@ async def test_abort_stor(pair_factory):
 
 
 class SlowReadMemoryPathIO(aioftp.MemoryPathIO):
-
     async def read(self, *args, **kwargs):
         await asyncio.sleep(0.01)
         return await super().read(*args, **kwargs)
@@ -40,8 +39,7 @@ async def test_abort_retr(pair_factory, Server):
 
 
 @pytest.mark.asyncio
-async def test_abort_retr_no_wait(pair_factory, Server,
-                                  expect_codes_in_exception):
+async def test_abort_retr_no_wait(pair_factory, Server, expect_codes_in_exception):
     s = Server(path_io_factory=SlowReadMemoryPathIO)
     async with pair_factory(None, s) as pair:
         await pair.make_server_files("test.txt")
@@ -63,14 +61,11 @@ async def test_nothing_to_abort(pair_factory):
 
 
 class SlowListMemoryPathIO(aioftp.MemoryPathIO):
-
     async def is_file(self, *a, **kw):
         return True
 
     def list(self, *args, **kwargs):
-
         class Lister(aioftp.AbstractAsyncLister):
-
             async def __anext__(cls):
                 await asyncio.sleep(0.01)
                 return pathlib.PurePath("/test.txt")
@@ -82,6 +77,7 @@ class SlowListMemoryPathIO(aioftp.MemoryPathIO):
             st_size = 0
             st_mtime = 0
             st_ctime = 0
+
         return Stat
 
 
