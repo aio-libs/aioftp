@@ -643,7 +643,7 @@ class Client(BaseClient):
         await self.command("PBSZ 0", "200")
         await self.command("PROT P", "200")
 
-    async def upgrade_to_tls(self) -> None:
+    async def upgrade_to_tls(self, sslcontext: ssl.SSLContext = None) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -654,19 +654,28 @@ class Client(BaseClient):
 
         asyncio.StreamWriter.start_tls() was added in 3.11.  Using this function
         with an unsupported Python version will raise a RuntimeError.
+
+        :param sslcontext: custom ssl context
+        :type sslcontext: :py:class:`ssl.SSLContext`
         """
         if not IS_PY311_PLUS:
             raise RuntimeError("Python version 3.11.0 is required to upgrade a connection to TLS")
 
-        if self.stream.writer.get_extra_info("ssl_object"):
+        if self.stream.writer.transport.get_extra_info("ssl_object"):
             return
 
         self.explicit_tls = True
 
-        await self.command("AUTH TLS", "234")
+        try:
+            await self.command("AUTH TLS", "234")
+        except errors.StatusCodeError:
+            raise errors.TLSError("Explicit TLS is not supported on this server") from None
 
-        if not isinstance(self.ssl, ssl.SSLContext):
+        if sslcontext:
+            self.ssl = sslcontext
+        elif not isinstance(self.ssl, ssl.SSLContext):
             self.ssl = ssl.create_default_context()
+
         try:
             await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
         except ssl.SSLError as e:
@@ -709,7 +718,8 @@ class Client(BaseClient):
             code, info = await self.command(cmd, ("230", "33x"),
                                             censor_after=censor_after)
         self.logged_in = True
-        await self._send_tls_protection_commands()
+        if self.explicit_tls:
+            await self._send_tls_protection_commands()
 
     async def get_current_directory(self):
         """
