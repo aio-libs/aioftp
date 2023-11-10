@@ -4,6 +4,8 @@ import collections
 import functools
 import locale
 import threading
+import ssl
+import sys
 from contextlib import contextmanager
 
 __all__ = (
@@ -25,6 +27,7 @@ __all__ = (
     "DEFAULT_ACCOUNT",
     "setlocale",
 )
+IS_PY311_PLUS = sys.version_info >= (3, 11, 0)
 
 
 END_OF_LINE = "\r\n"
@@ -316,6 +319,16 @@ class StreamIO:
         Close connection.
         """
         self.writer.close()
+
+    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: str) -> None:
+        """
+        Upgrades the connection to TLS
+        """
+        if not IS_PY311_PLUS:
+            raise RuntimeError("Python version 3.11.0 is required to upgrade a connection to TLS")
+        await self.writer.start_tls(sslcontext=sslcontext,
+                                    server_hostname=server_hostname,
+                                    ssl_handshake_timeout=self.write_timeout)
 
 
 class Throttle:
