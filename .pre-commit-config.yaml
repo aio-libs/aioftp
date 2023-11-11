@@ -41,4 +41,4 @@ repos:
     id: ruff
     name: Check with ruff
     entry: ruff
-    args: ["check", "-v", "--fix", "."]
+    args: ["check", --show-fixes, "."]
