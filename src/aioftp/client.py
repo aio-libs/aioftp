@@ -7,7 +7,6 @@ import logging
 import pathlib
 import re
 import ssl
-import sys
 from functools import partial
 
 from . import errors, pathio
@@ -40,7 +39,6 @@ __all__ = (
     "DataConnectionThrottleStreamIO",
     "Code",
 )
-IS_PY311_PLUS = sys.version_info >= (3, 11, 0)
 logger = logging.getLogger(__name__)
 
 
@@ -658,9 +656,6 @@ class Client(BaseClient):
         :param sslcontext: custom ssl context
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
-        if not IS_PY311_PLUS:
-            raise RuntimeError("Python version 3.11.0 is required to upgrade a connection to TLS")
-
         if self.stream.writer.transport.get_extra_info("ssl_object"):
             return
 
