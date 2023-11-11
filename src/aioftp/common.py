@@ -49,7 +49,9 @@ def _with_timeout(name):
             coro = f(cls, *args, **kwargs)
             timeout = getattr(cls, name)
             return asyncio.wait_for(coro, timeout)
+
         return wrapper
+
     return decorator
 
 
@@ -96,7 +98,6 @@ def with_timeout(name):
 
 
 class AsyncStreamIterator:
-
     def __init__(self, read_coro):
         self.read_coro = read_coro
 
@@ -121,6 +122,7 @@ class AsyncListerMixin:
         ...     ...
         >>> results = await Context(...)
     """
+
     async def _to_list(self):
         items = []
         async for item in self:
@@ -159,6 +161,7 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         >>> result
         [block, block, block, ...]
     """
+
     def __init__(self, *, timeout=None):
         super().__init__()
         self.timeout = timeout
@@ -210,11 +213,10 @@ def async_enterable(f):
         ...     # do
 
     """
+
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-
         class AsyncEnterableInstance:
-
             async def __aenter__(self):
                 self.context = await f(*args, **kwargs)
                 return await self.context.__aenter__()
@@ -257,8 +259,8 @@ class StreamIO:
         `timeout`
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
-    def __init__(self, reader, writer, *, timeout=None, read_timeout=None,
-                 write_timeout=None):
+
+    def __init__(self, reader, writer, *, timeout=None, read_timeout=None, write_timeout=None):
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
@@ -342,8 +344,7 @@ class Throttle:
 
         Wait until can do IO
         """
-        if self._limit is not None and self._limit > 0 and \
-                self._start is not None:
+        if self._limit is not None and self._limit > 0 and self._start is not None:
             now = _now()
             end = self._start + self._sum / self._limit
             await asyncio.sleep(max(0, end - now))
@@ -393,8 +394,7 @@ class Throttle:
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(limit={self._limit!r}, " \
-               f"reset_rate={self.reset_rate!r})"
+        return f"{self.__class__.__name__}(limit={self._limit!r}, " f"reset_rate={self.reset_rate!r})"
 
 
 class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
@@ -407,13 +407,14 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :param write: stream write throttle
     :type write: :py:class:`aioftp.Throttle`
     """
+
     def clone(self):
         """
         Clone throttles without memory
         """
         return StreamThrottle(
             read=self.read.clone(),
-            write=self.write.clone()
+            write=self.write.clone(),
         )
 
     @classmethod
@@ -429,8 +430,10 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
             :py:class:`None` for unlimited
         :type write_speed_limit: :py:class:`int` or :py:class:`None`
         """
-        return cls(read=Throttle(limit=read_speed_limit),
-                   write=Throttle(limit=write_speed_limit))
+        return cls(
+            read=Throttle(limit=read_speed_limit),
+            write=Throttle(limit=write_speed_limit),
+        )
 
 
 class ThrottleStreamIO(StreamIO):

@@ -1,3 +1,0 @@
-sphinx
-alabaster
-docutils < 0.18.0

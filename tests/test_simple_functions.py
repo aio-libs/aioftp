@@ -1,7 +1,7 @@
-import pathlib
 import asyncio
 import datetime
 import itertools
+import pathlib
 
 import pytest
 
@@ -64,6 +64,7 @@ def _c_locale_time(d, format="%b %d %H:%M"):
 def test_parse_ls_date_of_leap_year():
     def date_to_p(d):
         return d.strftime("%Y%m%d%H%M00")
+
     p = aioftp.Client.parse_ls_date
     # Leap year date to test
     d = datetime.datetime(year=2000, month=2, day=29)
@@ -71,39 +72,39 @@ def test_parse_ls_date_of_leap_year():
         # 2016 (leap)
         (
             datetime.datetime(year=2016, month=2, day=29),
-            datetime.datetime(year=2016, month=2, day=29)
+            datetime.datetime(year=2016, month=2, day=29),
         ),
         # 2017
         (
             datetime.datetime(year=2017, month=2, day=28),
-            datetime.datetime(year=2016, month=2, day=29)
+            datetime.datetime(year=2016, month=2, day=29),
         ),
         (
             datetime.datetime(year=2017, month=3, day=1),
-            datetime.datetime(year=2016, month=2, day=29)
+            datetime.datetime(year=2016, month=2, day=29),
         ),
         # 2018
         (
             datetime.datetime(year=2018, month=2, day=28),
-            datetime.datetime(year=2016, month=2, day=29)
+            datetime.datetime(year=2016, month=2, day=29),
         ),
         (
             datetime.datetime(year=2018, month=3, day=1),
-            datetime.datetime(year=2020, month=2, day=29)
+            datetime.datetime(year=2020, month=2, day=29),
         ),
         # 2019
         (
             datetime.datetime(year=2019, month=2, day=28),
-            datetime.datetime(year=2020, month=2, day=29)
+            datetime.datetime(year=2020, month=2, day=29),
         ),
         (
             datetime.datetime(year=2019, month=3, day=1),
-            datetime.datetime(year=2020, month=2, day=29)
+            datetime.datetime(year=2020, month=2, day=29),
         ),
         # 2020 (leap)
         (
             datetime.datetime(year=2020, month=2, day=29),
-            datetime.datetime(year=2020, month=2, day=29)
+            datetime.datetime(year=2020, month=2, day=29),
         ),
     )
     for now, expected in current_and_expected_dates:
@@ -113,6 +114,7 @@ def test_parse_ls_date_of_leap_year():
 def test_parse_ls_date_not_older_than_6_month_format():
     def date_to_p(d):
         return d.strftime("%Y%m%d%H%M00")
+
     p = aioftp.Client.parse_ls_date
     dates = (
         datetime.datetime(year=2002, month=1, day=1),
@@ -128,6 +130,7 @@ def test_parse_ls_date_not_older_than_6_month_format():
 def test_parse_ls_date_older_than_6_month_format():
     def date_to_p(d):
         return d.strftime("%Y%m%d%H%M00")
+
     p = aioftp.Client.parse_ls_date
     dates = (
         datetime.datetime(year=2002, month=1, day=1),
@@ -147,6 +150,7 @@ def test_parse_ls_date_older_than_6_month_format():
 def test_parse_ls_date_short():
     def date_to_p(d):
         return d.strftime("%Y%m%d%H%M00")
+
     p = aioftp.Client.parse_ls_date
     dates = (
         datetime.datetime(year=2002, month=1, day=1),
@@ -170,7 +174,7 @@ def test_parse_list_line_unix():
         ],
         "unknown": [
             "Erw-rw-r--  1 poh  poh   6595 Feb 27 04:14 history.rst",
-        ]
+        ],
     }
     p = aioftp.Client(encoding="utf-8").parse_list_line_unix
     for t, stack in lines.items():

@@ -20,8 +20,13 @@ SIZE = 3 * 100 * 1024  # 300KiB
 @pytest.mark.parametrize("type", ["read", "write"])
 @pytest.mark.parametrize("direction", ["download", "upload"])
 @pytest.mark.asyncio
-async def test_client_side_throttle(pair_factory, skip_sleep, times, type,
-                                    direction):
+async def test_client_side_throttle(
+    pair_factory,
+    skip_sleep,
+    times,
+    type,
+    direction,
+):
     async with pair_factory() as pair:
         await pair.make_server_files("foo", size=SIZE)
         await pair.make_client_files("foo", size=SIZE)
@@ -37,20 +42,34 @@ async def test_client_side_throttle(pair_factory, skip_sleep, times, type,
 @pytest.mark.parametrize("users", [1, 2, 3])
 @pytest.mark.parametrize("throttle_direction", ["read", "write"])
 @pytest.mark.parametrize("data_direction", ["download", "upload"])
-@pytest.mark.parametrize("throttle_level", ["throttle",
-                                            "throttle_per_connection"])
+@pytest.mark.parametrize(
+    "throttle_level",
+    [
+        "throttle",
+        "throttle_per_connection",
+    ],
+)
 @pytest.mark.asyncio
-async def test_server_side_throttle(pair_factory, skip_sleep, times, users,
-                                    throttle_direction, data_direction,
-                                    throttle_level):
+async def test_server_side_throttle(
+    pair_factory,
+    skip_sleep,
+    times,
+    users,
+    throttle_direction,
+    data_direction,
+    throttle_level,
+):
     async with pair_factory() as pair:
         names = []
         for i in range(users):
             name = f"foo{i}"
             names.append(name)
             await pair.make_server_files(name, size=SIZE)
-        throttle = reduce(getattr, [throttle_level, throttle_direction],
-                          pair.server)
+        throttle = reduce(
+            getattr,
+            [throttle_level, throttle_direction],
+            pair.server,
+        )
         throttle.limit = SIZE / times
         clients = []
         for name in names:

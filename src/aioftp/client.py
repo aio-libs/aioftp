@@ -45,6 +45,7 @@ class Code(str):
     """
     Representation of server status code.
     """
+
     def matches(self, mask):
         """
         :param mask: Template for comparision. If mask symbol is not digit
@@ -75,6 +76,7 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
     :param **kwargs: keyword arguments passed to
         :py:class:`aioftp.ThrottleStreamIO`
     """
+
     def __init__(self, client, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = client
@@ -105,20 +107,22 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
 
 class BaseClient:
-
-    def __init__(self, *,
-                 socket_timeout=None,
-                 connection_timeout=None,
-                 read_speed_limit=None,
-                 write_speed_limit=None,
-                 path_timeout=None,
-                 path_io_factory=pathio.PathIO,
-                 encoding="utf-8",
-                 ssl=None,
-                 parse_list_line_custom=None,
-                 parse_list_line_custom_first=True,
-                 passive_commands=("epsv", "pasv"),
-                 **siosocks_asyncio_kwargs):
+    def __init__(
+        self,
+        *,
+        socket_timeout=None,
+        connection_timeout=None,
+        read_speed_limit=None,
+        write_speed_limit=None,
+        path_timeout=None,
+        path_io_factory=pathio.PathIO,
+        encoding="utf-8",
+        ssl=None,
+        parse_list_line_custom=None,
+        parse_list_line_custom_first=True,
+        passive_commands=("epsv", "pasv"),
+        **siosocks_asyncio_kwargs,
+    ):
         self.socket_timeout = socket_timeout
         self.connection_timeout = connection_timeout
         self.throttle = StreamThrottle.from_limits(
@@ -133,8 +137,7 @@ class BaseClient:
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
-        self._open_connection = partial(open_connection, ssl=self.ssl,
-                                        **siosocks_asyncio_kwargs)
+        self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
@@ -223,11 +226,13 @@ class BaseClient:
         if not any(map(received_code.matches, expected_codes)):
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
-    async def command(self,
-                      command=None,
-                      expected_codes=(),
-                      wait_codes=(),
-                      censor_after=None):
+    async def command(
+        self,
+        command=None,
+        expected_codes=(),
+        wait_codes=(),
+        censor_after=None,
+    ):
         """
         :py:func:`asyncio.coroutine`
 
@@ -320,10 +325,10 @@ class BaseClient:
         directory = ""
         for ch in s:
             if not start:
-                if ch == "\"":
+                if ch == '"':
                     start = True
             else:
-                if ch == "\"":
+                if ch == '"':
                     seq_quotes += 1
                 else:
                     if seq_quotes == 1:
@@ -400,13 +405,14 @@ class BaseClient:
             try:
                 if now is None:
                     now = datetime.datetime.now()
-                if s.startswith('Feb 29'):
+                if s.startswith("Feb 29"):
                     # Need to find the nearest previous leap year
                     prev_leap_year = now.year
                     while not calendar.isleap(prev_leap_year):
                         prev_leap_year -= 1
                     d = datetime.datetime.strptime(
-                        f"{prev_leap_year} {s}", "%Y %b %d %H:%M"
+                        f"{prev_leap_year} {s}",
+                        "%Y %b %d %H:%M",
                     )
                     # Check if it's next leap year
                     diff = (now - d).total_seconds()
@@ -472,9 +478,9 @@ class BaseClient:
         s = s[12:].strip()
         if info["type"] == "link":
             i = s.rindex(" -> ")
-            link_dst = s[i + 4:]
+            link_dst = s[i + 4 :]
             link_src = s[:i]
-            i = -2 if link_dst[-1] == "\'" or link_dst[-1] == "\"" else -1
+            i = -2 if link_dst[-1] == "'" or link_dst[-1] == '"' else -1
             info["type"] = "dir" if link_dst[i] == "/" else "file"
             s = link_src
         return pathlib.PurePosixPath(s), info
@@ -491,9 +497,9 @@ class BaseClient:
         """
         line = b.decode(encoding=self.encoding).rstrip("\r\n")
         date_time_end = line.index("M")
-        date_time_str = line[:date_time_end + 1].strip().split(" ")
+        date_time_str = line[: date_time_end + 1].strip().split(" ")
         date_time_str = " ".join([x for x in date_time_str if len(x) > 0])
-        line = line[date_time_end + 1:].lstrip()
+        line = line[date_time_end + 1 :].lstrip()
         with setlocale("C"):
             strptime = datetime.datetime.strptime
             date_time = strptime(date_time_str, "%m/%d/%Y %I:%M %p")
@@ -612,6 +618,7 @@ class Client(BaseClient):
     :type parse_list_line_custom_first: :py:class:`bool`
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
+
     async def connect(self, host, port=DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
@@ -628,8 +635,12 @@ class Client(BaseClient):
         code, info = await self.command(None, "220", "120")
         return info
 
-    async def login(self, user=DEFAULT_USER, password=DEFAULT_PASSWORD,
-                    account=DEFAULT_ACCOUNT):
+    async def login(
+        self,
+        user=DEFAULT_USER,
+        password=DEFAULT_PASSWORD,
+        account=DEFAULT_ACCOUNT,
+    ):
         """
         :py:func:`asyncio.coroutine`
 
@@ -656,8 +667,11 @@ class Client(BaseClient):
                 cmd = "ACCT " + account
             else:
                 raise errors.StatusCodeError("33x", code, info)
-            code, info = await self.command(cmd, ("230", "33x"),
-                                            censor_after=censor_after)
+            code, info = await self.command(
+                cmd,
+                ("230", "33x"),
+                censor_after=censor_after,
+            )
 
     async def get_current_directory(self):
         """
@@ -755,6 +769,7 @@ class Client(BaseClient):
 
             >>> stats = await client.list()
         """
+
         class AsyncLister(AsyncListerMixin):
             stream = None
 
@@ -762,8 +777,9 @@ class Client(BaseClient):
                 cls.path = local_path
                 cls.parse_line = self.parse_mlsx_line
                 if raw_command not in [None, "MLSD", "LIST"]:
-                    raise ValueError("raw_command must be one of MLSD or "
-                                     f"LIST, but got {raw_command}")
+                    raise ValueError(
+                        "raw_command must be one of MLSD or " f"LIST, but got {raw_command}",
+                    )
                 if raw_command in [None, "MLSD"]:
                     try:
                         command = ("MLSD " + str(cls.path)).strip()
@@ -925,7 +941,7 @@ class Client(BaseClient):
             if info["type"] == "file":
                 await self.remove_file(path)
             elif info["type"] == "dir":
-                for name, info in (await self.list(path)):
+                for name, info in await self.list(path):
                     if info["type"] in ("dir", "file"):
                         await self.remove(name)
                 await self.remove_directory(path)
@@ -966,8 +982,7 @@ class Client(BaseClient):
             offset=offset,
         )
 
-    async def upload(self, source, destination="", *, write_into=False,
-                     block_size=DEFAULT_BLOCK_SIZE):
+    async def upload(self, source, destination="", *, write_into=False, block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -994,8 +1009,7 @@ class Client(BaseClient):
             destination = destination / source.name
         if await self.path_io.is_file(source):
             await self.make_directory(destination.parent)
-            async with self.path_io.open(source, mode="rb") as file_in, \
-                    self.upload_stream(destination) as stream:
+            async with self.path_io.open(source, mode="rb") as file_in, self.upload_stream(destination) as stream:
                 async for block in file_in.iter_by_block(block_size):
                     await stream.write(block)
         elif await self.path_io.is_dir(source):
@@ -1016,7 +1030,7 @@ class Client(BaseClient):
                             path,
                             relative,
                             write_into=True,
-                            block_size=block_size
+                            block_size=block_size,
                         )
 
     def download_stream(self, source, *, offset=0):
@@ -1035,8 +1049,7 @@ class Client(BaseClient):
         """
         return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
-    async def download(self, source, destination="", *, write_into=False,
-                       block_size=DEFAULT_BLOCK_SIZE):
+    async def download(self, source, destination="", *, write_into=False, block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1062,19 +1075,25 @@ class Client(BaseClient):
         if not write_into:
             destination = destination / source.name
         if await self.is_file(source):
-            await self.path_io.mkdir(destination.parent,
-                                     parents=True, exist_ok=True)
-            async with self.path_io.open(destination, mode="wb") as file_out, \
-                    self.download_stream(source) as stream:
+            await self.path_io.mkdir(
+                destination.parent,
+                parents=True,
+                exist_ok=True,
+            )
+            async with self.path_io.open(destination, mode="wb") as file_out, self.download_stream(source) as stream:
                 async for block in stream.iter_by_block(block_size):
                     await file_out.write(block)
         elif await self.is_dir(source):
             await self.path_io.mkdir(destination, parents=True, exist_ok=True)
-            for name, info in (await self.list(source)):
+            for name, info in await self.list(source):
                 full = destination / name.relative_to(source)
                 if info["type"] in ("file", "dir"):
-                    await self.download(name, full, write_into=True,
-                                        block_size=block_size)
+                    await self.download(
+                        name,
+                        full,
+                        write_into=True,
+                        block_size=block_size,
+                    )
 
     async def quit(self):
         """
@@ -1095,8 +1114,11 @@ class Client(BaseClient):
         ip, port = self.parse_pasv_response(info[-1])
         return ip, port
 
-    async def get_passive_connection(self, conn_type="I",
-                                     commands=None):
+    async def get_passive_connection(
+        self,
+        conn_type="I",
+        commands=None,
+    ):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1185,9 +1207,9 @@ class Client(BaseClient):
 
     @classmethod
     @contextlib.asynccontextmanager
-    async def context(cls, host, port=DEFAULT_PORT, user=DEFAULT_USER,
-                      password=DEFAULT_PASSWORD, account=DEFAULT_ACCOUNT,
-                      **kwargs):
+    async def context(
+        cls, host, port=DEFAULT_PORT, user=DEFAULT_USER, password=DEFAULT_PASSWORD, account=DEFAULT_ACCOUNT, **kwargs
+    ):
         """
         Classmethod async context manager. This create
         :py:class:`aioftp.Client`, make async call to
