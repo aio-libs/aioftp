@@ -82,6 +82,7 @@ target-version = ["py311"]
 line-length = 120
 target-version = "py311"
 select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
+src = ["src"]
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
