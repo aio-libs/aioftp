@@ -10,9 +10,8 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.11'
-    - run: |
-        pip install -e ./[dev]
-        pre-commit run -a
+    - run: pip install -e ./[dev]
+    - run: pre-commit run -a
 
   tests:
     needs: lint
@@ -25,9 +24,8 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - run: |
-        pip install -e ./[dev]
-        pytest
+    - run: pip install -e ./[dev]
+    - run: pytest
     - uses: codecov/codecov-action@v2
       if: github.ref == 'refs/heads/master'
       with:
