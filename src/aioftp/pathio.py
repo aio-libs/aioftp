@@ -46,6 +46,7 @@ class AsyncPathIOContext:
         ... await file.close()
 
     """
+
     def __init__(self, pathio, args, kwargs):
         self.close = None
         self.pathio = pathio
@@ -77,12 +78,16 @@ def universal_exception(coro):
     `NotImplementedError`) with universal exception
     :py:class:`aioftp.PathIOError`
     """
+
     @functools.wraps(coro)
     async def wrapper(*args, **kwargs):
         try:
             return await coro(*args, **kwargs)
-        except (asyncio.CancelledError, NotImplementedError,
-                StopAsyncIteration):
+        except (
+            asyncio.CancelledError,
+            NotImplementedError,
+            StopAsyncIteration,
+        ):
             raise
         except Exception as exc:
             raise errors.PathIOError(reason=sys.exc_info()) from exc
@@ -91,7 +96,6 @@ def universal_exception(coro):
 
 
 class PathIONursery:
-
     def __init__(self, factory):
         self.factory = factory
         self.state = None
@@ -108,12 +112,15 @@ def defend_file_methods(coro):
     Decorator. Raises exception when file methods called with wrapped by
     :py:class:`aioftp.AsyncPathIOContext` file object.
     """
+
     @functools.wraps(coro)
     async def wrapper(self, file, *args, **kwargs):
         if isinstance(file, AsyncPathIOContext):
-            raise ValueError("Native path io file methods can not be used "
-                             "with wrapped file object")
+            raise ValueError(
+                "Native path io file methods can not be used " "with wrapped file object",
+            )
         return await coro(self, file, *args, **kwargs)
+
     return wrapper
 
 
@@ -129,6 +136,7 @@ class AbstractPathIO(abc.ABC):
 
     :param state: shared pathio state per server
     """
+
     def __init__(self, timeout=None, connection=None, state=None):
         self.timeout = timeout
         self.connection = connection
@@ -405,7 +413,6 @@ class PathIO(AbstractPathIO):
         return path.unlink()
 
     def list(self, path):
-
         class Lister(AbstractAsyncLister):
             iter = None
 
@@ -460,6 +467,7 @@ def _blocking_io(f):
             self.executor,
             functools.partial(f, self, *args, **kwargs),
         )
+
     return wrapper
 
 
@@ -473,6 +481,7 @@ class AsyncPathIO(AbstractPathIO):
     :param executor: executor for running blocking tasks
     :type executor: :py:class:`concurrent.futures.Executor`
     """
+
     def __init__(self, *args, executor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.executor = executor
@@ -514,7 +523,6 @@ class AsyncPathIO(AbstractPathIO):
         return path.unlink()
 
     def list(self, path):
-
         class Lister(AbstractAsyncLister):
             iter = None
 
@@ -586,7 +594,6 @@ class AsyncPathIO(AbstractPathIO):
 
 
 class Node:
-
     def __init__(self, type, name, ctime=None, mtime=None, *, content):
         self.type = type
         self.name = name
@@ -595,9 +602,11 @@ class Node:
         self.content = content
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(type={self.type!r}, " \
-               f"name={self.name!r}, ctime={self.ctime!r}, " \
-               f"mtime={self.mtime!r}, content={self.content!r})"
+        return (
+            f"{self.__class__.__name__}(type={self.type!r}, "
+            f"name={self.name!r}, ctime={self.ctime!r}, "
+            f"mtime={self.mtime!r}, content={self.content!r})"
+        )
 
 
 class MemoryPathIO(AbstractPathIO):
@@ -614,7 +623,7 @@ class MemoryPathIO(AbstractPathIO):
             "st_mtime",
             "st_nlink",
             "st_mode",
-        )
+        ),
     )
 
     def __init__(self, *args, state=None, cwd=None, **kwargs):
@@ -727,7 +736,6 @@ class MemoryPathIO(AbstractPathIO):
         parent.content.pop(i)
 
     def list(self, path):
-
         class Lister(AbstractAsyncLister):
             iter = None
 

@@ -46,7 +46,7 @@ async def test_custom_passive_commands(pair_factory):
         pair.client._passive_commands = None
         await pair.client.get_passive_connection(
             "A",
-            commands=["pasv", "epsv"]
+            commands=["pasv", "epsv"],
         )
 
 
@@ -82,8 +82,11 @@ async def test_pasv_connection_ports_not_added(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_ports(pair_factory, Server,
-                                     unused_tcp_port_factory):
+async def test_pasv_connection_ports(
+    pair_factory,
+    Server,
+    unused_tcp_port_factory,
+):
     ports = [unused_tcp_port_factory(), unused_tcp_port_factory()]
     async with pair_factory(None, Server(data_ports=ports)) as pair:
         r, w = await pair.client.get_passive_connection()
@@ -99,8 +102,11 @@ async def test_data_ports_remains_empty(pair_factory, Server):
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_port_reused(pair_factory, Server,
-                                           unused_tcp_port):
+async def test_pasv_connection_port_reused(
+    pair_factory,
+    Server,
+    unused_tcp_port,
+):
     s = Server(data_ports=[unused_tcp_port])
     async with pair_factory(None, s) as pair:
         r, w = await pair.client.get_passive_connection()
@@ -111,8 +117,10 @@ async def test_pasv_connection_port_reused(pair_factory, Server,
         await pair.client.quit()
         pair.client.close()
         assert pair.server.available_data_ports.qsize() == 1
-        await pair.client.connect(pair.server.server_host,
-                                  pair.server.server_port)
+        await pair.client.connect(
+            pair.server.server_host,
+            pair.server.server_port,
+        )
         await pair.client.login()
         r, w = await pair.client.get_passive_connection()
         host, port, *_ = w.transport.get_extra_info("peername")
@@ -121,9 +129,11 @@ async def test_pasv_connection_port_reused(pair_factory, Server,
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_pasv_forced_response_address(pair_factory,
-                                                            Server,
-                                                            unused_tcp_port):
+async def test_pasv_connection_pasv_forced_response_address(
+    pair_factory,
+    Server,
+    unused_tcp_port,
+):
     def ipv4_used():
         try:
             ipaddress.IPv4Address(pair.host)
@@ -132,9 +142,9 @@ async def test_pasv_connection_pasv_forced_response_address(pair_factory,
             return False
 
     async with pair_factory(
-        server=Server(ipv4_pasv_forced_response_address='127.0.0.2'),
+        server=Server(ipv4_pasv_forced_response_address="127.0.0.2"),
     ) as pair:
-        assert pair.server.ipv4_pasv_forced_response_address == '127.0.0.2'
+        assert pair.server.ipv4_pasv_forced_response_address == "127.0.0.2"
 
         if ipv4_used():
             # The connection fails here because the server starts to listen for
@@ -145,19 +155,22 @@ async def test_pasv_connection_pasv_forced_response_address(pair_factory,
             # pair.server.ipv4_pasv_forced_response_address failed to know that
             # the server returned correct external IP
             with pytest.raises(OSError):
-                await pair.client.get_passive_connection(commands=['pasv'])
+                await pair.client.get_passive_connection(commands=["pasv"])
 
         # With epsv the connection should open as that does not use the
         # external IPv4 address but just tells the client the port to connect
         # to
-        await pair.client.get_passive_connection(commands=['epsv'])
+        await pair.client.get_passive_connection(commands=["epsv"])
 
 
 @pytest.mark.parametrize("method", ["epsv", "pasv"])
 @pytest.mark.asyncio
-async def test_pasv_connection_no_free_port(pair_factory, Server,
-                                            expect_codes_in_exception,
-                                            method):
+async def test_pasv_connection_no_free_port(
+    pair_factory,
+    Server,
+    expect_codes_in_exception,
+    method,
+):
     s = Server(data_ports=[])
     async with pair_factory(None, s, do_quit=False, host="127.0.0.1") as pair:
         assert pair.server.available_data_ports.qsize() == 0
@@ -166,8 +179,11 @@ async def test_pasv_connection_no_free_port(pair_factory, Server,
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_busy_port(pair_factory, Server,
-                                         unused_tcp_port_factory):
+async def test_pasv_connection_busy_port(
+    pair_factory,
+    Server,
+    unused_tcp_port_factory,
+):
     ports = [unused_tcp_port_factory(), unused_tcp_port_factory()]
     async with pair_factory(None, Server(data_ports=ports)) as pair:
         conflicting_server = await asyncio.start_server(
@@ -184,9 +200,12 @@ async def test_pasv_connection_busy_port(pair_factory, Server,
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_busy_port2(pair_factory, Server,
-                                          unused_tcp_port_factory,
-                                          expect_codes_in_exception):
+async def test_pasv_connection_busy_port2(
+    pair_factory,
+    Server,
+    unused_tcp_port_factory,
+    expect_codes_in_exception,
+):
     ports = [unused_tcp_port_factory()]
     s = Server(data_ports=ports)
     async with pair_factory(None, s, do_quit=False) as pair:
@@ -218,8 +237,10 @@ async def test_client_session_context_manager(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_long_login_sequence_fail(pair_factory,
-                                        expect_codes_in_exception):
+async def test_long_login_sequence_fail(
+    pair_factory,
+    expect_codes_in_exception,
+):
     class CustomServer(aioftp.Server):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -237,8 +258,11 @@ async def test_long_login_sequence_fail(pair_factory,
             connection.response("333")
             return True
 
-    factory = pair_factory(logged=False, server_factory=CustomServer,
-                           do_quit=False)
+    factory = pair_factory(
+        logged=False,
+        server_factory=CustomServer,
+        do_quit=False,
+    )
     async with factory as pair:
         with expect_codes_in_exception("333"):
             await pair.client.login()
@@ -249,6 +273,7 @@ async def test_bad_sublines_seq(pair_factory, expect_codes_in_exception):
     class CustomServer(aioftp.Server):
         async def write_response(self, stream, code, lines="", list=False):
             import functools
+
             lines = aioftp.wrap_with_container(lines)
             write = functools.partial(self.write_line, stream)
             *body, tail = lines
@@ -260,6 +285,8 @@ async def test_bad_sublines_seq(pair_factory, expect_codes_in_exception):
     factory = pair_factory(connected=False, server_factory=CustomServer)
     async with factory as pair:
         with expect_codes_in_exception("220"):
-            await pair.client.connect(pair.server.server_host,
-                                      pair.server.server_port)
+            await pair.client.connect(
+                pair.server.server_host,
+                pair.server.server_port,
+            )
             await pair.client.login()

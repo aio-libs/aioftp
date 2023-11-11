@@ -14,8 +14,10 @@ async def test_client_fallback_to_pasv_at_list(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_client_fail_fallback_to_pasv_at_list(pair_factory,
-                                                    expect_codes_in_exception):
+async def test_client_fail_fallback_to_pasv_at_list(
+    pair_factory,
+    expect_codes_in_exception,
+):
     async with pair_factory(host="127.0.0.1") as pair:
         pair.server.commands_mapping["epsv"] = not_implemented
         with expect_codes_in_exception("502"):

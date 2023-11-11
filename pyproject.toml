@@ -1,0 +1,98 @@
+[project]
+name = "aioftp"
+version = "0.21.4"
+description = "ftp client/server for asyncio"
+readme = "README.rst"
+requires-python = ">= 3.11"
+license = {file = "license.txt"}
+authors = [
+    {name = "pohmelie", email = "multisosnooley@gmail.com"},
+    {name = "yieyu"},
+    {name = "rsichnyi"},
+    {name = "jw4js"},
+    {name = "asvetlov", email = "andrew.svetlov@gmail.com"},
+    {name = "decaz", email = "decaz89@gmail.com"},
+    {name = "oleksandr-kuzmenko"},
+    {name = "ndhansen"},
+    {name = "janneronkko", email="janne.ronkko@iki.fi"},
+    {name = "thirtyseven", email="ted@shlashdot.org"},
+    {name = "modelmat"},
+    {name = "greut"},
+    {name = "ported-pw", email="contact@ported.pw"},
+    {name = "PonyPC"},
+    {name = "jacobtomlinson"},
+    {name = "Olegt0rr", email="t0rr@mail.ru"},
+    {name = "michalc", email="michal@charemza.name"},
+    {name = "bachya"},
+    {name = "ch3pjw", email="paul@concertdaw.co.uk"},
+    {name = "puddly", email="puddly3@gmail.com"},
+    {name = "CrafterKolyan"},
+    {name = "jkr78"},
+    {name = "AMDmi3", email="amdmi3@amdmi3.ru"},
+    {name = "webknjaz", email="webknjaz+github/profile@redhat.com"},
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Internet :: File Transfer Protocol (FTP)",
+]
+
+[project.urls]
+Github = "https://github.com/aio-libs/aioftp"
+Documentation = "https://aioftp.readthedocs.io"
+
+[project.optional-dependencies]
+socks = [
+    "siosocks >= 0.2.0",
+]
+dev = [
+    # tests
+    "async_timeout >= 4.0.0",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest",
+    "siosocks",
+    "trustme",
+
+    # linters
+    "pre-commit",
+    "black",
+    "ruff",
+
+    # docs
+    "sphinx",
+    "alabaster",
+    "docutils < 0.18.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages.find.where = ["src"]
+
+# tools
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
+src = ["src"]
+
+[tool.coverage]
+run.source = ["./src/aioftp"]
+run.omit = ["./src/aioftp/__main__.py"]
+report.show_missing = true
+
+[tool.pytest.ini_options]
+addopts = "-x --durations 10 -p no:anyio --cov"
+testpaths = "tests"
+log_format = "%(asctime)s.%(msecs)03d %(name)-20s %(levelname)-8s %(filename)-15s %(lineno)-4d %(message)s"
+log_date_format = "%H:%M:%S"
+log_level = "DEBUG"
+asyncio_mode = "strict"

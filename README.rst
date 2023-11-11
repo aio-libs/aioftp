@@ -6,8 +6,8 @@
 aioftp
 ======
 
-.. image:: https://github.com/aio-libs/aioftp/actions/workflows/ci.yml/badge.svg?branch=master
-   :target: https://github.com/aio-libs/aioftp/actions/workflows/ci.yml
+.. image:: https://github.com/aio-libs/aioftp/actions/workflows/ci.yaml/badge.svg?branch=master
+   :target: https://github.com/aio-libs/aioftp/actions/workflows/ci.yaml
    :alt: Github actions ci for master branch
 
 .. image:: https://codecov.io/gh/aio-libs/aioftp/branch/master/graph/badge.svg
@@ -100,7 +100,9 @@ pyftpdlib 1.5.2
 Dependencies
 ------------
 
-- Python 3.7+
+- Python 3.11+
+
+0.21.4 is the last version which supports python 3.7+
 
 0.13.0 is the last version which supports python 3.5.3+
 

@@ -49,8 +49,10 @@ async def test_change_directory(pair_factory):
 
 
 @pytest.mark.asyncio
-async def test_change_directory_not_exist(pair_factory,
-                                          expect_codes_in_exception):
+async def test_change_directory_not_exist(
+    pair_factory,
+    expect_codes_in_exception,
+):
     async with pair_factory() as pair:
         with expect_codes_in_exception("550"):
             await pair.client.change_directory("bar")
@@ -79,9 +81,7 @@ async def test_rename_non_empty_directory(pair_factory):
 
 
 class FakeErrorPathIO(aioftp.MemoryPathIO):
-
     def list(self, path):
-
         class Lister(aioftp.AbstractAsyncLister):
             @aioftp.pathio.universal_exception
             async def __anext__(self):
@@ -91,8 +91,11 @@ class FakeErrorPathIO(aioftp.MemoryPathIO):
 
 
 @pytest.mark.asyncio
-async def test_exception_in_list(pair_factory, Server,
-                                 expect_codes_in_exception):
+async def test_exception_in_list(
+    pair_factory,
+    Server,
+    expect_codes_in_exception,
+):
     s = Server(path_io_factory=FakeErrorPathIO)
     async with pair_factory(None, s) as pair:
         with expect_codes_in_exception("451"):

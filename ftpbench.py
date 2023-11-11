@@ -128,9 +128,11 @@ else:
 
 
 def print_bench(what, value, unit=""):
-    s = "%s %s %-8s" % (hilite("%-50s" % what, ok=None, bold=0),
-                        hilite("%8.2f" % value),
-                        unit)
+    s = "%s %s %-8s" % (
+        hilite("%-50s" % what, ok=None, bold=0),
+        hilite("%8.2f" % value),
+        unit,
+    )
     if server_memory:
         s += "%s" % hilite(server_memory.pop())
     print(s.strip())
@@ -356,8 +358,11 @@ def bench_multi(howmany):
 
     def bench_multi_retr(clients):
         stor(clients[0])
-        with timethis("%s concurrent clients (RETR %s file)" % (
-                howmany, bytes2human(FILE_SIZE))):
+        with timethis(
+            "%s concurrent clients (RETR %s file)" % (
+            howmany, bytes2human(FILE_SIZE),
+            ),
+        ):
             for ftp in clients:
                 ftp.voidcmd('TYPE I')
                 conn = ftp.transfercmd("RETR " + TESTFN)
@@ -368,8 +373,11 @@ def bench_multi(howmany):
             ftp.voidresp()
 
     def bench_multi_stor(clients):
-        with timethis("%s concurrent clients (STOR %s file)" % (
-                howmany, bytes2human(FILE_SIZE))):
+        with timethis(
+            "%s concurrent clients (STOR %s file)" % (
+            howmany, bytes2human(FILE_SIZE),
+            ),
+        ):
             for ftp in clients:
                 ftp.voidcmd('TYPE I')
                 conn = ftp.transfercmd("STOR " + TESTFN)
@@ -490,35 +498,55 @@ def main():
         DEBUG
     USAGE = "%s -u USERNAME -p PASSWORD [-H] [-P] [-b] [-n] [-s] [-k] " \
             "[-t] [-d] [-S]" % (os.path.basename(__file__))
-    parser = optparse.OptionParser(usage=USAGE,
-                                   epilog=__doc__[__doc__.find('Example'):],
-                                   formatter=OptFormatter())
+    parser = optparse.OptionParser(
+        usage=USAGE,
+        epilog=__doc__[__doc__.find('Example'):],
+        formatter=OptFormatter(),
+    )
     parser.add_option('-u', '--user', dest='user', help='username')
     parser.add_option('-p', '--pass', dest='password', help='password')
-    parser.add_option('-H', '--host', dest='host', default=HOST,
-                      help='hostname')
-    parser.add_option('-P', '--port', dest='port', default=PORT, help='port',
-                      type=int)
-    parser.add_option('-b', '--benchmark', dest='benchmark',
-                      default='transfer',
-                      help="benchmark type ('transfer', 'download', 'upload', "
-                           "'concurrence', 'all')")
-    parser.add_option('-n', '--clients', dest='clients', default=200,
-                      type="int",
-                      help="number of concurrent clients used by "
-                           "'concurrence' benchmark")
-    parser.add_option('-s', '--filesize', dest='filesize', default="10M",
-                      help="file size used by 'concurrence' benchmark "
-                           "(e.g. '10M')")
-    parser.add_option('-k', '--pid', dest='pid', default=None, type="int",
-                      help="the PID of the FTP server process, to track its "
-                           "memory usage")
-    parser.add_option('-t', '--timeout', dest='timeout',
-                      default=TIMEOUT, type="int", help="the socket timeout")
-    parser.add_option('-d', '--debug', action='store_true', dest='debug',
-                      help="whether to print debugging info")
-    parser.add_option('-S', '--ssl', action='store_true', dest='ssl',
-                      help="whether to use FTPS")
+    parser.add_option(
+        '-H', '--host', dest='host', default=HOST,
+        help='hostname',
+    )
+    parser.add_option(
+        '-P', '--port', dest='port', default=PORT, help='port',
+        type=int,
+    )
+    parser.add_option(
+        '-b', '--benchmark', dest='benchmark',
+        default='transfer',
+        help="benchmark type ('transfer', 'download', 'upload', "
+             "'concurrence', 'all')",
+    )
+    parser.add_option(
+        '-n', '--clients', dest='clients', default=200,
+        type="int",
+        help="number of concurrent clients used by "
+             "'concurrence' benchmark",
+    )
+    parser.add_option(
+        '-s', '--filesize', dest='filesize', default="10M",
+        help="file size used by 'concurrence' benchmark "
+             "(e.g. '10M')",
+    )
+    parser.add_option(
+        '-k', '--pid', dest='pid', default=None, type="int",
+        help="the PID of the FTP server process, to track its "
+             "memory usage",
+    )
+    parser.add_option(
+        '-t', '--timeout', dest='timeout',
+        default=TIMEOUT, type="int", help="the socket timeout",
+    )
+    parser.add_option(
+        '-d', '--debug', action='store_true', dest='debug',
+        help="whether to print debugging info",
+    )
+    parser.add_option(
+        '-S', '--ssl', action='store_true', dest='ssl',
+        help="whether to use FTPS",
+    )
 
     options, args = parser.parse_args()
     if not options.user or not options.password:
@@ -554,8 +582,11 @@ def main():
     # start benchmark
     if SERVER_PROC is not None:
         register_memory()
-        print("(starting with %s of memory being used)" % (
-            hilite(server_memory.pop())))
+        print(
+            "(starting with %s of memory being used)" % (
+            hilite(server_memory.pop())
+            ),
+        )
     if options.benchmark == 'download':
         stor()
         bench_retr()

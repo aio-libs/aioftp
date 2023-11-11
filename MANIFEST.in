@@ -1,6 +1,4 @@
 include README.rst
 include license.txt
 include history.rst
-include doc-requirements.txt
-include nose.cfg
 recursive-include tests *
