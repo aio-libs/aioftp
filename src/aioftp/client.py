@@ -646,12 +646,10 @@ class Client(BaseClient):
         :py:func:`asyncio.coroutine`
 
         Attempts to upgrade the connection to TLS (explicit TLS).
-        Downgrading via the CCC or REIN commands is not supported.  You may
-        call this command at any point during the connection.  Both the command
-        and data channels will be encrypted after using this command.
-
-        asyncio.StreamWriter.start_tls() was added in 3.11.  Using this function
-        with an unsupported Python version will raise a RuntimeError.
+        Downgrading via the CCC or REIN commands is not supported.  Both the command
+        and data channels will be encrypted after using this command.  You may
+        call this command at any point during the connection, but not every FTP server
+        will allow a connection upgrade after logging in.
 
         :param sslcontext: custom ssl context
         :type sslcontext: :py:class:`ssl.SSLContext`
