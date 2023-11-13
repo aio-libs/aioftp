@@ -25,6 +25,7 @@ from .common import (
     async_enterable,
     setlocale,
     wrap_with_container,
+    SSLSessionBoundContext
 )
 
 try:
@@ -1231,8 +1232,12 @@ class Client(BaseClient):
             timeout=self.socket_timeout,
         )
         if self.explicit_tls:
+            ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
             try:
-                await stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
+                await writer.start_tls(sslcontext=SSLSessionBoundContext(ssl.PROTOCOL_TLS_CLIENT,
+                                                                         context=ssl_object.context,
+                                                                         session=ssl_object.session),
+                                       server_hostname=self.server_host)
             except ssl.SSLError as e:
                 raise errors.TLSError("Unable to upgrade data connection to TLS") from e
         return stream
