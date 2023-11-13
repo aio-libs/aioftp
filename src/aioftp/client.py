@@ -677,7 +677,11 @@ class Client(BaseClient):
             raise errors.TLSError("Unable to upgrade connection to TLS") from e
 
         if self.logged_in:
-            await self._send_tls_protection_commands()
+            try:
+                await self._send_tls_protection_commands()
+            except errors.StatusCodeError as e:
+                raise errors.TLSError("Connection was upgraded to TLS, but the commands to upgrade the data channel"
+                                      f"have failed {e.received_codes=}: {e.info}")
 
     async def login(self, user=DEFAULT_USER, password=DEFAULT_PASSWORD,
                     account=DEFAULT_ACCOUNT):
@@ -714,7 +718,11 @@ class Client(BaseClient):
                                             censor_after=censor_after)
         self.logged_in = True
         if self.explicit_tls:
-            await self._send_tls_protection_commands()
+            try:
+                await self._send_tls_protection_commands()
+            except errors.StatusCodeError as e:
+                raise errors.TLSError("Connection was upgraded to TLS, but the commands to upgrade the data channel"
+                                      f"have failed {e.received_codes=}: {e.info}")
 
     async def get_current_directory(self):
         """
