@@ -1,5 +1,10 @@
 x.x.x (xx-xx-xxxx)
 
+0.22.1 (29-12-2023)
+-------------------
+- docs: update/fix readthedocs configuration
+- ci: fix workflow file extension from `yaml` to `yml`
+
 0.22.0 (29-12-2023)
 -------------------
 - client.list: fix infinite symlink loop for `.` and `..` on FTP servers with UNIX-like filesystem for `client.list(path, recursive=True)`
