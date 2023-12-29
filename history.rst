@@ -5,6 +5,7 @@ x.x.x (xx-xx-xxxx)
 - client.list: fix infinite symlink loop for `.` and `..` on FTP servers with UNIX-like filesystem for `client.list(path, recursive=True)`
 - project file structure: refactor to use `pyproject.toml`
 - minimal python version bumped to 3.11
+- ci: update publish/deploy job (#171)
 
 0.21.4 (13-10-2022)
 -------------------
