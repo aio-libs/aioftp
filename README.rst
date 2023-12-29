@@ -102,11 +102,11 @@ Dependencies
 
 - Python 3.11+
 
-0.21.4 is the last version which supports python 3.7+
-
 0.13.0 is the last version which supports python 3.5.3+
 
 0.16.1 is the last version which supports python 3.6+
+
+0.21.4 is the last version which supports python 3.7+
 
 License
 -------
