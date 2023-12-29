@@ -1,5 +1,7 @@
-name: build
+name: ci/cd
 on: [push, pull_request]
+env:
+  lowest_python_version: 3.11
 
 jobs:
 
@@ -9,11 +11,11 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
       with:
-        python-version: '3.11'
+        python-version: ${{ env.lowest_python_version }}
     - run: pip install -e ./[dev]
     - run: pre-commit run -a
 
-  tests:
+  test:
     needs: lint
     runs-on: ubuntu-latest
     strategy:
@@ -27,20 +29,24 @@ jobs:
     - run: pip install -e ./[dev]
     - run: pytest
     - uses: codecov/codecov-action@v2
-      if: github.ref == 'refs/heads/master'
       with:
         fail_ci_if_error: true
         verbose: true
 
-  deploy:
-    needs: tests
+  publish:
+    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref_type == 'tag'
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    environment:
+      name: pypi
+      url: https://pypi.org/p/aioftp
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
-    - uses: casperdcl/deploy-pypi@v2
       with:
-        password: ${{ secrets.PYPI_TOKEN }}
-        build: true
-        skip_existing: true
+        python-version: ${{ env.lowest_python_version }}
+    - run: python -m pip install build
+    - run: python -m build
+    - uses: pypa/gh-action-pypi-publish@release/v1
