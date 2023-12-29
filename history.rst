@@ -1,5 +1,9 @@
 x.x.x (xx-xx-xxxx)
 
+0.22.2 (29-12-2023)
+-------------------
+- ci: separate build and publish jobs
+
 0.22.1 (29-12-2023)
 -------------------
 - docs: update/fix readthedocs configuration
