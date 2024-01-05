@@ -3,7 +3,7 @@ name = "aioftp"
 version = "0.22.2"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
-requires-python = ">= 3.11"
+requires-python = ">= 3.8"
 license = {file = "license.txt"}
 authors = [
     {name = "pohmelie", email = "multisosnooley@gmail.com"},
@@ -76,11 +76,11 @@ packages.find.where = ["src"]
 # tools
 [tool.black]
 line-length = 120
-target-version = ["py311"]
+target-version = ["py38"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py38"
 select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 

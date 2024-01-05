@@ -100,7 +100,7 @@ pyftpdlib 1.5.2
 Dependencies
 ------------
 
-- Python 3.11+
+- Python 3.8+
 
 0.13.0 is the last version which supports python 3.5.3+
 
