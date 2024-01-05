@@ -1,5 +1,8 @@
 x.x.x (xx-xx-xxxx)
 
+0.22.3 (05-01-2024)
+- minimal python version downgraded to 3.8
+
 0.22.2 (29-12-2023)
 -------------------
 - ci: separate build and publish jobs
