@@ -163,6 +163,7 @@ def universal_exception(coro: Callable[_Ps, Coroutine[None, None, _T]]) -> Calla
 
 class PathIONursery:
     state: Optional[Union[List[_NodeProtocol], io.BytesIO]]
+    factory: Type["AbstractPathIO"]
 
     def __init__(self, factory: Type["AbstractPathIO"]):
         self.factory = factory
@@ -210,6 +211,9 @@ class AbstractPathIO(abc.ABC):
 
     :param state: shared pathio state per server
     """
+
+    timeout: Optional[Union[float, int]]
+    connection: Optional["Connection"]
 
     def __init__(
         self,
@@ -581,6 +585,8 @@ class AsyncPathIO(AbstractPathIO):
     :param executor: executor for running blocking tasks
     :type executor: :py:class:`concurrent.futures.Executor`
     """
+
+    executor: Optional[futures.Executor]
 
     def __init__(
         self,

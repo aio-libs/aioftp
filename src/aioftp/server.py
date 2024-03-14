@@ -146,6 +146,10 @@ class Permission:
     :type writable: :py:class:`bool`
     """
 
+    path: pathlib.PurePosixPath
+    readable: bool
+    writable: bool
+
     def __init__(
         self,
         path: Union[str, pathlib.PurePosixPath] = "/",
@@ -295,6 +299,8 @@ class AbstractUserManager(abc.ABC):
         PASSWORD_REQUIRED = enum.auto()
         ERROR = enum.auto()
 
+    timeout: Optional[Union[float, int]]
+
     def __init__(self, *, timeout: Optional[Union[float, int]] = None) -> None:
         self.timeout = timeout
 
@@ -344,6 +350,9 @@ class MemoryUserManager(AbstractUserManager):
     :type users: :py:class:`list`, :py:class:`tuple`, etc. of
         :py:class:`aioftp.User`
     """
+
+    users: Sequence[User]
+    available_connections: Dict[User, "AvailableConnections"]
 
     def __init__(self, users: Optional[Sequence[User]], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -464,6 +473,8 @@ class AvailableConnections:
     crossing. If value is :py:class:`None` have no limits (bounds checks).
     """
 
+    value: Optional[int]
+
     def __init__(self, value: Optional[int] = None):
         self.value = self.maximum_value = value
 
@@ -540,6 +551,9 @@ class ConnectionConditions:
     data_connection_made = _ConnectionCondition("data_connection", "no data connection made")
     rename_from_required = _ConnectionCondition("rename_from", "no filename (use RNFR firstly)")
     fields: Tuple[_ConnectionCondition, ...]
+    wait: bool
+    fail_code: _FAIL_CODE
+    fail_info: Optional[str]
 
     def __init__(
         self,
@@ -625,6 +639,7 @@ class PathConditions:
     path_must_not_exists: Final[_PathCondition] = _PathCondition("exists", True, "path already exists")
     path_must_be_dir: Final[_PathCondition] = _PathCondition("is_dir", False, "path is not a directory")
     path_must_be_file: Final[_PathCondition] = _PathCondition("is_file", False, "path is not a file")
+    conditions: Tuple[_PathCondition, ...]
 
     def __init__(self, *conditions: _PathCondition) -> None:
         self.conditions = conditions
@@ -686,8 +701,9 @@ class PathPermissions:
         ...     ...
     """
 
-    readable = "readable"
-    writable = "writable"
+    readable: Final[str] = "readable"
+    writable: Final[str] = "writable"
+    permissions: Tuple[str, ...]
 
     def __init__(self, *permissions: str):
         self.permissions = permissions

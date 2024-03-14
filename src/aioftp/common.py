@@ -570,6 +570,8 @@ class ThrottleStreamIO(StreamIO):
         ... )
     """
 
+    throttles: Dict[str, StreamThrottle]
+
     def __init__(self, *args: Any, throttles: Dict[str, StreamThrottle] = {}, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.throttles = throttles
