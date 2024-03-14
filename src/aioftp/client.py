@@ -612,7 +612,7 @@ class BaseClient:
                 "unix.links": info["unix.links"],
                 "unix.owner": info["unix.owner"],
                 "unix.group": info["unix.group"],
-            }
+            },
         )
 
     def parse_list_line_windows(self, b: bytes) -> Tuple[pathlib.PurePosixPath, WindowsInfoDict]:

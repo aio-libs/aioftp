@@ -775,7 +775,7 @@ class Node:
         return (
             f"{self.__class__.__name__}(type={self.type!r}, "
             f"name={self.name!r}, ctime={self.ctime!r}, "
-            f"mtime={self.mtime!r}, content={self.content!r})"
+            f"mtime={self.mtime!r}, content={self.content!r}"
         )
 
 

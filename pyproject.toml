@@ -116,7 +116,7 @@ show_absolute_path = true
 pretty = true
 strict = true
 enable_error_code = [
-    "explicit-override", 
+    "explicit-override",
     "redundant-self", "redundant-expr", "possibly-undefined",
 ]
 warn_unreachable = true
