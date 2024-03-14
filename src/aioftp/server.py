@@ -710,7 +710,7 @@ class PathPermissions:
     writable: Final[str] = "writable"
     permissions: Tuple[str, ...]
 
-    def __init__(self, *permissions: str):
+    def __init__(self, *permissions: str) -> None:
         self.permissions = permissions
 
     def __call__(
