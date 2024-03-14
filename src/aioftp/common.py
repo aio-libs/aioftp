@@ -175,7 +175,7 @@ class AsyncStreamIterator(Generic[_T]):
 
 class AsyncListerMixin(
     AsyncIterable[_T],
-    Awaitable[Tuple[_T, ...]],
+    Awaitable[List[_T]],
     Generic[_T],
 ):
     """
@@ -188,12 +188,15 @@ class AsyncListerMixin(
         >>> results = await Context(...)
     """
 
-    async def _to_tuple(self) -> Tuple[_T, ...]:
-        return tuple([item async for item in self])
+    async def _to_list(self) -> List[_T]:
+        items: List[_T] = []
+        async for item in self:
+            items.append(item)
+        return items
 
     @override
-    def __await__(self) -> Generator[Any, None, Tuple[_T, ...]]:
-        return self._to_tuple().__await__()
+    def __await__(self) -> Generator[None, None, List[_T]]:
+        return self._to_list().__await__()
 
 
 class AbstractAsyncLister(AsyncListerMixin[_T], abc.ABC):
