@@ -96,3 +96,29 @@ log_format = "%(asctime)s.%(msecs)03d %(name)-20s %(levelname)-8s %(filename)-15
 log_date_format = "%H:%M:%S"
 log_level = "DEBUG"
 asyncio_mode = "strict"
+
+[tool.pyright]
+pythonVersion = "3.12"
+strict = ["src"]
+reportImplicitOverride = true
+exclude = ["venv", ".venv", "build", "tests", "docs", "ftpbench.py"]
+
+[tool.mypy]
+# packages = "src"
+module = "src"
+show_absolute_path = true
+pretty = true
+strict = true
+enable_error_code = [
+    "explicit-override", 
+    "redundant-self", "redundant-expr", "possibly-undefined",
+]
+warn_unreachable = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests"
+strict = false
+disallow_any_generics = false
+disallow_untyped_defs = false
