@@ -471,6 +471,9 @@ class AvailableConnections:
     """
     Semaphore-like object. Have no blocks, only raises ValueError on bounds
     crossing. If value is :py:class:`None` have no limits (bounds checks).
+
+    :param value:
+    :type value: :py:class:`int` or :py:class:`None`
     """
 
     value: Optional[int]
@@ -481,6 +484,8 @@ class AvailableConnections:
     def locked(self) -> bool:
         """
         Returns True if semaphore-like can not be acquired.
+
+        :rtype: :py:class:`bool`
         """
         return self.value == 0
 
