@@ -375,8 +375,8 @@ class MemoryUserManager(AbstractUserManager):
             state = AbstractUserManager.GetUserResponse.PASSWORD_REQUIRED
             info = "password required"
 
-        # if state != AbstractUserManager.GetUserResponse.ERROR:
-        #     self.available_connections[user].acquire()  # type: ignore
+        if state != AbstractUserManager.GetUserResponse.ERROR:
+            self.available_connections[user].acquire()  # type: ignore
         return state, user, info
 
     @override
