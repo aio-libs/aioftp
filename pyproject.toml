@@ -111,8 +111,7 @@ reportImplicitOverride = true
 exclude = ["venv", ".venv", "build", "tests", "docs", "ftpbench.py"]
 
 [tool.mypy]
-# packages = "src"
-module = "src"
+packages = "src"
 show_absolute_path = true
 pretty = true
 strict = true
