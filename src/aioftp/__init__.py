@@ -46,7 +46,7 @@ from .server import (
     worker,
 )
 
-__version__ = importlib.metadata.version(__package__)
+__version__ = importlib.metadata.version(__package__)  # pyright: ignore[reportArgumentType]
 version = tuple(map(int, __version__.split(".")))
 
 

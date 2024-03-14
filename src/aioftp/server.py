@@ -109,7 +109,7 @@ class ConnectionProtocol(Protocol):
     current_directory: pathlib.PurePosixPath
     _dispatcher: "asyncio.Task[Any]"
     path_io: pathio.AbstractPathIO
-    passive_server: "asyncio.Server"
+    passive_server: asyncio.base_events.Server
     rename_from: pathlib.Path
     logged: object
     transfer_type: str
@@ -1277,8 +1277,7 @@ class Server:
         elif state == AbstractUserManager.GetUserResponse.ERROR:
             code = "530"
         else:
-            message = f"Unknown response {state}"
-            raise NotImplementedError(message)
+            raise NotImplementedError(f"Unknown response {state}")
 
         if connection.future.user.done():
             connection.current_directory = connection.user.home_path
@@ -1635,7 +1634,7 @@ class Server:
             [asyncio.StreamReader, asyncio.StreamWriter],
             Coroutine[None, None, None],
         ],
-    ) -> "asyncio.Server":
+    ) -> asyncio.base_events.Server:
         if self.available_data_ports is not None:
             viewed_ports: Set[int] = set()
             while True:

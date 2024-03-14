@@ -289,7 +289,7 @@ def async_enterable(
             @override
             async def __aenter__(self) -> _T_acm:
                 self.context = await f(*args, **kwargs)
-                return await self.context.__aenter__()
+                return await self.context.__aenter__()  # type: ignore
 
             @override
             async def __aexit__(self, *args: Any, **kwargs: Any) -> None:

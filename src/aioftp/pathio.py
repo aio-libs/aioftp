@@ -162,7 +162,7 @@ def universal_exception(coro: Callable[_Ps, Coroutine[None, None, _T]]) -> Calla
 
 
 class PathIONursery:
-    state: Optional[List[_NodeProtocol]]
+    state: Optional[Union[List[_NodeProtocol], io.BytesIO]]
 
     def __init__(self, factory: Type["AbstractPathIO"]):
         self.factory = factory
@@ -221,8 +221,7 @@ class AbstractPathIO(abc.ABC):
         self.connection = connection
 
     @property
-    @abc.abstractmethod
-    def state(self) -> List[_NodeProtocol]:
+    def state(self) -> Optional[Union[List[_NodeProtocol], io.BytesIO]]:
         """
         Shared pathio state per server
         """
@@ -786,13 +785,13 @@ class MemoryPathIO(AbstractPathIO):
         st_nlink: int
         st_mode: int
 
-    fs: List[_NodeProtocol]
+    fs: Union[List[_NodeProtocol], io.BytesIO]
     cwd: pathlib.PurePosixPath
 
     def __init__(
         self,
         *args: Any,
-        state: Optional[List[_NodeProtocol]] = None,
+        state: Optional[Union[List[_NodeProtocol], io.BytesIO]] = None,
         cwd: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -805,7 +804,7 @@ class MemoryPathIO(AbstractPathIO):
 
     @property
     @override
-    def state(self) -> List[_NodeProtocol]:
+    def state(self) -> Union[List[_NodeProtocol], io.BytesIO]:
         return self.fs
 
     @override
@@ -994,7 +993,7 @@ class MemoryPathIO(AbstractPathIO):
                     file_like.seek(0, io.SEEK_SET)
         else:
             raise ValueError(f"invalid mode: {mode}")
-        return file_like
+        return file_like  # type: ignore
 
     @override
     @universal_exception
