@@ -7,7 +7,6 @@ import logging
 import pathlib
 import socket
 import stat
-import sys
 import time
 from ssl import SSLContext
 from typing import (
@@ -63,11 +62,6 @@ __all__ = (
     "Server",
 )
 
-IS_PY37_PLUS = sys.version_info[:2] >= (3, 7)
-if IS_PY37_PLUS:
-    get_current_task = asyncio.current_task
-else:
-    get_current_task = asyncio.Task.current_task  # pyright: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -1170,7 +1164,7 @@ class Server:
             response=lambda *args: response_queue.put_nowait(args),  # pyright: ignore[reportUnknownLambdaType]
             acquired=False,
             restart_offset=0,
-            _dispatcher=get_current_task(),
+            _dispatcher=asyncio.current_task(),
         )
         connection.path_io = self.path_io_factory(
             timeout=self.path_timeout,
