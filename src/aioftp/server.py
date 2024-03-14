@@ -67,7 +67,7 @@ IS_PY37_PLUS = sys.version_info[:2] >= (3, 7)
 if IS_PY37_PLUS:
     get_current_task = asyncio.current_task
 else:
-    get_current_task = asyncio.Task.current_task  # type: ignore
+    get_current_task = asyncio.Task.current_task  # pyright: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -1026,8 +1026,8 @@ class Server:
         self.server.close()
         tasks = [asyncio.create_task(self.server.wait_closed())]
         for connection in self.connections.values():
-            connection._dispatcher.cancel()  # type: ignore
-            tasks.append(connection._dispatcher)  # type: ignore
+            connection._dispatcher.cancel()  # pyright: ignore[reportPrivateUsage]
+            tasks.append(connection._dispatcher)  # pyright: ignore[reportPrivateUsage]
         logger.debug("waiting for %d tasks", len(tasks))
         await asyncio.wait(tasks)
 
@@ -1162,7 +1162,7 @@ class Server:
             path_io_factory=self.path_io_factory,
             path_timeout=self.path_timeout,
             extra_workers=set(),
-            response=lambda *args: response_queue.put_nowait(args),  # type: ignore
+            response=lambda *args: response_queue.put_nowait(args),  # pyright: ignore[reportUnknownLambdaType]
             acquired=False,
             restart_offset=0,
             _dispatcher=get_current_task(),
@@ -1322,7 +1322,7 @@ class Server:
                     connection.user.write_speed_limit_per_connection,
                 ),
             )
-        connection.response(code, info)  # type: ignore
+        connection.response(code, info)
         return True
 
     @ConnectionConditions(ConnectionConditions.user_required)

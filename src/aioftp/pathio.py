@@ -120,7 +120,7 @@ class AsyncPathIOContext:
         self.kwargs = kwargs
 
     async def __aenter__(self) -> Self:
-        self.file = await self.pathio._open(*self.args, **self.kwargs)  # type: ignore
+        self.file = await self.pathio._open(*self.args, **self.kwargs)  # pyright: ignore[reportPrivateUsage]
         self.seek = functools.partial(self.pathio.seek, self.file)
         self.write = functools.partial(self.pathio.write, self.file)
         self.read = functools.partial(self.pathio.read, self.file)
@@ -229,6 +229,7 @@ class AbstractPathIO(abc.ABC):
         """
         Shared pathio state per server
         """
+        return None
 
     @universal_exception
     @abc.abstractmethod
@@ -569,7 +570,7 @@ def _blocking_io(
         self: "AsyncPathIO" = get_param((0, "self"), args, kwargs)
         return await asyncio.get_running_loop().run_in_executor(
             self.executor,
-            functools.partial(f, self, *args, **kwargs),
+            functools.partial(f, *args, **kwargs),
         )
 
     return wrapper
@@ -598,8 +599,8 @@ class AsyncPathIO(AbstractPathIO):
         self.executor = executor
 
     @override
-    @universal_exception
-    @with_timeout
+    # @universal_exception
+    # @with_timeout
     @_blocking_io
     def exists(self, path: pathlib.Path) -> bool:
         return path.exists()
@@ -907,7 +908,7 @@ class MemoryPathIO(AbstractPathIO):
         for i, node in enumerate(parent.content):
             if node.name == path.name:
                 break
-        parent.content.pop(i)  # type: ignore
+        parent.content.pop(i)  # pyright: ignore[reportPossiblyUnboundVariable]
 
     @override
     @universal_exception
@@ -922,7 +923,7 @@ class MemoryPathIO(AbstractPathIO):
         for i, node in enumerate(parent.content):
             if node.name == path.name:
                 break
-        parent.content.pop(i)  # type: ignore
+        parent.content.pop(i)  # pyright: ignore[reportPossiblyUnboundVariable]
 
     @override
     def list(self, path: pathlib.Path) -> "AbstractAsyncLister[pathlib.Path]":
