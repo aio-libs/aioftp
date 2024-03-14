@@ -908,7 +908,10 @@ class MemoryPathIO(AbstractPathIO):
         for i, node in enumerate(parent.content):
             if node.name == path.name:
                 break
-        parent.content.pop(i)  # pyright: ignore[reportPossiblyUnboundVariable]
+        else:
+            return None
+
+        parent.content.pop(i)
 
     @override
     @universal_exception
@@ -923,7 +926,10 @@ class MemoryPathIO(AbstractPathIO):
         for i, node in enumerate(parent.content):
             if node.name == path.name:
                 break
-        parent.content.pop(i)  # pyright: ignore[reportPossiblyUnboundVariable]
+        else:
+            return None
+
+        parent.content.pop(i)
 
     @override
     def list(self, path: pathlib.Path) -> "AbstractAsyncLister[pathlib.Path]":
