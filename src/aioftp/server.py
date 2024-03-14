@@ -208,6 +208,17 @@ class User:
     :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
     """
 
+    login: Optional[str]
+    password: Optional[str]
+    base_path: pathlib.Path
+    home_path: pathlib.PurePosixPath
+    permissions: Iterable[Permission]
+    maximum_connections: Optional[int]
+    read_speed_limit: Optional[int]
+    write_speed_limit: Optional[int]
+    read_speed_limit_per_connection: Optional[int]
+    write_speed_limit_per_connection: Optional[int]
+
     def __init__(
         self,
         login: Optional[str] = None,
@@ -215,7 +226,7 @@ class User:
         *,
         base_path: Union[str, pathlib.Path] = pathlib.Path("."),
         home_path: Union[str, pathlib.PurePosixPath] = pathlib.PurePosixPath("/"),
-        permissions: Optional[Union[List[Permission], Tuple[Permission]]] = None,
+        permissions: Optional[Iterable[Permission]] = None,
         maximum_connections: Optional[int] = None,
         read_speed_limit: Optional[int] = None,
         write_speed_limit: Optional[int] = None,
