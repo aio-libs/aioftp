@@ -1,4 +1,10 @@
+import typing
+from typing import Any, Iterable, Optional, Tuple, Union
+
 from . import common
+
+if typing.TYPE_CHECKING:
+    from . import Code
 
 __all__ = (
     "AIOFTPException",
@@ -41,9 +47,18 @@ class StatusCodeError(AIOFTPException):
     Exception members are tuples, even for one code.
     """
 
-    def __init__(self, expected_codes, received_codes, info):
+    expected_codes: Tuple["Code", ...]
+    received_codes: Tuple["Code", ...]
+    info: Iterable[str]
+
+    def __init__(
+        self,
+        expected_codes: Union[Tuple["Code", ...], "Code"],
+        received_codes: Union[Tuple["Code", ...], "Code"],
+        info: Iterable[str],
+    ) -> None:
         super().__init__(
-            f"Waiting for {expected_codes} but got " f"{received_codes} {info!r}",
+            f"Waiting for {expected_codes} but got {received_codes} {info!r}",
         )
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
@@ -72,7 +87,9 @@ class PathIOError(AIOFTPException):
         ...         # handle
     """
 
-    def __init__(self, *args, reason=None, **kwargs):
+    reason: Optional[Any]
+
+    def __init__(self, *args: Any, reason: Optional[Any] = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.reason = reason
 

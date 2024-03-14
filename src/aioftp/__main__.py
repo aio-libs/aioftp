@@ -1,9 +1,11 @@
 """Simple aioftp-based server with one user (anonymous or not)"""
+
 import argparse
 import asyncio
 import contextlib
 import logging
 import socket
+from typing import Type, Union
 
 import aioftp
 
@@ -64,6 +66,7 @@ if not args.quiet:
         format="%(asctime)s [%(name)s] %(message)s",
         datefmt="[%H:%M:%S]:",
     )
+path_io_factory: Union[Type[aioftp.PathIO], Type[aioftp.MemoryPathIO]]
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
     path_io_factory = aioftp.MemoryPathIO
@@ -80,7 +83,7 @@ family = {
 }[args.family]
 
 
-async def main():
+async def main() -> None:
     server = aioftp.Server([user], path_io_factory=path_io_factory)
     await server.run(args.host, args.port, family=family)
 

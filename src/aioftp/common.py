@@ -1,10 +1,39 @@
 import abc
 import asyncio
-import collections
 import functools
 import locale
 import threading
 from contextlib import contextmanager
+from types import TracebackType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncContextManager,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    Final,
+    Generator,
+    Generic,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
+
+from typing_extensions import ParamSpec, Self, override
+
+from .types import AsyncEnterableProtocol
+from .utils import get_param
+
+if TYPE_CHECKING:
+    from .pathio import AsyncPathIO
 
 __all__ = (
     "with_timeout",
@@ -27,35 +56,67 @@ __all__ = (
 )
 
 
-END_OF_LINE = "\r\n"
-DEFAULT_BLOCK_SIZE = 8192
+END_OF_LINE: Final[str] = "\r\n"
+DEFAULT_BLOCK_SIZE: Final[int] = 8192
 
-DEFAULT_PORT = 21
-DEFAULT_USER = "anonymous"
-DEFAULT_PASSWORD = "anon@"
-DEFAULT_ACCOUNT = ""
-HALF_OF_YEAR_IN_SECONDS = 15778476
-TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
+DEFAULT_PORT: Final[int] = 21
+DEFAULT_USER: Final[str] = "anonymous"
+DEFAULT_PASSWORD: Final[str] = "anon@"
+DEFAULT_ACCOUNT: Final[str] = ""
+HALF_OF_YEAR_IN_SECONDS: Final[int] = 15778476
+TWO_YEARS_IN_SECONDS: Final[float] = ((365 * 3 + 366) * 24 * 60 * 60) / 2
+
+_T = TypeVar("_T")
+_PS = ParamSpec("_PS")
 
 
-def _now():
+def _now() -> float:
     return asyncio.get_running_loop().time()
 
 
-def _with_timeout(name):
-    def decorator(f):
+def _with_timeout(
+    name: str,
+) -> Callable[
+    [Callable[_PS, Coroutine[None, None, _T]]],
+    Callable[_PS, Coroutine[None, None, _T]],
+]:
+    def decorator(f: Callable[_PS, Coroutine[None, None, _T]]) -> Callable[_PS, Coroutine[None, None, _T]]:
         @functools.wraps(f)
-        def wrapper(cls, *args, **kwargs):
-            coro = f(cls, *args, **kwargs)
-            timeout = getattr(cls, name)
-            return asyncio.wait_for(coro, timeout)
+        async def wrapper(*args: _PS.args, **kwargs: _PS.kwargs) -> _T:
+            self: "AsyncPathIO" = get_param((0, "self"), args, kwargs)
+            coro = f(*args, **kwargs)
+            timeout = getattr(self, name)
+            return await asyncio.wait_for(coro, timeout)
 
         return wrapper
 
     return decorator
 
 
-def with_timeout(name):
+@overload
+def with_timeout(
+    name: str,
+) -> Callable[
+    [Callable[_PS, Coroutine[None, None, _T]]],
+    Callable[_PS, Coroutine[None, None, _T]],
+]: ...
+
+
+@overload
+def with_timeout(
+    name: Callable[_PS, Coroutine[None, None, _T]],
+) -> Callable[_PS, Coroutine[None, None, _T]]: ...
+
+
+def with_timeout(
+    name: Union[str, Callable[_PS, Coroutine[None, None, _T]]],
+) -> Union[
+    Callable[
+        [Callable[_PS, Coroutine[None, None, _T]]],
+        Callable[_PS, Coroutine[None, None, _T]],
+    ],
+    Callable[_PS, Coroutine[None, None, _T]],
+]:
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -97,14 +158,14 @@ def with_timeout(name):
         return _with_timeout("timeout")(name)
 
 
-class AsyncStreamIterator:
-    def __init__(self, read_coro):
+class AsyncStreamIterator(Generic[_T]):
+    def __init__(self, read_coro: Callable[[], Awaitable[_T]]):
         self.read_coro = read_coro
 
-    def __aiter__(self):
+    def __aiter__(self) -> "AsyncStreamIterator[_T]":
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> _T:
         data = await self.read_coro()
         if data:
             return data
@@ -112,7 +173,11 @@ class AsyncStreamIterator:
             raise StopAsyncIteration
 
 
-class AsyncListerMixin:
+class AsyncListerMixin(
+    AsyncIterable[_T],
+    Awaitable[Tuple[_T, ...]],
+    Generic[_T],
+):
     """
     Add ability to `async for` context to collect data to list via await.
 
@@ -123,17 +188,15 @@ class AsyncListerMixin:
         >>> results = await Context(...)
     """
 
-    async def _to_list(self):
-        items = []
-        async for item in self:
-            items.append(item)
-        return items
+    async def _to_tuple(self) -> Tuple[_T, ...]:
+        return tuple([item async for item in self])
 
-    def __await__(self):
-        return self._to_list().__await__()
+    @override
+    def __await__(self) -> Generator[Any, None, Tuple[_T, ...]]:
+        return self._to_tuple().__await__()
 
 
-class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
+class AbstractAsyncLister(AsyncListerMixin[_T], abc.ABC):
     """
     Abstract context with ability to collect all iterables into
     :py:class:`list` via `await` with optional timeout (via
@@ -162,16 +225,17 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         [block, block, block, ...]
     """
 
-    def __init__(self, *, timeout=None):
+    def __init__(self, *, timeout: Optional[float] = None) -> None:
         super().__init__()
         self.timeout = timeout
 
-    def __aiter__(self):
+    @override
+    def __aiter__(self) -> "AbstractAsyncLister[_T]":
         return self
 
     @with_timeout
     @abc.abstractmethod
-    async def __anext__(self):
+    async def __anext__(self) -> _T:
         """
         :py:func:`asyncio.coroutine`
 
@@ -179,7 +243,12 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         """
 
 
-def async_enterable(f):
+_T_acm = TypeVar("_T_acm", bound=AsyncContextManager[Any])
+
+
+def async_enterable(
+    f: Callable[_PS, Coroutine[None, None, _T_acm]],
+) -> Callable[_PS, AsyncEnterableProtocol[_T_acm]]:
     """
     Decorator. Bring coroutine result up, so it can be used as async context
 
@@ -215,16 +284,19 @@ def async_enterable(f):
     """
 
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        class AsyncEnterableInstance:
-            async def __aenter__(self):
+    def wrapper(*args: _PS.args, **kwargs: _PS.kwargs) -> AsyncEnterableProtocol[_T_acm]:
+        class AsyncEnterableInstance(AsyncEnterableProtocol[_T_acm]):  # pyright: ignore[reportGeneralTypeIssues]
+            @override
+            async def __aenter__(self) -> _T_acm:
                 self.context = await f(*args, **kwargs)
                 return await self.context.__aenter__()
 
-            async def __aexit__(self, *args, **kwargs):
+            @override
+            async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
                 await self.context.__aexit__(*args, **kwargs)
 
-            def __await__(self):
+            @override
+            def __await__(self) -> Generator[None, None, _T_acm]:
                 return f(*args, **kwargs).__await__()
 
         return AsyncEnterableInstance()
@@ -232,9 +304,18 @@ def async_enterable(f):
     return wrapper
 
 
-def wrap_with_container(o):
+_T_str_bounded = TypeVar("_T_str_bounded", bound=str)
+
+
+@overload
+def wrap_with_container(o: _T_str_bounded) -> Tuple[_T_str_bounded]: ...
+@overload
+def wrap_with_container(o: Any) -> Any: ...
+
+
+def wrap_with_container(o: _T) -> Union[_T, Tuple[str]]:
     if isinstance(o, str):
-        o = (o,)
+        return (o,)
     return o
 
 
@@ -260,14 +341,27 @@ class StreamIO:
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
 
-    def __init__(self, reader, writer, *, timeout=None, read_timeout=None, write_timeout=None):
+    reader: asyncio.StreamReader
+    writer: asyncio.StreamWriter
+    read_timeout: Union[int, float, None]
+    write_timeout: Union[int, float, None]
+
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        *,
+        timeout: Optional[Union[int, float]] = None,
+        read_timeout: Optional[Union[int, float]] = None,
+        write_timeout: Optional[Union[int, float]] = None,
+    ) -> None:
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
         self.write_timeout = write_timeout or timeout
 
     @with_timeout("read_timeout")
-    async def readline(self):
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -276,7 +370,7 @@ class StreamIO:
         return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    async def read(self, count=-1):
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -288,7 +382,7 @@ class StreamIO:
         return await self.reader.read(count)
 
     @with_timeout("read_timeout")
-    async def readexactly(self, count):
+    async def readexactly(self, count: int) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -300,7 +394,7 @@ class StreamIO:
         return await self.reader.readexactly(count)
 
     @with_timeout("write_timeout")
-    async def write(self, data):
+    async def write(self, data: bytes) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -313,7 +407,7 @@ class StreamIO:
         self.writer.write(data)
         await self.writer.drain()
 
-    def close(self):
+    def close(self) -> None:
         """
         Close connection.
         """
@@ -332,13 +426,18 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    def __init__(self, *, limit=None, reset_rate=10):
+    reset_rate: Union[int, float]
+    _limit: Optional[int]
+    _start: Optional[float]
+    _sum: int
+
+    def __init__(self, *, limit: Optional[int] = None, reset_rate: Union[int, float] = 10) -> None:
         self._limit = limit
         self.reset_rate = reset_rate
         self._start = None
         self._sum = 0
 
-    async def wait(self):
+    async def wait(self) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -349,7 +448,7 @@ class Throttle:
             end = self._start + self._sum / self._limit
             await asyncio.sleep(max(0, end - now))
 
-    def append(self, data, start):
+    def append(self, data: bytes, start: float) -> None:
         """
         Count `data` for throttle
 
@@ -369,14 +468,14 @@ class Throttle:
             self._sum += len(data)
 
     @property
-    def limit(self):
+    def limit(self) -> Optional[int]:
         """
         Throttle limit
         """
         return self._limit
 
     @limit.setter
-    def limit(self, value):
+    def limit(self, value: Optional[int]) -> None:
         """
         Set throttle limit
 
@@ -387,17 +486,18 @@ class Throttle:
         self._start = None
         self._sum = 0
 
-    def clone(self):
+    def clone(self) -> "Throttle":
         """
         Clone throttle without memory
         """
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(limit={self._limit!r}, " f"reset_rate={self.reset_rate!r})"
 
 
-class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
+class StreamThrottle(NamedTuple):
     """
     Stream throttle with `read` and `write` :py:class:`aioftp.Throttle`
 
@@ -408,7 +508,10 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :type write: :py:class:`aioftp.Throttle`
     """
 
-    def clone(self):
+    read: Throttle
+    write: Throttle
+
+    def clone(self) -> "StreamThrottle":
         """
         Clone throttles without memory
         """
@@ -418,7 +521,11 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit=None, write_speed_limit=None):
+    def from_limits(
+        cls,
+        read_speed_limit: Optional[int] = None,
+        write_speed_limit: Optional[int] = None,
+    ) -> "StreamThrottle":
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
@@ -463,11 +570,11 @@ class ThrottleStreamIO(StreamIO):
         ... )
     """
 
-    def __init__(self, *args, throttles={}, **kwargs):
+    def __init__(self, *args: Any, throttles: Dict[str, StreamThrottle] = {}, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.throttles = throttles
 
-    async def wait(self, name):
+    async def wait(self, name: str) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -476,7 +583,7 @@ class ThrottleStreamIO(StreamIO):
         :param name: name of throttle to acquire ("read" or "write")
         :type name: :py:class:`str`
         """
-        tasks = []
+        tasks: List[asyncio.Task[None]] = []
         for throttle in self.throttles.values():
             curr_throttle = getattr(throttle, name)
             if curr_throttle.limit:
@@ -484,7 +591,7 @@ class ThrottleStreamIO(StreamIO):
         if tasks:
             await asyncio.wait(tasks)
 
-    def append(self, name, data, start):
+    def append(self, name: str, data: bytes, start: float) -> None:
         """
         Update timeout for all throttles
 
@@ -501,7 +608,8 @@ class ThrottleStreamIO(StreamIO):
         for throttle in self.throttles.values():
             getattr(throttle, name).append(data, start)
 
-    async def read(self, count=-1):
+    @override
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -513,7 +621,8 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def readline(self):
+    @override
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -525,7 +634,8 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def write(self, data):
+    @override
+    async def write(self, data: bytes) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -536,13 +646,18 @@ class ThrottleStreamIO(StreamIO):
         await super().write(data)
         self.append("write", data, start)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
-    def iter_by_line(self):
+    def iter_by_line(self) -> AsyncStreamIterator[bytes]:
         """
         Read/iterate stream by line.
 
@@ -553,9 +668,9 @@ class ThrottleStreamIO(StreamIO):
             >>> async for line in stream.iter_by_line():
             ...     ...
         """
-        return AsyncStreamIterator(self.readline)
+        return AsyncStreamIterator[bytes](self.readline)
 
-    def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
+    def iter_by_block(self, count: int = DEFAULT_BLOCK_SIZE) -> AsyncStreamIterator[bytes]:
         """
         Read/iterate stream by block.
 
@@ -573,7 +688,7 @@ LOCALE_LOCK = threading.Lock()
 
 
 @contextmanager
-def setlocale(name):
+def setlocale(name: str) -> Generator[str, None, None]:
     """
     Context manager with threading lock for set locale on enter, and set it
     back to original state on exit.
