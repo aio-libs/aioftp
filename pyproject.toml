@@ -37,6 +37,9 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
+dependencies = [
+    "typing_extensions",
+]
 
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
@@ -59,6 +62,10 @@ dev = [
     "pre-commit",
     "black",
     "ruff",
+
+    # typecheckers
+    "pyright >= 1.1.354,<1.2.0",
+    "mypy >= 1.9.0,<1.10.0",
 
     # docs
     "sphinx",
