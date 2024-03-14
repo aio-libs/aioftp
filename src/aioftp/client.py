@@ -482,6 +482,7 @@ class BaseClient:
             link_src = s[:i]
             i = -2 if link_dst[-1] == "'" or link_dst[-1] == '"' else -1
             info["type"] = "dir" if link_dst[i] == "/" else "file"
+            info["link_dst"] = link_dst
             s = link_src
         return pathlib.PurePosixPath(s), info
 
