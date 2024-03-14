@@ -599,8 +599,8 @@ class AsyncPathIO(AbstractPathIO):
         self.executor = executor
 
     @override
-    # @universal_exception
-    # @with_timeout
+    @universal_exception
+    @with_timeout
     @_blocking_io
     def exists(self, path: pathlib.Path) -> bool:
         return path.exists()
