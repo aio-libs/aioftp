@@ -105,7 +105,7 @@ log_level = "DEBUG"
 asyncio_mode = "strict"
 
 [tool.pyright]
-pythonVersion = "3.12"
+pythonVersion = "3.8"
 strict = ["src"]
 reportImplicitOverride = true
 exclude = ["venv", ".venv", "build", "tests", "docs", "ftpbench.py"]
