@@ -62,7 +62,7 @@ __all__ = (
 )
 logger = logging.getLogger(__name__)
 
-_Path: TypeAlias = Union[str, pathlib.PurePosixPath]
+_Path: TypeAlias = Union[str, pathlib.PurePath]
 _ConnectionType: TypeAlias = Literal["I", "A", "E", "L"]
 
 _INFO_FILE_TYPE: TypeAlias = Literal["file", "dir", "link", "unknown"]
@@ -881,7 +881,7 @@ class Client(BaseClient):
         *,
         recursive: bool = False,
         raw_command: Optional[str] = None,
-    ) -> AsyncListerMixin[Tuple[pathlib.PurePosixPath, InfoDict]]:
+    ) -> AsyncListerMixin[Tuple[pathlib.PurePath, InfoDict]]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -918,12 +918,12 @@ class Client(BaseClient):
         ctx = self
 
         class AsyncLister(
-            AsyncIterator[Tuple[pathlib.PurePosixPath, InfoDict]],
-            AsyncListerMixin[Tuple[pathlib.PurePosixPath, InfoDict]],
+            AsyncIterator[Tuple[pathlib.PurePath, InfoDict]],
+            AsyncListerMixin[Tuple[pathlib.PurePath, InfoDict]],
         ):
             stream: Optional[DataConnectionThrottleStreamIO] = None
             directories: Deque[Tuple[_Path, InfoDict]]
-            parse_line: Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]
+            parse_line: Callable[[bytes], Tuple[pathlib.PurePath, InfoDict]]
 
             async def _new_stream(
                 self,
@@ -955,7 +955,7 @@ class Client(BaseClient):
                 return self
 
             @override
-            async def __anext__(self) -> Tuple[pathlib.PurePosixPath, InfoDict]:
+            async def __anext__(self) -> Tuple[pathlib.PurePath, InfoDict]:
                 if self.stream is None:
                     self.stream = await self._new_stream(path)
 
@@ -1258,23 +1258,23 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source = pathlib.PurePosixPath(source)
+        source_ = pathlib.PurePosixPath(source)
         destination_ = pathlib.Path(destination)
         if not write_into:
-            destination_ = destination_ / source.name
-        if await self.is_file(source):
+            destination_ = destination_ / source_.name
+        if await self.is_file(source_):
             await self.path_io.mkdir(
                 destination_.parent,
                 parents=True,
                 exist_ok=True,
             )
-            async with self.path_io.open(destination_, mode="wb") as file_out, self.download_stream(source) as stream:
+            async with self.path_io.open(destination_, mode="wb") as file_out, self.download_stream(source_) as stream:
                 async for block in stream.iter_by_block(block_size):
                     await file_out.write(block)
-        elif await self.is_dir(source):
+        elif await self.is_dir(source_):
             await self.path_io.mkdir(destination_, parents=True, exist_ok=True)
-            for name, info in await self.list(source):
-                full = destination / name.relative_to(source)
+            for name, info in await self.list(source_):
+                full = destination_ / name.relative_to(source_)
                 if info["type"] in ("file", "dir"):
                     await self.download(
                         name,
