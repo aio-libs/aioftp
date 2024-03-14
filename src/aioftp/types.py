@@ -1,4 +1,6 @@
-from typing import Any, Generator, Generic, Literal, Protocol, TypeAlias, TypeVar
+from typing import Any, Generator, Generic, Literal, Protocol, TypeVar
+
+from typing_extensions import TypeAlias
 
 _T = TypeVar("_T")
 
