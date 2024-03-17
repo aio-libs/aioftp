@@ -234,7 +234,7 @@ class BaseClient:
         self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
 
-    async def connect(self, host: str, port: int = DEFAULT_PORT) -> Optional[Union[Code, List[str]]]:
+    async def connect(self, host: str, port: int = DEFAULT_PORT) -> Optional[List[str]]:
         self.server_host = host
         self.server_port = port
         reader, writer = await asyncio.wait_for(
@@ -759,7 +759,7 @@ class Client(BaseClient):
     """
 
     @override
-    async def connect(self, host: str, port: int = DEFAULT_PORT) -> Union[Code, List[str]]:
+    async def connect(self, host: str, port: int = DEFAULT_PORT) -> List[str]:
         """
         :py:func:`asyncio.coroutine`
 
