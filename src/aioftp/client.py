@@ -103,6 +103,8 @@ PartialInfoDict = TypedDict(
     total=False,
 )
 
+_ParserType: TypeAlias = Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]
+
 
 class Code(str):
     """
@@ -195,7 +197,7 @@ class BaseClient:
     encoding: str
     stream: Optional[ThrottleStreamIO]
     ssl: Optional[SSLContext]
-    parse_list_line_custom: Optional[Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]]
+    parse_list_line_custom: Optional[_ParserType]
     parse_list_line_custom_first: bool
     _passive_commands: Sequence[str]
     _open_connection: "partial[Coroutine[None, None, Tuple[asyncio.StreamReader, asyncio.StreamWriter]]]"
@@ -213,7 +215,7 @@ class BaseClient:
         path_io_factory: Type[pathio.AbstractPathIO] = pathio.PathIO,
         encoding: str = "utf-8",
         ssl: Optional[SSLContext] = None,
-        parse_list_line_custom: Optional[Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]] = None,
+        parse_list_line_custom: Optional[_ParserType] = None,
         parse_list_line_custom_first: bool = True,
         passive_commands: Sequence[str] = ("epsv", "pasv"),
         **siosocks_asyncio_kwargs: Any,
@@ -671,7 +673,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex: List[Exception] = []
-        parsers: List[Optional[Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]]] = [
+        parsers: List[Optional[_ParserType]] = [
             self.parse_list_line_unix,
             self.parse_list_line_windows,
         ]
