@@ -38,7 +38,7 @@ classifiers = [
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 dependencies = [
-    "typing_extensions",
+    "typing_extensions >= 4.10,<5.0",
 ]
 
 [project.urls]
