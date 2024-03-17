@@ -113,7 +113,7 @@ reportImplicitOverride = true
 exclude = ["venv", ".venv", "build", "tests", "docs", "ftpbench.py"]
 
 [tool.mypy]
-packages = "src"
+files = "src/aioftp"
 show_absolute_path = true
 pretty = true
 strict = true
