@@ -650,14 +650,14 @@ class BaseClient:
         if filename == "." or filename == "..":
             raise ValueError
 
-        temp_info: WindowsInfoDict = {
+        windows_info: WindowsInfoDict = {
             "type": info["type"],
             "modify": info["modify"],
         }
         if "size" in info:
-            temp_info["size"] = info["size"]
+            windows_info["size"] = info["size"]
 
-        return pathlib.PurePosixPath(filename), temp_info
+        return pathlib.PurePosixPath(filename), windows_info
 
     def parse_list_line(self, b: bytes) -> Tuple[pathlib.PurePosixPath, InfoDict]:
         """
