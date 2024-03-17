@@ -1179,25 +1179,27 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source_ = pathlib.Path(source)
-        destination_ = pathlib.PurePosixPath(destination)
+        source_path = pathlib.Path(source)
+        destination_path = pathlib.PurePosixPath(destination)
         if not write_into:
-            destination_ = destination_ / source_.name
-        if await self.path_io.is_file(source_):
-            await self.make_directory(destination_.parent)
-            async with self.path_io.open(source_, mode="rb") as file_in, self.upload_stream(destination_) as stream:
+            destination_path = destination_path / source_path.name
+        if await self.path_io.is_file(source_path):
+            await self.make_directory(destination_path.parent)
+            async with self.path_io.open(source_path, mode="rb") as file_in, self.upload_stream(
+                destination_path,
+            ) as stream:
                 async for block in file_in.iter_by_block(block_size):
                     await stream.write(block)
-        elif await self.path_io.is_dir(source_):
-            await self.make_directory(destination_)
-            sources = collections.deque([source_])
+        elif await self.path_io.is_dir(source_path):
+            await self.make_directory(destination_path)
+            sources = collections.deque([source_path])
             while sources:
                 src = sources.popleft()
                 async for path in self.path_io.list(src):
                     if write_into:
-                        relative = destination_.name / path.relative_to(source_)
+                        relative = destination_path.name / path.relative_to(source_path)
                     else:
-                        relative = path.relative_to(source_.parent)
+                        relative = path.relative_to(source_path.parent)
                     if await self.path_io.is_dir(path):
                         await self.make_directory(relative)
                         sources.append(path)
@@ -1258,23 +1260,25 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source_ = pathlib.PurePosixPath(source)
-        destination_ = pathlib.Path(destination)
+        source_path = pathlib.PurePosixPath(source)
+        destination_path = pathlib.Path(destination)
         if not write_into:
-            destination_ = destination_ / source_.name
-        if await self.is_file(source_):
+            destination_path = destination_path / source_path.name
+        if await self.is_file(source_path):
             await self.path_io.mkdir(
-                destination_.parent,
+                destination_path.parent,
                 parents=True,
                 exist_ok=True,
             )
-            async with self.path_io.open(destination_, mode="wb") as file_out, self.download_stream(source_) as stream:
+            async with self.path_io.open(destination_path, mode="wb") as file_out, self.download_stream(
+                source_path,
+            ) as stream:
                 async for block in stream.iter_by_block(block_size):
                     await file_out.write(block)
-        elif await self.is_dir(source_):
-            await self.path_io.mkdir(destination_, parents=True, exist_ok=True)
-            for name, info in await self.list(source_):
-                full = destination_ / name.relative_to(source_)
+        elif await self.is_dir(source_path):
+            await self.path_io.mkdir(destination_path, parents=True, exist_ok=True)
+            for name, info in await self.list(source_path):
+                full = destination_path / name.relative_to(source_path)
                 if info["type"] in ("file", "dir"):
                     await self.download(
                         name,
