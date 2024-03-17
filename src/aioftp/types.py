@@ -1,8 +1,8 @@
-from typing import Any, Generator, Generic, Literal, Protocol, TypeVar
+from typing import Any, Generator, Literal, Protocol, TypeVar
 
 from typing_extensions import TypeAlias
 
-_T = TypeVar("_T")
+_T_co = TypeVar("_T_co", covariant=True)
 
 
 class StatsProtocol(Protocol):
@@ -27,14 +27,14 @@ class StatsProtocol(Protocol):
         raise NotImplementedError
 
 
-class AsyncEnterableProtocol(Generic[_T]):
-    async def __aenter__(self) -> _T:
+class AsyncEnterableProtocol(Protocol[_T_co]):
+    async def __aenter__(self) -> _T_co:
         raise NotImplementedError
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         raise NotImplementedError
 
-    def __await__(self) -> Generator[None, None, _T]:
+    def __await__(self) -> Generator[None, None, _T_co]:
         raise NotImplementedError
 
 
