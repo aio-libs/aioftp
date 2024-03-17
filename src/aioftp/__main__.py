@@ -5,7 +5,7 @@ import asyncio
 import contextlib
 import logging
 import socket
-from typing import Type, Union
+from typing import Type
 
 import aioftp
 
@@ -66,7 +66,7 @@ if not args.quiet:
         format="%(asctime)s [%(name)s] %(message)s",
         datefmt="[%H:%M:%S]:",
     )
-path_io_factory: Union[Type[aioftp.PathIO], Type[aioftp.MemoryPathIO]]
+path_io_factory: Type[aioftp.AbstractPathIO]
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
     path_io_factory = aioftp.MemoryPathIO
