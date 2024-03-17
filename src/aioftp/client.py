@@ -915,7 +915,6 @@ class Client(BaseClient):
 
             >>> stats = await client.list()
         """
-        ctx = self
 
         class AsyncLister(
             AsyncIterator[Tuple[pathlib.PurePath, InfoDict]],
@@ -924,13 +923,14 @@ class Client(BaseClient):
             stream: Optional[DataConnectionThrottleStreamIO] = None
             directories: Deque[Tuple[_PathType, InfoDict]]
             parse_line: Callable[[bytes], Tuple[pathlib.PurePath, InfoDict]]
+            client: Client = self
 
             async def _new_stream(
                 self,
                 local_path: _PathType,
             ) -> Optional[DataConnectionThrottleStreamIO]:
                 self.path = local_path
-                self.parse_line = ctx.parse_mlsx_line
+                self.parse_line = self.client.parse_mlsx_line
                 if raw_command not in [None, "MLSD", "LIST"]:
                     raise ValueError(
                         f"raw_command must be one of MLSD or LIST, but got {raw_command}",
@@ -938,15 +938,15 @@ class Client(BaseClient):
                 if raw_command in [None, "MLSD"]:
                     try:
                         command = ("MLSD " + str(self.path)).strip()
-                        return await ctx.get_stream(command, Code("1xx"))
+                        return await self.client.get_stream(command, Code("1xx"))
                     except errors.StatusCodeError as e:
                         code = e.received_codes[-1]
                         if not code.matches("50x") or raw_command is not None:
                             raise
                 if raw_command in [None, "LIST"]:
-                    self.parse_line = ctx.parse_list_line
+                    self.parse_line = self.client.parse_list_line
                     command = ("LIST " + str(self.path)).strip()
-                    return await ctx.get_stream(command, Code("1xx"))
+                    return await self.client.get_stream(command, Code("1xx"))
                 return None
 
             @override
