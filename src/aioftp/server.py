@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 _PS = ParamSpec("_PS")
 _T = TypeVar("_T")
 
-_Path = Union[str, pathlib.PurePosixPath]
+_PathType: TypeAlias = Union[str, pathlib.PurePosixPath]
 
 
 _FAIL_CODE: TypeAlias = Literal["503", "425"]
@@ -1243,7 +1243,7 @@ class Server:
                 await asyncio.wait(tasks_to_wait)
 
     @staticmethod
-    def get_paths(connection: ConnectionProtocol, path: _Path) -> Tuple[pathlib.Path, pathlib.PurePosixPath]:
+    def get_paths(connection: ConnectionProtocol, path: _PathType) -> Tuple[pathlib.Path, pathlib.PurePosixPath]:
         """
         Return *real* and *virtual* paths, resolves ".." with "up" action.
         *Real* path is path for path_io, when *virtual* deals with
@@ -1365,7 +1365,7 @@ class Server:
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_not_exists)
     @PathPermissions(PathPermissions.writable)
-    async def mkd(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def mkd(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         real_path, _ = self.get_paths(connection, rest)
         await connection.path_io.mkdir(real_path, parents=True)
         connection.response("257", "")
@@ -1377,7 +1377,7 @@ class Server:
         PathConditions.path_must_be_dir,
     )
     @PathPermissions(PathPermissions.writable)
-    async def rmd(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def rmd(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         real_path, _ = self.get_paths(connection, rest)
         await connection.path_io.rmdir(real_path)
         connection.response("250", "")
@@ -1420,7 +1420,7 @@ class Server:
     )
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.readable)
-    async def mlsd(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def mlsd(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         @ConnectionConditions(
             ConnectionConditions.data_connection_made,
             wait=True,
@@ -1428,7 +1428,7 @@ class Server:
             fail_info="Can't open data connection",
         )
         @worker
-        async def mlsd_worker(self: Self, connection: ConnectionProtocol, rest: _Path) -> None:
+        async def mlsd_worker(self: Self, connection: ConnectionProtocol, rest: _PathType) -> None:
             stream = connection.data_connection
             del connection.data_connection
             async with stream:
@@ -1518,7 +1518,7 @@ class Server:
     @ConnectionConditions(ConnectionConditions.login_required)
     @PathConditions(PathConditions.path_must_exists)
     @PathPermissions(PathPermissions.writable)
-    async def rnfr(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def rnfr(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         real_path, _ = self.get_paths(connection, rest)
         connection.rename_from = real_path
         connection.response("350", "rename from accepted")
@@ -1530,7 +1530,7 @@ class Server:
     )
     @PathConditions(PathConditions.path_must_not_exists)
     @PathPermissions(PathPermissions.writable)
-    async def rnto(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def rnto(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         real_path, _ = self.get_paths(connection, rest)
         rename_from = connection.rename_from
         del connection.rename_from
@@ -1544,7 +1544,7 @@ class Server:
         PathConditions.path_must_be_file,
     )
     @PathPermissions(PathPermissions.writable)
-    async def dele(self, connection: ConnectionProtocol, rest: _Path) -> Literal[True]:
+    async def dele(self, connection: ConnectionProtocol, rest: _PathType) -> Literal[True]:
         real_path, _ = self.get_paths(connection, rest)
         await connection.path_io.unlink(real_path)
         connection.response("250", "")
@@ -1558,7 +1558,7 @@ class Server:
     async def stor(
         self,
         connection: ConnectionProtocol,
-        rest: _Path,
+        rest: _PathType,
         mode: OpenMode = "wb",
     ) -> Literal[True]:
         @ConnectionConditions(

@@ -62,14 +62,14 @@ __all__ = (
 )
 logger = logging.getLogger(__name__)
 
-_Path: TypeAlias = Union[str, pathlib.PurePath]
+_PathType: TypeAlias = Union[str, pathlib.PurePath]
 _ConnectionType: TypeAlias = Literal["I", "A", "E", "L"]
 
-_INFO_FILE_TYPE: TypeAlias = Literal["file", "dir", "link", "unknown"]
+_InfoFileType: TypeAlias = Literal["file", "dir", "link", "unknown"]
 
 
 class WindowsInfoDict(TypedDict):
-    type: _INFO_FILE_TYPE
+    type: _InfoFileType
     size: NotRequired[str]
     modify: str
 
@@ -77,7 +77,7 @@ class WindowsInfoDict(TypedDict):
 UnixInfoDict = TypedDict(
     "UnixInfoDict",
     {
-        "type": _INFO_FILE_TYPE,
+        "type": _InfoFileType,
         "size": str,
         "modify": str,
         "unix.mode": int,
@@ -92,7 +92,7 @@ InfoDict: TypeAlias = Union[WindowsInfoDict, UnixInfoDict]
 PartialInfoDict = TypedDict(
     "PartialInfoDict",
     {
-        "type": _INFO_FILE_TYPE,
+        "type": _InfoFileType,
         "size": str,
         "modify": str,
         "unix.mode": int,
@@ -825,7 +825,7 @@ class Client(BaseClient):
         directory = self.parse_directory_response(info[-1])
         return directory
 
-    async def change_directory(self, path: _Path = "..") -> None:
+    async def change_directory(self, path: _PathType = "..") -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -841,7 +841,7 @@ class Client(BaseClient):
             cmd = "CWD " + str(path)
         await self.command(cmd, Code("2xx"))
 
-    async def make_directory(self, path: _Path, *, parents: bool = True) -> None:
+    async def make_directory(self, path: _PathType, *, parents: bool = True) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -854,7 +854,7 @@ class Client(BaseClient):
         :type parents: :py:class:`bool`
         """
         path = pathlib.PurePosixPath(path)
-        need_create: List[_Path] = []
+        need_create: List[_PathType] = []
         while path.name and not await self.exists(path):
             need_create.append(path)
             path = path.parent
@@ -864,7 +864,7 @@ class Client(BaseClient):
         for path in need_create:
             await self.command("MKD " + str(path), Code("257"))
 
-    async def remove_directory(self, path: _Path) -> None:
+    async def remove_directory(self, path: _PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -877,7 +877,7 @@ class Client(BaseClient):
 
     def list(
         self,
-        path: _Path = "",
+        path: _PathType = "",
         *,
         recursive: bool = False,
         raw_command: Optional[str] = None,
@@ -922,12 +922,12 @@ class Client(BaseClient):
             AsyncListerMixin[Tuple[pathlib.PurePath, InfoDict]],
         ):
             stream: Optional[DataConnectionThrottleStreamIO] = None
-            directories: Deque[Tuple[_Path, InfoDict]]
+            directories: Deque[Tuple[_PathType, InfoDict]]
             parse_line: Callable[[bytes], Tuple[pathlib.PurePath, InfoDict]]
 
             async def _new_stream(
                 self,
-                local_path: _Path,
+                local_path: _PathType,
             ) -> Optional[DataConnectionThrottleStreamIO]:
                 self.path = local_path
                 self.parse_line = ctx.parse_mlsx_line
@@ -981,7 +981,7 @@ class Client(BaseClient):
 
         return AsyncLister()
 
-    async def stat(self, path: _Path) -> InfoDict:
+    async def stat(self, path: _PathType) -> InfoDict:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1012,7 +1012,7 @@ class Client(BaseClient):
                 "path does not exists",
             )
 
-    async def is_file(self, path: _Path) -> bool:
+    async def is_file(self, path: _PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1026,7 +1026,7 @@ class Client(BaseClient):
         info = await self.stat(path)
         return info["type"] == "file"
 
-    async def is_dir(self, path: _Path) -> bool:
+    async def is_dir(self, path: _PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1040,7 +1040,7 @@ class Client(BaseClient):
         info = await self.stat(path)
         return info["type"] == "dir"
 
-    async def exists(self, path: _Path) -> bool:
+    async def exists(self, path: _PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1059,7 +1059,7 @@ class Client(BaseClient):
                 return False
             raise
 
-    async def rename(self, source: _Path, destination: _Path) -> None:
+    async def rename(self, source: _PathType, destination: _PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1074,7 +1074,7 @@ class Client(BaseClient):
         await self.command("RNFR " + str(source), Code("350"))
         await self.command("RNTO " + str(destination), Code("2xx"))
 
-    async def remove_file(self, path: _Path) -> None:
+    async def remove_file(self, path: _PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1085,7 +1085,7 @@ class Client(BaseClient):
         """
         await self.command("DELE " + str(path), Code("2xx"))
 
-    async def remove(self, path: _Path) -> None:
+    async def remove(self, path: _PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1107,7 +1107,7 @@ class Client(BaseClient):
 
     def upload_stream(
         self,
-        destination: _Path,
+        destination: _PathType,
         *,
         offset: int = 0,
     ) -> AsyncEnterableProtocol[DataConnectionThrottleStreamIO]:
@@ -1130,7 +1130,7 @@ class Client(BaseClient):
 
     def append_stream(
         self,
-        destination: _Path,
+        destination: _PathType,
         *,
         offset: int = 0,
     ) -> AsyncEnterableProtocol[DataConnectionThrottleStreamIO]:
@@ -1153,8 +1153,8 @@ class Client(BaseClient):
 
     async def upload(
         self,
-        source: _Path,
-        destination: _Path = "",
+        source: _PathType,
+        destination: _PathType = "",
         *,
         write_into: bool = False,
         block_size: int = DEFAULT_BLOCK_SIZE,
@@ -1211,7 +1211,7 @@ class Client(BaseClient):
 
     def download_stream(
         self,
-        source: _Path,
+        source: _PathType,
         *,
         offset: int = 0,
     ) -> AsyncEnterableProtocol[DataConnectionThrottleStreamIO]:
@@ -1232,8 +1232,8 @@ class Client(BaseClient):
 
     async def download(
         self,
-        source: _Path,
-        destination: _Path = "",
+        source: _PathType,
+        destination: _PathType = "",
         *,
         write_into: bool = False,
         block_size: int = DEFAULT_BLOCK_SIZE,
