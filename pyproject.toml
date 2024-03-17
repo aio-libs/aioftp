@@ -88,8 +88,10 @@ target-version = ["py38"]
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
