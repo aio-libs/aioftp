@@ -89,20 +89,6 @@ UnixInfoDict = TypedDict(
 
 InfoDict: TypeAlias = Union[WindowsInfoDict, UnixInfoDict]
 
-PartialInfoDict = TypedDict(
-    "PartialInfoDict",
-    {
-        "type": _InfoFileType,
-        "size": str,
-        "modify": str,
-        "unix.mode": int,
-        "unix.links": str,
-        "unix.owner": str,
-        "unix.group": str,
-    },
-    total=False,
-)
-
 _ParserType: TypeAlias = Callable[[bytes], Tuple[pathlib.PurePosixPath, InfoDict]]
 
 
@@ -563,7 +549,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         s = b.decode(encoding=self.encoding).rstrip()
-        info: PartialInfoDict = {}
+        info: dict[str, Any] = {}
         if s[0] == "-":
             info["type"] = "file"
         elif s[0] == "d":
@@ -635,7 +621,7 @@ class BaseClient:
         with setlocale("C"):
             strptime = datetime.datetime.strptime
             date_time = strptime(date_time_str, "%m/%d/%Y %I:%M %p")
-        info: PartialInfoDict = {}
+        info: dict[str, Any] = {}
         info["modify"] = self.format_date_time(date_time)
         next_space = line.index(" ")
         if line.startswith("<DIR>"):
