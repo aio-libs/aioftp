@@ -591,7 +591,8 @@ class BaseClient:
             i = -2 if link_dst[-1] == "'" or link_dst[-1] == '"' else -1
             info["type"] = "dir" if link_dst[i] == "/" else "file"
             s = link_src
-        return pathlib.PurePosixPath(s), UnixInfoDict(
+
+        typed_info = UnixInfoDict(
             {
                 "type": info["type"],
                 "size": info["size"],
@@ -602,6 +603,8 @@ class BaseClient:
                 "unix.group": info["unix.group"],
             },
         )
+
+        return pathlib.PurePosixPath(s), typed_info
 
     def parse_list_line_windows(self, b: bytes) -> Tuple[pathlib.PurePosixPath, WindowsInfoDict]:
         """
