@@ -37,6 +37,9 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
+dependencies = [
+    "typing_extensions >= 4.10,<5.0",
+]
 
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
@@ -60,6 +63,10 @@ dev = [
     "black",
     "ruff",
 
+    # typecheckers
+    "pyright",
+    "mypy",
+
     # docs
     "sphinx",
     "alabaster",
@@ -81,8 +88,10 @@ target-version = ["py38"]
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
@@ -96,3 +105,28 @@ log_format = "%(asctime)s.%(msecs)03d %(name)-20s %(levelname)-8s %(filename)-15
 log_date_format = "%H:%M:%S"
 log_level = "DEBUG"
 asyncio_mode = "strict"
+
+[tool.pyright]
+pythonVersion = "3.8"
+strict = ["src"]
+reportImplicitOverride = true
+exclude = ["venv", ".venv", "build", "tests", "docs", "ftpbench.py"]
+
+[tool.mypy]
+files = "src/aioftp"
+show_absolute_path = true
+pretty = true
+strict = true
+enable_error_code = [
+    "explicit-override",
+    "redundant-self", "redundant-expr", "possibly-undefined",
+]
+warn_unreachable = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests"
+strict = false
+disallow_any_generics = false
+disallow_untyped_defs = false

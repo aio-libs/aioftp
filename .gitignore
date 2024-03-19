@@ -15,3 +15,7 @@ __pycache__
 .pytest_cache
 .ruff_cache
 coverage.xml
+.coverage
+.venv
+venv
+.DS_Store
