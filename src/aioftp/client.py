@@ -13,7 +13,6 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
-    Coroutine,
     Deque,
     Dict,
     List,
@@ -128,8 +127,6 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         :py:class:`aioftp.ThrottleStreamIO`
     """
 
-    client: "BaseClient"
-
     def __init__(self, client: "BaseClient", *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.client = client
@@ -174,21 +171,10 @@ EmptyCodes: TypeAlias = Tuple[()]
 
 
 class BaseClient:
-    socket_timeout: Optional[int]
-    connection_timeout: Optional[int]
-    throttle: StreamThrottle
-    path_timeout: Optional[int]
 
-    path_io: pathio.AbstractPathIO
-    encoding: str
     stream: Optional[ThrottleStreamIO]
-    ssl: Optional[SSLContext]
-    parse_list_line_custom: Optional[_ParserType]
-    parse_list_line_custom_first: bool
-    _passive_commands: Sequence[str]
-    _open_connection: "partial[Coroutine[None, None, Tuple[asyncio.StreamReader, asyncio.StreamWriter]]]"
-    server_host: Optional[str] = None
-    server_port: Optional[int] = None
+    server_port: Optional[int]
+    server_host: Optional[str]
 
     def __init__(
         self,
@@ -221,6 +207,8 @@ class BaseClient:
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
+        self.server_host = None
+        self.server_port = None
 
     async def connect(self, host: str, port: int = DEFAULT_PORT) -> Optional[List[str]]:
         self.server_host = host
@@ -258,9 +246,12 @@ class BaseClient:
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
         """
-        line = await self.stream.readline()  # type: ignore
+        if self.stream is None:
+            raise ValueError("Connection is not established")
+
+        line = await self.stream.readline()
         if not line:
-            self.stream.close()  # type: ignore
+            self.stream.close()
             raise ConnectionResetError
         s = line.decode(encoding=self.encoding).rstrip()
         logger.debug(s)
@@ -375,7 +366,11 @@ class BaseClient:
             else:
                 logger.debug(command)
             message = command + END_OF_LINE
-            await self.stream.write(message.encode(encoding=self.encoding))  # type: ignore
+
+            if self.stream is None:
+                raise ValueError("Connection is not established")
+
+            await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
             code, info = await self.parse_response()
             while any(map(code.matches, wait_codes)):
@@ -951,13 +946,19 @@ class Client(BaseClient):
                     self.stream = await self._new_stream(path)
 
                 while True:
-                    line = await self.stream.readline()  # type: ignore
+                    if self.stream is None:
+                        raise StopAsyncIteration
+                    line = await self.stream.readline()
                     while not line:
-                        await self.stream.finish()  # type: ignore
+                        await self.stream.finish()
                         if self.directories:
                             current_path, info = self.directories.popleft()
                             self.stream = await self._new_stream(current_path)
-                            line = await self.stream.readline()  # type: ignore
+
+                            if self.stream is None:
+                                raise ValueError("C")
+
+                            line = await self.stream.readline()
                         else:
                             raise StopAsyncIteration
 

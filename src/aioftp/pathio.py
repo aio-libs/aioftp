@@ -105,13 +105,7 @@ class AsyncPathIOContext:
 
     """
 
-    seek: "functools.partial[Awaitable[int]]"
-    write: "functools.partial[Awaitable[int]]"
-    read: "functools.partial[Awaitable[bytes]]"
     close: Optional["functools.partial[Awaitable[None]]"]
-    pathio: "AbstractPathIO"
-    args: Tuple[Any, ...]
-    kwargs: Dict[str, Any]
 
     def __init__(self, pathio: "AbstractPathIO", args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         self.close = None
@@ -163,7 +157,6 @@ def universal_exception(coro: Callable[_Ps, Coroutine[None, None, _T]]) -> Calla
 
 class PathIONursery:
     state: Optional[Union[List[_NodeProtocol], io.BytesIO]]
-    factory: Type["AbstractPathIO"]
 
     def __init__(self, factory: Type["AbstractPathIO"]):
         self.factory = factory
@@ -211,9 +204,6 @@ class AbstractPathIO(abc.ABC):
 
     :param state: shared pathio state per server
     """
-
-    timeout: Optional[Union[float, int]]
-    connection: Optional["Connection"]
 
     def __init__(
         self,
@@ -793,7 +783,6 @@ class MemoryPathIO(AbstractPathIO):
         st_mode: int
 
     fs: Union[List[_NodeProtocol], io.BytesIO]
-    cwd: pathlib.PurePosixPath
 
     def __init__(
         self,

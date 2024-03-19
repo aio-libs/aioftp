@@ -10,6 +10,7 @@ from typing import (
     Any,
     AsyncContextManager,
     AsyncIterable,
+    AsyncIterator,
     Awaitable,
     Callable,
     Coroutine,
@@ -158,13 +159,15 @@ def with_timeout(
         return _with_timeout("timeout")(name)
 
 
-class AsyncStreamIterator(Generic[_T]):
+class AsyncStreamIterator(AsyncIterator[_T], Generic[_T]):
     def __init__(self, read_coro: Callable[[], Awaitable[_T]]):
         self.read_coro = read_coro
 
+    @override
     def __aiter__(self) -> "AsyncStreamIterator[_T]":
         return self
 
+    @override
     async def __anext__(self) -> _T:
         data = await self.read_coro()
         if data:
@@ -344,11 +347,6 @@ class StreamIO:
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
 
-    reader: asyncio.StreamReader
-    writer: asyncio.StreamWriter
-    read_timeout: Union[int, float, None]
-    write_timeout: Union[int, float, None]
-
     def __init__(
         self,
         reader: asyncio.StreamReader,
@@ -429,15 +427,10 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    reset_rate: Union[int, float]
-    _limit: Optional[int]
-    _start: Optional[float]
-    _sum: int
-
     def __init__(self, *, limit: Optional[int] = None, reset_rate: Union[int, float] = 10) -> None:
         self._limit = limit
         self.reset_rate = reset_rate
-        self._start = None
+        self._start: Optional[float] = None
         self._sum = 0
 
     async def wait(self) -> None:
@@ -572,8 +565,6 @@ class ThrottleStreamIO(StreamIO):
         ...     timeout=timeout
         ... )
     """
-
-    throttles: Dict[str, StreamThrottle]
 
     def __init__(self, *args: Any, throttles: Dict[str, StreamThrottle] = {}, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

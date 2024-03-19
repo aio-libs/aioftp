@@ -47,10 +47,6 @@ class StatusCodeError(AIOFTPException):
     Exception members are tuples, even for one code.
     """
 
-    expected_codes: Tuple["Code", ...]
-    received_codes: Tuple["Code", ...]
-    info: Iterable[str]
-
     def __init__(
         self,
         expected_codes: Union[Tuple["Code", ...], "Code"],
@@ -86,8 +82,6 @@ class PathIOError(AIOFTPException):
         ...     elif ...
         ...         # handle
     """
-
-    reason: Optional[Any]
 
     def __init__(self, *args: Any, reason: Optional[Any] = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

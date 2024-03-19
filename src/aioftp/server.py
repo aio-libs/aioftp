@@ -12,10 +12,10 @@ from ssl import SSLContext
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Coroutine,
     DefaultDict,
     Dict,
-    Final,
     Generic,
     Iterable,
     List,
@@ -140,10 +140,6 @@ class Permission:
     :type writable: :py:class:`bool`
     """
 
-    path: pathlib.PurePosixPath
-    readable: bool
-    writable: bool
-
     def __init__(
         self,
         path: Union[str, pathlib.PurePosixPath] = "/",
@@ -205,17 +201,6 @@ class User:
         connection in bytes per second
     :type write_speed_limit_per_connection: :py:class:`int` or :py:class:`None`
     """
-
-    login: Optional[str]
-    password: Optional[str]
-    base_path: pathlib.Path
-    home_path: pathlib.PurePosixPath
-    permissions: Iterable[Permission]
-    maximum_connections: Optional[int]
-    read_speed_limit: Optional[int]
-    write_speed_limit: Optional[int]
-    read_speed_limit_per_connection: Optional[int]
-    write_speed_limit_per_connection: Optional[int]
 
     def __init__(
         self,
@@ -293,8 +278,6 @@ class AbstractUserManager(abc.ABC):
         PASSWORD_REQUIRED = enum.auto()
         ERROR = enum.auto()
 
-    timeout: Optional[Union[float, int]]
-
     def __init__(self, *, timeout: Optional[Union[float, int]] = None) -> None:
         self.timeout = timeout
 
@@ -344,9 +327,6 @@ class MemoryUserManager(AbstractUserManager):
     :type users: :py:class:`list`, :py:class:`tuple`, etc. of
         :py:class:`aioftp.User`
     """
-
-    users: Sequence[User]
-    available_connections: Dict[User, "AvailableConnections"]
 
     def __init__(self, users: Optional[Sequence[User]], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -470,8 +450,6 @@ class AvailableConnections:
     :type value: :py:class:`int` or :py:class:`None`
     """
 
-    value: Optional[int]
-
     def __init__(self, value: Optional[int] = None):
         self.value = self.maximum_value = value
 
@@ -541,18 +519,20 @@ class ConnectionConditions:
         ...     ...
     """
 
-    user_required = _ConnectionCondition("user", "no user (use USER firstly)")
-    login_required = _ConnectionCondition("logged", "not logged in")
-    passive_server_started = _ConnectionCondition(
+    user_required: ClassVar[_ConnectionCondition] = _ConnectionCondition("user", "no user (use USER firstly)")
+    login_required: ClassVar[_ConnectionCondition] = _ConnectionCondition("logged", "not logged in")
+    passive_server_started: ClassVar[_ConnectionCondition] = _ConnectionCondition(
         "passive_server",
         "no listen socket created (use PASV firstly)",
     )
-    data_connection_made = _ConnectionCondition("data_connection", "no data connection made")
-    rename_from_required = _ConnectionCondition("rename_from", "no filename (use RNFR firstly)")
-    fields: Tuple[_ConnectionCondition, ...]
-    wait: bool
-    fail_code: _FAIL_CODE
-    fail_info: Optional[str]
+    data_connection_made: ClassVar[_ConnectionCondition] = _ConnectionCondition(
+        "data_connection",
+        "no data connection made",
+    )
+    rename_from_required: ClassVar[_ConnectionCondition] = _ConnectionCondition(
+        "rename_from",
+        "no filename (use RNFR firstly)",
+    )
 
     def __init__(
         self,
@@ -634,11 +614,10 @@ class PathConditions:
         ...     ...
     """
 
-    path_must_exists: Final[_PathCondition] = _PathCondition("exists", False, "path does not exists")
-    path_must_not_exists: Final[_PathCondition] = _PathCondition("exists", True, "path already exists")
-    path_must_be_dir: Final[_PathCondition] = _PathCondition("is_dir", False, "path is not a directory")
-    path_must_be_file: Final[_PathCondition] = _PathCondition("is_file", False, "path is not a file")
-    conditions: Tuple[_PathCondition, ...]
+    path_must_exists: ClassVar[_PathCondition] = _PathCondition("exists", False, "path does not exists")
+    path_must_not_exists: ClassVar[_PathCondition] = _PathCondition("exists", True, "path already exists")
+    path_must_be_dir: ClassVar[_PathCondition] = _PathCondition("is_dir", False, "path is not a directory")
+    path_must_be_file: ClassVar[_PathCondition] = _PathCondition("is_file", False, "path is not a file")
 
     def __init__(self, *conditions: _PathCondition) -> None:
         self.conditions = conditions
@@ -700,9 +679,8 @@ class PathPermissions:
         ...     ...
     """
 
-    readable: Final[str] = "readable"
-    writable: Final[str] = "writable"
-    permissions: Tuple[str, ...]
+    readable: ClassVar[str] = "readable"
+    writable: ClassVar[str] = "writable"
 
     def __init__(self, *permissions: str) -> None:
         self.permissions = permissions
@@ -840,25 +818,10 @@ class Server:
     :type ssl: :py:class:`ssl.SSLContext`
     """
 
-    block_size: int
-    socket_timeout: Optional[Union[int, float]]
-    idle_timeout: Optional[Union[int, float]]
-    wait_future_timeout: Optional[Union[int, float]]
-    path_timeout: Optional[Union[int, float]]
-    path_io_factory: pathio.PathIONursery
-    ipv4_pasv_forced_response_address: Optional[str]
     available_data_ports: Optional["asyncio.PriorityQueue[Tuple[int, int]]"]
-    user_manager: AbstractUserManager
-    available_connections: AvailableConnections
-    throttle: StreamThrottle
-    throttle_per_connection: StreamThrottle
     throttle_per_user: Dict[User, StreamThrottle]
-    encoding: str
-    ssl: Optional[SSLContext]
     commands_mapping: Dict[str, Callable[..., Any]]
     connections: Dict[StreamIO, ConnectionProtocol]
-    server_host: Optional[str]
-    server_port: int
 
     def __init__(
         self,
