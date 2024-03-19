@@ -956,7 +956,7 @@ class Client(BaseClient):
                             self.stream = await self._new_stream(current_path)
 
                             if self.stream is None:
-                                raise ValueError("C")
+                                raise ValueError("Connection is not established")
 
                             line = await self.stream.readline()
                         else:
