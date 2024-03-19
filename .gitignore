@@ -18,3 +18,4 @@ coverage.xml
 .coverage
 .venv
 venv
+.DS_Store
