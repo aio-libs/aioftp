@@ -45,7 +45,7 @@ from .common import (
     setlocale,
     wrap_with_container,
 )
-from .types import AsyncEnterableProtocol
+from .types import AsyncEnterableProtocol, NotEmptyCodes, check_not_empty_codes
 
 try:
     from siosocks.io.asyncio import open_connection  # type: ignore
@@ -166,8 +166,9 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
             self.close()
 
 
-CodesORCode: TypeAlias = Union[Tuple[Code, ...], Code]
-EmptyCodes: TypeAlias = Tuple[()]
+_CodesORCode: TypeAlias = Union[NotEmptyCodes, Code]
+_MaybeCodesORCode: TypeAlias = Union[Tuple[Code, ...], Code]
+_EmptyCodes: TypeAlias = Tuple[()]
 
 
 class BaseClient:
@@ -307,28 +308,46 @@ class BaseClient:
             raise errors.StatusCodeError(expected_codes, received_code, info)
 
     @overload
-    async def command(  # type: ignore
+    async def command(
         self,
-        command: Optional[str] = None,
-        expected_codes: Tuple[()] = (),
-        wait_codes: Tuple[()] = (),
+        command: Optional[str],
+        expected_codes: _EmptyCodes,
+        wait_codes: _EmptyCodes,
         censor_after: Optional[int] = None,
     ) -> None: ...
 
     @overload
     async def command(
         self,
-        command: Optional[str] = None,
-        expected_codes: CodesORCode = (),
-        wait_codes: CodesORCode = (),
+        command: Optional[str],
+        expected_codes: _MaybeCodesORCode,
+        wait_codes: _CodesORCode,
         censor_after: Optional[int] = None,
     ) -> Tuple[Code, List[str]]: ...
+
+    @overload
+    async def command(
+        self,
+        command: Optional[str],
+        expected_codes: _CodesORCode,
+        wait_codes: _MaybeCodesORCode = (),
+        censor_after: Optional[int] = None,
+    ) -> Tuple[Code, List[str]]: ...
+
+    @overload
+    async def command(
+        self,
+        command: Optional[str],
+        expected_codes: _MaybeCodesORCode = (),
+        wait_codes: _MaybeCodesORCode = (),
+        censor_after: Optional[int] = None,
+    ) -> Optional[Tuple[Code, List[str]]]: ...
 
     async def command(
         self,
         command: Optional[str] = None,
-        expected_codes: Union[EmptyCodes, CodesORCode] = (),
-        wait_codes: Union[EmptyCodes, CodesORCode] = (),
+        expected_codes: Union[_EmptyCodes, _MaybeCodesORCode, _CodesORCode] = (),
+        wait_codes: Union[_EmptyCodes, _MaybeCodesORCode, _CodesORCode] = (),
         censor_after: Optional[int] = None,
     ) -> Optional[Tuple[Code, List[str]]]:
         """
@@ -783,7 +802,7 @@ class Client(BaseClient):
 
         :raises aioftp.StatusCodeError: if unknown code received
         """
-        code, info = await self.command("USER " + user, (Code("230"), Code("33x")))
+        code, info = await self.command("USER " + user, check_not_empty_codes((Code("230"), Code("33x"))))
         while code.matches("33x"):
             censor_after = None
             if code == "331":
@@ -795,7 +814,12 @@ class Client(BaseClient):
                 raise errors.StatusCodeError(Code("33x"), code, info)
             code, info = await self.command(
                 cmd,
-                (Code("230"), Code("33x")),
+                check_not_empty_codes(
+                    (
+                        Code("230"),
+                        Code("33x"),
+                    ),
+                ),
                 censor_after=censor_after,
             )
 

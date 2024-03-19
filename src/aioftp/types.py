@@ -1,8 +1,13 @@
-from typing import Any, Generator, Literal, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generator, Literal, NewType, Protocol, Tuple, TypeVar
 
 from typing_extensions import TypeAlias
 
+if TYPE_CHECKING:
+    from .client import Code
+
 _T_co = TypeVar("_T_co", covariant=True)
+
+__all__ = ("NotEmptyCodes", "check_not_empty_codes")
 
 
 class StatsProtocol(Protocol):
@@ -39,3 +44,12 @@ class AsyncEnterableProtocol(Protocol[_T_co]):
 
 
 OpenMode: TypeAlias = Literal["rb", "wb", "ab", "r+b"]
+
+NotEmptyCodes = NewType("NotEmptyCodes", Tuple["Code", ...])
+
+
+def check_not_empty_codes(codes: Tuple["Code", ...]) -> NotEmptyCodes:
+    if not codes:
+        raise ValueError("Codes should not be empty")
+
+    return NotEmptyCodes(codes)
