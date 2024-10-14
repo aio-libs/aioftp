@@ -108,6 +108,8 @@ Dependencies
 
 0.21.4 is the last version which supports python 3.7+
 
+0.22.3 is the last version which supports python 3.8+
+
 License
 -------
 
