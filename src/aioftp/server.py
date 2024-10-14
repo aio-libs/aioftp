@@ -1031,7 +1031,7 @@ class Server:
             else:
                 resolved_virtual_path /= part
         base_path = connection.user.base_path
-        real_path = base_path / resolved_virtual_path.relative_to("/")
+        real_path = base_path / str(resolved_virtual_path.relative_to("/"))
         # replace with `is_relative_to` check after 3.9+ requirements lands
         try:
             real_path.relative_to(base_path)

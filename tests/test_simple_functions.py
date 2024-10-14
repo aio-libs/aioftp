@@ -246,5 +246,5 @@ def test_get_paths_windows_traverse():
         connection,
         virtual_path,
     )
-    assert real_path == base_path
-    assert resolved_virtual_path == pathlib.PurePosixPath("/")
+    assert real_path == pathlib.PureWindowsPath("C:/ftp/foo/C:/windows")
+    assert resolved_virtual_path == pathlib.PurePosixPath("/foo/C:\\windows")
