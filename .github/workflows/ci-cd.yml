@@ -29,10 +29,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - run: python -m pip install -e ./[dev]
     - run: python -m pytest
-    - uses: codecov/codecov-action@v2
+    - uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: true
         verbose: true
+        token: ${{ secrets.CODECOV_IO_TOKEN }}
 
   build:
     needs: test
