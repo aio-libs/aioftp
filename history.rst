@@ -1,5 +1,9 @@
 x.x.x (xx-xx-xxxx)
 
+0.23.0 (14-10-2024)
+- server: fix pathlib `relative_to` issue (#179)
+- minimal python version upgraded to 3.9
+
 0.22.3 (05-01-2024)
 - minimal python version downgraded to 3.8
 
