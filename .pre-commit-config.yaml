@@ -20,13 +20,13 @@ repos:
     fail_fast: true
 
 - repo: https://github.com/asottile/add-trailing-comma
-  rev: v2.1.0
+  rev: v3.1.0
   hooks:
   - id: add-trailing-comma
     fail_fast: true
 
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-  rev: v2.1.0
+  rev: v2.14.0
   hooks:
   - id: pretty-format-yaml
     fail_fast: true
@@ -38,10 +38,10 @@ repos:
 - repo: local
   hooks:
   - <<: *python-linters
-    id: black
-    name: Format with Black
-    entry: black
-    args: ["."]
+    id: ruff format
+    name: Format with ruff
+    entry: ruff
+    args: ["format", "."]
 
   - <<: *python-linters
     id: ruff
