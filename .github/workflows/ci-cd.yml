@@ -33,7 +33,7 @@ jobs:
       with:
         fail_ci_if_error: true
         verbose: true
-        token: ${{ secrets.CODECOV_IO_TOKEN }}
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     needs: test
