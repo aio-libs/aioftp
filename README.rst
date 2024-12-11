@@ -6,9 +6,9 @@
 aioftp
 ======
 
-.. image:: https://github.com/aio-libs/aioftp/actions/workflows/ci.yaml/badge.svg?branch=master
-   :target: https://github.com/aio-libs/aioftp/actions/workflows/ci.yaml
-   :alt: Github actions ci for master branch
+.. image:: https://github.com/aio-libs/aioftp/actions/workflows/ci-cd.yaml/badge.svg?branch=master
+   :target: https://github.com/aio-libs/aioftp/actions/workflows/ci-cd.yaml
+   :alt: Github actions ci-cd for master branch
 
 .. image:: https://codecov.io/gh/aio-libs/aioftp/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aioftp
