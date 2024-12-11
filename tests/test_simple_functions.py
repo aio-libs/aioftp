@@ -186,6 +186,14 @@ def test_parse_list_line_unix():
     with pytest.raises(ValueError):
         p(b"-rw-rw-r--  xx poh  poh   6595 Feb 27 04:14 history.rst")
 
+    _, parsed = p(b"lrwxrwxrwx  1 poh  poh      6 Mar 23 05:46 link-tmp.py -> tmp.py")
+    assert parsed["type"] == "file"
+    assert parsed["link_dst"] == "tmp.py"
+
+    _, parsed = p(b"lrwxrwxrwx  1 poh  poh      6 Mar 23 05:46 link-tmp.py -> /tmp.py")
+    assert parsed["type"] == "file"
+    assert parsed["link_dst"] == "/tmp.py"
+
 
 @pytest.mark.parametrize("owner", ["s", "x", "-", "E"])
 @pytest.mark.parametrize("group", ["s", "x", "-", "E"])
