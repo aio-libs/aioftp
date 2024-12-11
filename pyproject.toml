@@ -58,11 +58,6 @@ dev = [
     # linters
     "pre-commit",
     "ruff",
-
-    # docs
-    "sphinx",
-    "alabaster",
-    "docutils < 0.18.0",
 ]
 
 [build-system]
