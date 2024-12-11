@@ -22,7 +22,7 @@ aioftp
 .. image:: https://pepy.tech/badge/aioftp/month
     :target: https://pypi.python.org/pypi/aioftp
 
-ftp client/server for asyncio (http://aioftp.readthedocs.org)
+ftp client/server for asyncio (https://aioftp.rtfd.io)
 
 .. _GitHub: https://github.com/aio-libs/aioftp
 

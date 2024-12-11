@@ -40,7 +40,7 @@ classifiers = [
 
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
-Documentation = "https://aioftp.readthedocs.io"
+Documentation = "https://aioftp.rtfd.io"
 
 [project.optional-dependencies]
 socks = [
