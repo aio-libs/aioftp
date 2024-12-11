@@ -1209,7 +1209,13 @@ class Client(BaseClient):
     @classmethod
     @contextlib.asynccontextmanager
     async def context(
-        cls, host, port=DEFAULT_PORT, user=DEFAULT_USER, password=DEFAULT_PASSWORD, account=DEFAULT_ACCOUNT, **kwargs
+        cls,
+        host,
+        port=DEFAULT_PORT,
+        user=DEFAULT_USER,
+        password=DEFAULT_PASSWORD,
+        account=DEFAULT_ACCOUNT,
+        **kwargs,
     ):
         """
         Classmethod async context manager. This create

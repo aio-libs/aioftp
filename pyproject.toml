@@ -1,9 +1,9 @@
 [project]
 name = "aioftp"
-version = "0.21.4"
+version = "0.23.1"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
-requires-python = ">= 3.11"
+requires-python = ">= 3.9"
 license = {file = "license.txt"}
 authors = [
     {name = "pohmelie", email = "multisosnooley@gmail.com"},
@@ -40,7 +40,7 @@ classifiers = [
 
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
-Documentation = "https://aioftp.readthedocs.io"
+Documentation = "https://aioftp.rtfd.io"
 
 [project.optional-dependencies]
 socks = [
@@ -57,7 +57,6 @@ dev = [
 
     # linters
     "pre-commit",
-    "black",
     "ruff",
 
     # docs
@@ -74,23 +73,26 @@ build-backend = "setuptools.build_meta"
 packages.find.where = ["src"]
 
 # tools
-[tool.black]
-line-length = 120
-target-version = ["py311"]
-
 [tool.ruff]
 line-length = 120
-target-version = "py311"
-select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
+target-version = "py39"
+lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
 run.omit = ["./src/aioftp/__main__.py"]
 report.show_missing = true
+report.precision = 2
 
 [tool.pytest.ini_options]
-addopts = "-x --durations 10 -p no:anyio --cov"
+addopts = [
+    "-x",
+    "--durations", "10",
+    "-p", "no:anyio",
+    "--cov",
+    "--import-mode=importlib",
+]
 testpaths = "tests"
 log_format = "%(asctime)s.%(msecs)03d %(name)-20s %(levelname)-8s %(filename)-15s %(lineno)-4d %(message)s"
 log_date_format = "%H:%M:%S"

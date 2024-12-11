@@ -129,11 +129,7 @@ async def test_pasv_connection_port_reused(
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_pasv_forced_response_address(
-    pair_factory,
-    Server,
-    unused_tcp_port,
-):
+async def test_pasv_connection_pasv_forced_response_address(pair_factory, Server):
     def ipv4_used():
         try:
             ipaddress.IPv4Address(pair.host)
@@ -141,21 +137,29 @@ async def test_pasv_connection_pasv_forced_response_address(
         except ValueError:
             return False
 
+    # using TEST-NET-1 address
+    ipv4_address = "192.0.2.1"
     async with pair_factory(
-        server=Server(ipv4_pasv_forced_response_address="127.0.0.2"),
+        server=Server(ipv4_pasv_forced_response_address=ipv4_address),
     ) as pair:
-        assert pair.server.ipv4_pasv_forced_response_address == "127.0.0.2"
+        assert pair.server.ipv4_pasv_forced_response_address == ipv4_address
 
         if ipv4_used():
-            # The connection fails here because the server starts to listen for
+            # The connection should fail here because the server starts to listen for
             # the passive connections on the host (IPv4 address) that is used
             # by the control channel. In reality, if the server is behind NAT,
             # the server is reached with the defined external IPv4 address,
             # i.e. we can check that the connection to
             # pair.server.ipv4_pasv_forced_response_address failed to know that
             # the server returned correct external IP
-            with pytest.raises(OSError):
-                await pair.client.get_passive_connection(commands=["pasv"])
+            # ...
+            # but we can't use check like this:
+            # with pytest.raises(OSError):
+            #     await pair.client.get_passive_connection(commands=["pasv"])
+            # because there is no such ipv4 which will be non-routable, so
+            # we can only check `PASV` response
+            ip, _ = await pair.client._do_pasv()
+            assert ip == ipv4_address
 
         # With epsv the connection should open as that does not use the
         # external IPv4 address but just tells the client the port to connect

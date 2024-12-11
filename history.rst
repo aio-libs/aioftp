@@ -1,10 +1,30 @@
 x.x.x (xx-xx-xxxx)
 
-0.22.0 (xx-xx-xxxx)
+0.23.1 (14-10-2024)
+- update ci
+
+0.23.0 (14-10-2024)
+- server: fix pathlib `relative_to` issue (#179)
+- minimal python version upgraded to 3.9
+
+0.22.3 (05-01-2024)
+- minimal python version downgraded to 3.8
+
+0.22.2 (29-12-2023)
+-------------------
+- ci: separate build and publish jobs
+
+0.22.1 (29-12-2023)
+-------------------
+- docs: update/fix readthedocs configuration
+- ci: fix workflow file extension from `yaml` to `yml`
+
+0.22.0 (29-12-2023)
 -------------------
 - client.list: fix infinite symlink loop for `.` and `..` on FTP servers with UNIX-like filesystem for `client.list(path, recursive=True)`
 - project file structure: refactor to use `pyproject.toml`
 - minimal python version bumped to 3.11
+- ci: update publish/deploy job (#171)
 
 0.21.4 (13-10-2022)
 -------------------
