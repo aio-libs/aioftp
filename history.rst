@@ -1,13 +1,23 @@
 x.x.x (xx-xx-xxxx)
 
+0.24.0 (11-12-2024)
+-------------------
+- remove documentation dependencies from pyproject.toml (moved to docs/requirements.txt)
+- include symlink destination in path info for unix legacy mode (#169)
+- update documentation links (#180)
+Thanks to `webknjaz <https://github.com/webknjaz>`_, `rcfox <https://github.com/rcfox>`_
+
 0.23.1 (14-10-2024)
+-------------------
 - update ci
 
 0.23.0 (14-10-2024)
+-------------------
 - server: fix pathlib `relative_to` issue (#179)
 - minimal python version upgraded to 3.9
 
 0.22.3 (05-01-2024)
+-------------------
 - minimal python version downgraded to 3.8
 
 0.22.2 (29-12-2023)
