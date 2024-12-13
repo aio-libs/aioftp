@@ -1,5 +1,8 @@
 x.x.x (xx-xx-xxxx)
 
+0.24.1 (13-12-2024)
+- server: use single line pasv response (fix #142)
+
 0.24.0 (11-12-2024)
 -------------------
 - remove documentation dependencies from pyproject.toml (moved to docs/requirements.txt)
