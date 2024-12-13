@@ -1467,9 +1467,9 @@ class Server:
             except errors.NoAvailablePort:
                 connection.response("421", ["no free ports"])
                 return False
-            code, info = "227", ["listen socket created"]
+            code, info_template = "227", "listen socket created {address}"
         else:
-            code, info = "227", ["listen socket already exists"]
+            code, info_template = "227", "listen socket already exists {address}"
 
         for sock in connection.passive_server.sockets:
             if sock.family == socket.AF_INET:
@@ -1485,7 +1485,7 @@ class Server:
             return False
 
         nums = tuple(map(int, host.split("."))) + (port >> 8, port & 0xFF)
-        info.append(f"({','.join(map(str, nums))})")
+        info = [info_template.format(address=f"({','.join(map(str, nums))})")]
         if connection.future.data_connection.done():
             connection.data_connection.close()
             del connection.data_connection
