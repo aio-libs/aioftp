@@ -517,7 +517,6 @@ class BaseClient:
         info = {}
         info["modify"] = self.format_date_time(date_time)
         next_space = line.index(" ")
-
         if line.startswith("<DIR>"):
             info["type"] = "dir"
         else:
@@ -531,7 +530,6 @@ class BaseClient:
         filename = line[next_space:].lstrip()
         if filename == "." or filename == "..":
             raise ValueError
-
         return pathlib.PurePosixPath(filename), info
 
     def parse_list_line(self, b):
