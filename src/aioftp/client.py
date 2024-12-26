@@ -501,22 +501,24 @@ class BaseClient:
         date_time_str = line[: date_time_end + 1].strip().split(" ")
         date_time_str = " ".join([x for x in date_time_str if len(x) > 0])
         line = line[date_time_end + 1 :].lstrip()
-        
+
         possible_formats = [
-        "%m/%d/%Y %I:%M %p",
-        "%m-%d-%y %I:%M%p",
-        ]
+            "%m/%d/%Y %I:%M %p",
+            "%m-%d-%y %I:%M%p",
+            ]
         date_time = None
-        with suppress(ValueError):
+        with setlocale("C"):
             for fmt in possible_formats:
-                date_time = datetime.datetime.strptime(date_time_str, fmt)
-                break
+                with contextlib.suppress(ValueError):
+                    date_time = datetime.datetime.strptime(date_time_str, fmt)
+                    break
             else:
                 raise ValueError(f"Date/time format not recognized: {date_time_str}")
 
         info = {}
         info["modify"] = self.format_date_time(date_time)
         next_space = line.index(" ")
+
         if line.startswith("<DIR>"):
             info["type"] = "dir"
         else:
@@ -530,6 +532,7 @@ class BaseClient:
         filename = line[next_space:].lstrip()
         if filename == "." or filename == "..":
             raise ValueError
+
         return pathlib.PurePosixPath(filename), info
 
     def parse_list_line(self, b):
