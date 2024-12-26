@@ -518,7 +518,6 @@ class BaseClient:
         info = {}
         info["modify"] = self.format_date_time(date_time)
         next_space = line.index(" ")
-
         if line.startswith("<DIR>"):
             info["type"] = "dir"
         else:
