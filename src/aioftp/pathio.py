@@ -117,7 +117,7 @@ def defend_file_methods(coro):
     async def wrapper(self, file, *args, **kwargs):
         if isinstance(file, AsyncPathIOContext):
             raise ValueError(
-                "Native path io file methods can not be used " "with wrapped file object",
+                "Native path io file methods can not be used with wrapped file object",
             )
         return await coro(self, file, *args, **kwargs)
 

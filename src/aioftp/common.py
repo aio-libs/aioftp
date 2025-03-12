@@ -3,6 +3,8 @@ import asyncio
 import collections
 import functools
 import locale
+import socket
+import ssl
 import threading
 from contextlib import contextmanager
 
@@ -24,8 +26,8 @@ __all__ = (
     "DEFAULT_PASSWORD",
     "DEFAULT_ACCOUNT",
     "setlocale",
+    "SSLSessionBoundContext",
 )
-
 
 END_OF_LINE = "\r\n"
 DEFAULT_BLOCK_SIZE = 8192
@@ -319,6 +321,16 @@ class StreamIO:
         """
         self.writer.close()
 
+    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: str) -> None:
+        """
+        Upgrades the connection to TLS
+        """
+        await self.writer.start_tls(
+            sslcontext=sslcontext,
+            server_hostname=server_hostname,
+            ssl_handshake_timeout=self.write_timeout,
+        )
+
 
 class Throttle:
     """
@@ -394,7 +406,7 @@ class Throttle:
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(limit={self._limit!r}, " f"reset_rate={self.reset_rate!r})"
+        return f"{self.__class__.__name__}(limit={self._limit!r}, reset_rate={self.reset_rate!r})"
 
 
 class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
@@ -589,3 +601,71 @@ def setlocale(name):
             yield locale.setlocale(locale.LC_ALL, name)
         finally:
             locale.setlocale(locale.LC_ALL, old_locale)
+
+
+# class from https://github.com/python/cpython/issues/79152 (with some changes)
+class SSLSessionBoundContext(ssl.SSLContext):
+    """ssl.SSLContext bound to an existing SSL session.
+
+    Actually asyncio doesn't support TLS session resumption, the loop.create_connection() API
+    does not take any TLS session related argument. There is ongoing work to add support for this
+    at https://github.com/python/cpython/issues/79152.
+
+    The loop.create_connection() API takes a SSL context argument though, the SSLSessionBoundContext
+    is used to wrap a SSL context and inject a SSL session on calls to
+        - SSLSessionBoundContext.wrap_socket()
+        - SSLSessionBoundContext.wrap_bio()
+
+    This wrapper is compatible with any TLS application which calls only the methods above when
+    making new TLS connections. This class is NOT a subclass of ssl.SSLContext, so it will be
+    rejected by applications which ensure the SSL context is an instance of ssl.SSLContext. Not being
+    a subclass of ssl.SSLContext makes this wrapper lightweight.
+    """
+
+    __slots__ = ("_context", "_session")
+
+    def __init__(self, protocol: int, context: ssl.SSLContext, session: ssl.SSLSession):
+        self._context = context
+        self._session = session
+
+    @property
+    def session(self):
+        return self._session
+
+    def wrap_socket(
+        self,
+        sock: socket.socket,
+        server_side: bool = False,
+        do_handshake_on_connect: bool = True,
+        suppress_ragged_eofs: bool = True,
+        server_hostname: bool = None,
+        session: ssl.SSLSession = None,
+    ) -> ssl.SSLSocket:
+        if session is not None:
+            raise ValueError("expected session to be None")
+        return self._context.wrap_socket(
+            sock=sock,
+            server_hostname=server_hostname,
+            server_side=server_side,
+            do_handshake_on_connect=do_handshake_on_connect,
+            suppress_ragged_eofs=suppress_ragged_eofs,
+            session=self._session,
+        )
+
+    def wrap_bio(
+        self,
+        incoming: ssl.MemoryBIO,
+        outgoing: ssl.MemoryBIO,
+        server_side: bool = False,
+        server_hostname: bool = None,
+        session: ssl.SSLSession = None,
+    ) -> ssl.SSLObject:
+        if session is not None:
+            raise ValueError("expected session to be None")
+        return self._context.wrap_bio(
+            incoming=incoming,
+            outgoing=outgoing,
+            server_hostname=server_hostname,
+            server_side=server_side,
+            session=self._session,
+        )

@@ -6,6 +6,7 @@ __all__ = (
     "PathIsNotAbsolute",
     "PathIOError",
     "NoAvailablePort",
+    "TLSError",
 )
 
 
@@ -43,7 +44,7 @@ class StatusCodeError(AIOFTPException):
 
     def __init__(self, expected_codes, received_codes, info):
         super().__init__(
-            f"Waiting for {expected_codes} but got " f"{received_codes} {info!r}",
+            f"Waiting for {expected_codes} but got {received_codes} {info!r}",
         )
         self.expected_codes = common.wrap_with_container(expected_codes)
         self.received_codes = common.wrap_with_container(received_codes)
@@ -80,4 +81,10 @@ class PathIOError(AIOFTPException):
 class NoAvailablePort(AIOFTPException, OSError):
     """
     Raised when there is no available data port
+    """
+
+
+class TLSError(AIOFTPException):
+    """
+    Any TLS related errors
     """
