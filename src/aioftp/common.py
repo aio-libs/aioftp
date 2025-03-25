@@ -622,15 +622,11 @@ class SSLSessionBoundContext(ssl.SSLContext):
     a subclass of ssl.SSLContext makes this wrapper lightweight.
     """
 
-    __slots__ = ("_context", "_session")
+    __slots__ = ("context", "session")
 
     def __init__(self, protocol: int, context: ssl.SSLContext, session: ssl.SSLSession):
-        self._context = context
-        self._session = session
-
-    @property
-    def session(self):
-        return self._session
+        self.context = context
+        self.session = session
 
     def wrap_socket(
         self,
@@ -643,13 +639,13 @@ class SSLSessionBoundContext(ssl.SSLContext):
     ) -> ssl.SSLSocket:
         if session is not None:
             raise ValueError("expected session to be None")
-        return self._context.wrap_socket(
+        return self.context.wrap_socket(
             sock=sock,
             server_hostname=server_hostname,
             server_side=server_side,
             do_handshake_on_connect=do_handshake_on_connect,
             suppress_ragged_eofs=suppress_ragged_eofs,
-            session=self._session,
+            session=self.session,
         )
 
     def wrap_bio(
@@ -662,10 +658,10 @@ class SSLSessionBoundContext(ssl.SSLContext):
     ) -> ssl.SSLObject:
         if session is not None:
             raise ValueError("expected session to be None")
-        return self._context.wrap_bio(
+        return self.context.wrap_bio(
             incoming=incoming,
             outgoing=outgoing,
             server_hostname=server_hostname,
             server_side=server_side,
-            session=self._session,
+            session=self.session,
         )

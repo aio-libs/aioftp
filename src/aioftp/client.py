@@ -123,7 +123,6 @@ class BaseClient:
         parse_list_line_custom=None,
         parse_list_line_custom_first=True,
         passive_commands=("epsv", "pasv"),
-        explicit_tls=False,
         **siosocks_asyncio_kwargs,
     ):
         self.socket_timeout = socket_timeout
@@ -140,13 +139,9 @@ class BaseClient:
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
-        self._open_connection = partial(
-            open_connection,
-            ssl=ssl if not explicit_tls else None,
-            **siosocks_asyncio_kwargs,
-        )
-        self.explicit_tls = explicit_tls
-        self.logged_in = False
+        self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
+        self._upgraded_to_tls = False
+        self._logged_in = False
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
@@ -670,31 +665,19 @@ class Client(BaseClient):
         if self.stream.writer.transport.get_extra_info("ssl_object"):
             return
 
-        self.explicit_tls = True
+        self._upgraded_to_tls = True
 
-        try:
-            await self.command("AUTH TLS", "234")
-        except errors.StatusCodeError:
-            raise errors.TLSError("Explicit TLS is not supported on this server") from None
+        await self.command("AUTH TLS", "234")
 
         if sslcontext:
             self.ssl = sslcontext
         elif not isinstance(self.ssl, ssl.SSLContext):
             self.ssl = ssl.create_default_context()
 
-        try:
-            await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
-        except ssl.SSLError as e:
-            raise errors.TLSError("Unable to upgrade connection to TLS") from e
+        await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
 
         if self.logged_in:
-            try:
-                await self._send_tls_protection_commands()
-            except errors.StatusCodeError as e:
-                raise errors.TLSError(
-                    "Connection was upgraded to TLS, but the commands to upgrade the data channel"
-                    f"have failed {e.received_codes=}: {e.info}",
-                )
+            await self._send_tls_protection_commands()
 
     async def login(
         self,
@@ -718,9 +701,6 @@ class Client(BaseClient):
 
         :raises aioftp.StatusCodeError: if unknown code received
         """
-        if self.explicit_tls:
-            await self.upgrade_to_tls()
-
         code, info = await self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
             censor_after = None
@@ -736,15 +716,11 @@ class Client(BaseClient):
                 ("230", "33x"),
                 censor_after=censor_after,
             )
+
         self.logged_in = True
-        if self.explicit_tls:
-            try:
-                await self._send_tls_protection_commands()
-            except errors.StatusCodeError as e:
-                raise errors.TLSError(
-                    "Connection was upgraded to TLS, but the commands to upgrade the data channel"
-                    f"have failed {e.received_codes=}: {e.info}",
-                )
+
+        if self._upgraded_to_tls:
+            await self._send_tls_protection_commands()
 
     async def get_current_directory(self):
         """
@@ -1055,14 +1031,7 @@ class Client(BaseClient):
             offset=offset,
         )
 
-    async def upload(
-        self,
-        source,
-        destination="",
-        *,
-        write_into=False,
-        block_size=DEFAULT_BLOCK_SIZE,
-    ):
+    async def upload(self, source, destination="", *, write_into=False, block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1129,14 +1098,7 @@ class Client(BaseClient):
         """
         return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
-    async def download(
-        self,
-        source,
-        destination="",
-        *,
-        write_into=False,
-        block_size=DEFAULT_BLOCK_SIZE,
-    ):
+    async def download(self, source, destination="", *, write_into=False, block_size=DEFAULT_BLOCK_SIZE):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1276,19 +1238,16 @@ class Client(BaseClient):
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
-        if self.explicit_tls:
+        if self._upgraded_to_tls:
             ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
-            try:
-                await writer.start_tls(
-                    sslcontext=SSLSessionBoundContext(
-                        ssl.PROTOCOL_TLS_CLIENT,
-                        context=ssl_object.context,
-                        session=ssl_object.session,
-                    ),
-                    server_hostname=self.server_host,
-                )
-            except ssl.SSLError as e:
-                raise errors.TLSError("Unable to upgrade data connection to TLS") from e
+            await writer.start_tls(
+                sslcontext=SSLSessionBoundContext(
+                    ssl.PROTOCOL_TLS_CLIENT,
+                    context=ssl_object.context,
+                    session=ssl_object.session,
+                ),
+                server_hostname=self.server_host,
+            )
         return stream
 
     async def abort(self, *, wait=True):

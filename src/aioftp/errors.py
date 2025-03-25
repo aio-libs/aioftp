@@ -6,7 +6,6 @@ __all__ = (
     "PathIsNotAbsolute",
     "PathIOError",
     "NoAvailablePort",
-    "TLSError",
 )
 
 
@@ -81,10 +80,4 @@ class PathIOError(AIOFTPException):
 class NoAvailablePort(AIOFTPException, OSError):
     """
     Raised when there is no available data port
-    """
-
-
-class TLSError(AIOFTPException):
-    """
-    Any TLS related errors
     """
