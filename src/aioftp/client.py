@@ -624,13 +624,6 @@ class Client(BaseClient):
     :param **siosocks_asyncio_kwargs: siosocks key-word only arguments
     """
 
-    @property
-    def upgraded_to_tls(self):
-        """
-        :rtype: :py:class:`bool`
-        """
-        return bool(self.stream.writer.transport.get_extra_info("ssl_object"))
-
     async def connect(self, host, port=DEFAULT_PORT):
         """
         :py:func:`asyncio.coroutine`
@@ -656,7 +649,7 @@ class Client(BaseClient):
         await self.command("PBSZ 0", "200")
         await self.command("PROT P", "200")
 
-    async def upgrade_to_tls(self, sslcontext: ssl.SSLContext = None) -> None:
+    async def upgrade_to_tls(self, sslcontext: ssl.SSLContext | None = None) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -669,7 +662,7 @@ class Client(BaseClient):
         :param sslcontext: custom ssl context
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
-        if self.upgraded_to_tls:
+        if self._upgraded_to_tls:
             return
 
         await self.command("AUTH TLS", "234")
@@ -681,7 +674,7 @@ class Client(BaseClient):
 
         await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
 
-        if self.logged_in:
+        if self._logged_in:
             await self._send_tls_protection_commands()
 
     async def login(
@@ -722,9 +715,9 @@ class Client(BaseClient):
                 censor_after=censor_after,
             )
 
-        self.logged_in = True
+        self._logged_in = True
 
-        if self.upgraded_to_tls:
+        if self._upgraded_to_tls:
             await self._send_tls_protection_commands()
 
     async def get_current_directory(self):

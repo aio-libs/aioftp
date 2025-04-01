@@ -52,6 +52,7 @@ dev = [
     "async_timeout >= 4.0.0",
     "pytest-asyncio",
     "pytest-cov",
+    "pytest-mock",
     "pytest",
     "siosocks",
     "trustme",
