@@ -860,7 +860,6 @@ class Server:
         line = await stream.readline()
         if not line:
             raise ConnectionResetError
-        print(1, line)
         s = line.decode(encoding=self.encoding).rstrip()
         cmd, _, rest = s.partition(" ")
 
