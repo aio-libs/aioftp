@@ -649,7 +649,7 @@ class Client(BaseClient):
         await self.command("PBSZ 0", "200")
         await self.command("PROT P", "200")
 
-    async def upgrade_to_tls(self, sslcontext):
+    async def upgrade_to_tls(self, sslcontext=None):
         """
         :py:func:`asyncio.coroutine`
 
