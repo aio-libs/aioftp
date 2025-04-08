@@ -321,7 +321,7 @@ class StreamIO:
         """
         self.writer.close()
 
-    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: str) -> None:
+    async def start_tls(self, sslcontext, server_hostname):
         """
         Upgrades the connection to TLS
         """
