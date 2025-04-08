@@ -192,7 +192,7 @@ class Sleep:
         ok = math.isclose(self.delay, delay, rel_tol=rel_tol, abs_tol=abs_tol)
         if not ok:
             print(
-                f"latest sleep: {self.delay}; expected delay: " f"{delay}; rel: {rel_tol}",
+                f"latest sleep: {self.delay}; expected delay: {delay}; rel: {rel_tol}",
             )
         return ok
 

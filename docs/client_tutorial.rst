@@ -375,6 +375,20 @@ to specify global timeout for socket io operations.
     ...     path_io_factory=pathio.AsyncPathIO
     ... )
 
+TLS Upgrade Support
+-------------------
+
+Just like Python's `ftplib.FTP_TLS`, aioftp supports TLS upgrade. This is
+done by calling :py:meth:`aioftp.Client.upgrade_to_tls` after instantiating the
+client, like:
+
+::
+
+    >>> client = aioftp.Client()
+    >>> await client.connect("ftp.server.com")
+    >>> await client.upgrade_to_tls()
+    >>> await client.login("user", "pass")
+
 Using proxy
 -----------
 

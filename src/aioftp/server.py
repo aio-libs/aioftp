@@ -72,7 +72,7 @@ class Permission:
             return False
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.path!r}, " f"readable={self.readable!r}, writable={self.writable!r})"
+        return f"{self.__class__.__name__}({self.path!r}, readable={self.readable!r}, writable={self.writable!r})"
 
 
 class User:

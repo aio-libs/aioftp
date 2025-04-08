@@ -6,6 +6,7 @@ import datetime
 import logging
 import pathlib
 import re
+import ssl
 from functools import partial
 
 from . import errors, pathio
@@ -19,6 +20,7 @@ from .common import (
     HALF_OF_YEAR_IN_SECONDS,
     TWO_YEARS_IN_SECONDS,
     AsyncListerMixin,
+    SSLSessionBoundContext,
     StreamThrottle,
     ThrottleStreamIO,
     async_enterable,
@@ -138,6 +140,8 @@ class BaseClient:
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
         self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
+        self._upgraded_to_tls = False
+        self._logged_in = False
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
@@ -636,6 +640,43 @@ class Client(BaseClient):
         code, info = await self.command(None, "220", "120")
         return info
 
+    async def _send_tls_protection_commands(self) -> None:
+        """
+        :py:func:`asyncio.coroutine`
+
+        Sends the PBSZ and PROT commands as required for TLS connection.
+        """
+        await self.command("PBSZ 0", "200")
+        await self.command("PROT P", "200")
+
+    async def upgrade_to_tls(self, sslcontext=None):
+        """
+        :py:func:`asyncio.coroutine`
+
+        Attempts to upgrade the connection to TLS (explicit TLS).
+        Downgrading via the CCC or REIN commands is not supported.  Both the command
+        and data channels will be encrypted after using this command.  You may
+        call this command at any point during the connection, but not every FTP server
+        will allow a connection upgrade after logging in.
+
+        :param sslcontext: custom ssl context
+        :type sslcontext: :py:class:`ssl.SSLContext`
+        """
+        if self._upgraded_to_tls:
+            return
+
+        await self.command("AUTH TLS", "234")
+
+        if sslcontext:
+            self.ssl = sslcontext
+        elif not isinstance(self.ssl, ssl.SSLContext):
+            self.ssl = ssl.create_default_context()
+
+        await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
+
+        if self._logged_in:
+            await self._send_tls_protection_commands()
+
     async def login(
         self,
         user=DEFAULT_USER,
@@ -673,6 +714,11 @@ class Client(BaseClient):
                 ("230", "33x"),
                 censor_after=censor_after,
             )
+
+        self._logged_in = True
+
+        if self._upgraded_to_tls:
+            await self._send_tls_protection_commands()
 
     async def get_current_directory(self):
         """
@@ -779,7 +825,7 @@ class Client(BaseClient):
                 cls.parse_line = self.parse_mlsx_line
                 if raw_command not in [None, "MLSD", "LIST"]:
                     raise ValueError(
-                        "raw_command must be one of MLSD or " f"LIST, but got {raw_command}",
+                        f"raw_command must be one of MLSD or LIST, but got {raw_command}",
                     )
                 if raw_command in [None, "MLSD"]:
                     try:
@@ -1190,6 +1236,18 @@ class Client(BaseClient):
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
+
+        ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
+        if ssl_object:
+            await writer.start_tls(
+                sslcontext=SSLSessionBoundContext(
+                    ssl.PROTOCOL_TLS_CLIENT,
+                    context=ssl_object.context,
+                    session=ssl_object.session,
+                ),
+                server_hostname=self.server_host,
+            )
+
         return stream
 
     async def abort(self, *, wait=True):
