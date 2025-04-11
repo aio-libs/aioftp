@@ -1,4 +1,9 @@
+import sys
+
 import pytest
+
+if sys.version_info < (3, 11):
+    pytest.skip(reason="required python 3.11+", allow_module_level=True)
 
 
 async def _auth_response(connection, rest):

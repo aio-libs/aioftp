@@ -662,6 +662,9 @@ class Client(BaseClient):
         :param sslcontext: custom ssl context
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
+        if self.ssl:
+            raise RuntimeError("SSL context is already set in implicit mode, can't use explicit mode")
+
         if self._upgraded_to_tls:
             return
 
@@ -1238,7 +1241,7 @@ class Client(BaseClient):
         )
 
         ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
-        if ssl_object:
+        if ssl_object and not self.ssl:
             await writer.start_tls(
                 sslcontext=SSLSessionBoundContext(
                     ssl.PROTOCOL_TLS_CLIENT,
