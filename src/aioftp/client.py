@@ -7,7 +7,6 @@ import logging
 import pathlib
 import re
 import ssl
-import sys
 from functools import partial
 
 from . import errors, pathio
@@ -42,7 +41,6 @@ __all__ = (
     "Code",
 )
 logger = logging.getLogger(__name__)
-IS_PYTHON_VERSION_GREATER_OR_EQUAL_3_11 = sys.version_info >= (3, 11)
 
 
 class Code(str):
@@ -664,9 +662,6 @@ class Client(BaseClient):
         :param sslcontext: custom ssl context
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
-        if not IS_PYTHON_VERSION_GREATER_OR_EQUAL_3_11:
-            raise RuntimeError("Python 3.11 or greater is required for this method")
-
         if self.ssl:
             raise RuntimeError("SSL context is already set in implicit mode, can't use explicit mode")
 
@@ -1247,9 +1242,6 @@ class Client(BaseClient):
 
         ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
         if ssl_object and not self.ssl:
-            if not IS_PYTHON_VERSION_GREATER_OR_EQUAL_3_11:
-                raise RuntimeError("Python 3.11 or greater is required for this method")
-
             await writer.start_tls(
                 sslcontext=SSLSessionBoundContext(
                     ssl.PROTOCOL_TLS_CLIENT,
