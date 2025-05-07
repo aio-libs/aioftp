@@ -7,7 +7,6 @@ import logging
 import pathlib
 import re
 import ssl
-from functools import partial
 
 from . import errors, pathio
 from .common import (
@@ -139,9 +138,20 @@ class BaseClient:
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
-        self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
-        self._upgraded_to_tls = False
-        self._logged_in = False
+        self._siosocks_asyncio_kwargs = siosocks_asyncio_kwargs
+
+    async def _open_connection(self, host, port):
+        ssl_resolved = self.ssl
+        if self.stream is not None:
+            ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
+            if ssl_object is not None:
+                ssl_resolved = SSLSessionBoundContext(
+                    ssl.PROTOCOL_TLS_CLIENT,
+                    context=ssl_object.context,
+                    session=ssl_object.session,
+                )
+        connection = await open_connection(host, port, ssl=ssl_resolved, **self._siosocks_asyncio_kwargs)
+        return connection
 
     async def connect(self, host, port=DEFAULT_PORT):
         self.server_host = host
@@ -663,22 +673,13 @@ class Client(BaseClient):
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
         if self.ssl:
-            raise RuntimeError("SSL context is already set in implicit mode, can't use explicit mode")
-
-        if self._upgraded_to_tls:
-            return
+            raise RuntimeError("ssl context is already set and used implicitly")
 
         await self.command("AUTH TLS", "234")
-
-        if sslcontext:
-            self.ssl = sslcontext
-        elif not isinstance(self.ssl, ssl.SSLContext):
-            self.ssl = ssl.create_default_context()
-
-        await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
-
-        if self._logged_in:
-            await self._send_tls_protection_commands()
+        if sslcontext is None:
+            sslcontext = ssl.create_default_context()
+        await self.stream.start_tls(sslcontext=sslcontext, server_hostname=self.server_host)
+        await self._send_tls_protection_commands()
 
     async def login(
         self,
@@ -717,11 +718,6 @@ class Client(BaseClient):
                 ("230", "33x"),
                 censor_after=censor_after,
             )
-
-        self._logged_in = True
-
-        if self._upgraded_to_tls:
-            await self._send_tls_protection_commands()
 
     async def get_current_directory(self):
         """
@@ -1239,18 +1235,6 @@ class Client(BaseClient):
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
-
-        ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
-        if ssl_object and not self.ssl:
-            await writer.start_tls(
-                sslcontext=SSLSessionBoundContext(
-                    ssl.PROTOCOL_TLS_CLIENT,
-                    context=ssl_object.context,
-                    session=ssl_object.session,
-                ),
-                server_hostname=self.server_host,
-            )
-
         return stream
 
     async def abort(self, *, wait=True):
@@ -1276,6 +1260,7 @@ class Client(BaseClient):
         user=DEFAULT_USER,
         password=DEFAULT_PASSWORD,
         account=DEFAULT_ACCOUNT,
+        upgrade_to_tls=False,
         **kwargs,
     ):
         """
@@ -1310,6 +1295,8 @@ class Client(BaseClient):
         client = cls(**kwargs)
         try:
             await client.connect(host, port)
+            if upgrade_to_tls:
+                await client.upgrade_to_tls()
             await client.login(user, password, account)
         except Exception:
             client.close()
