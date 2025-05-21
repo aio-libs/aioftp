@@ -14,5 +14,5 @@ __version__ = importlib.metadata.version(__package__)
 version = tuple(map(int, __version__.split(".")))
 
 __all__ = (
-    client.__all__ + server.__all__ + errors.__all__ + common.__all__ + pathio.__all__ + ("version", "__version__")
+    client.__all__ + server.__all__ + errors.__all__ + common.__all__ + pathio.__all__ + ("version", "__version__")  # type: ignore[name-defined]
 )

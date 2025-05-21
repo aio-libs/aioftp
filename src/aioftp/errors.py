@@ -1,4 +1,12 @@
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Union
+
+from typing_extensions import TypeAlias
+
 from . import common
+
+if TYPE_CHECKING:
+    from .client import Code
 
 __all__ = (
     "AIOFTPException",
@@ -41,12 +49,17 @@ class StatusCodeError(AIOFTPException):
     Exception members are tuples, even for one code.
     """
 
-    def __init__(self, expected_codes, received_codes, info):
+    def __init__(
+        self,
+        expected_codes: Union[tuple["Code", ...], "Code"],
+        received_codes: Union[tuple["Code", ...], "Code"],
+        info: Union[list[str], str],
+    ) -> None:
         super().__init__(
             f"Waiting for {expected_codes} but got {received_codes} {info!r}",
         )
-        self.expected_codes = common.wrap_with_container(expected_codes)
-        self.received_codes = common.wrap_with_container(received_codes)
+        self.expected_codes: tuple[Code, ...] = common.wrap_with_container(expected_codes)
+        self.received_codes: tuple[Code, ...] = common.wrap_with_container(received_codes)
         self.info = info
 
 
@@ -54,6 +67,10 @@ class PathIsNotAbsolute(AIOFTPException):
     """
     Raised when "path" is not absolute.
     """
+
+
+ExcInfo: TypeAlias = tuple[type[BaseException], BaseException, TracebackType]
+OptExcInfo: TypeAlias = Union[ExcInfo, tuple[None, None, None]]
 
 
 class PathIOError(AIOFTPException):
@@ -72,7 +89,7 @@ class PathIOError(AIOFTPException):
         ...         # handle
     """
 
-    def __init__(self, *args, reason=None, **kwargs):
+    def __init__(self, *args: Any, reason: Union[OptExcInfo, None] = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.reason = reason
 
