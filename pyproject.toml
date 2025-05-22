@@ -40,6 +40,10 @@ classifiers = [
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 
+dependencies = [
+    "typing-extensions>=4.13.2",
+]
+
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
 Documentation = "https://aioftp.rtfd.io"
@@ -61,6 +65,7 @@ dev = [
     # linters
     "pre-commit",
     "ruff",
+    "mypy",
 ]
 
 [build-system]
@@ -69,6 +74,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages.find.where = ["src"]
+package-data.aioftp = ["py.typed"]
 
 # tools
 [tool.ruff]
@@ -76,6 +82,12 @@ line-length = 120
 target-version = "py39"
 lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
+
+[tool.mypy]
+packages = ["src.aioftp"]
+exclude = "^egg-info/|^docs/|^tests/|ftpbench.py"
+pretty = true
+strict = true
 
 [tool.coverage]
 run.source = ["./src/aioftp"]

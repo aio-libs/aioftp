@@ -67,7 +67,7 @@ if not args.quiet:
     )
 if args.memory:
     user = aioftp.User(args.login, args.password, base_path="/")
-    path_io_factory = aioftp.MemoryPathIO
+    path_io_factory: type[aioftp.AbstractPathIO] = aioftp.MemoryPathIO
 else:
     if args.home:
         user = aioftp.User(args.login, args.password, base_path=args.home)
@@ -81,7 +81,7 @@ family = {
 }[args.family]
 
 
-async def main():
+async def main() -> None:
     server = aioftp.Server([user], path_io_factory=path_io_factory)
     await server.run(args.host, args.port, family=family)
 

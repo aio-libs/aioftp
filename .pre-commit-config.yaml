@@ -35,6 +35,14 @@ repos:
     - --preserve-quotes
     - --indent=2
 
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.15.0
+  hooks:
+  - id: mypy
+    name: Type check with mypy
+    args: ["--config-file=pyproject.toml"]
+    files: ^src/aioftp/
+
 - repo: local
   hooks:
   - <<: *python-linters
