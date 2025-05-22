@@ -74,6 +74,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages.find.where = ["src"]
+package-data.aioftp = ["py.typed"]
 
 # tools
 [tool.ruff]
@@ -83,6 +84,8 @@ lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 
 [tool.mypy]
+packages = ["src.aioftp"]
+exclude = "^egg-info/|^docs/|^tests/|ftpbench.py"
 pretty = true
 strict = true
 

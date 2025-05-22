@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: ${{ env.lowest_python_version }}
     - run: python -m pip install -e ./[dev]
-    - run: mypy --strict
+    - run: mypy
 
   test:
     needs: lint
