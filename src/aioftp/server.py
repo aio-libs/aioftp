@@ -67,7 +67,11 @@ class Permission:
     """
 
     def __init__(
-        self, path: Union[str, pathlib.PurePosixPath] = "/", *, readable: bool = True, writable: bool = True
+        self,
+        path: Union[str, pathlib.PurePosixPath] = "/",
+        *,
+        readable: bool = True,
+        writable: bool = True,
     ) -> None:
         self.path = pathlib.PurePosixPath(path)
         self.readable = readable
@@ -450,7 +454,11 @@ class ConnectionConditions:
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
 
     def __init__(
-        self, *fields: tuple[str, str], wait: bool = False, fail_code: str = "503", fail_info: Union[str, None] = None
+        self,
+        *fields: tuple[str, str],
+        wait: bool = False,
+        fail_code: str = "503",
+        fail_info: Union[str, None] = None,
     ) -> None:
         self.fields = fields
         self.wait = wait
@@ -458,9 +466,11 @@ class ConnectionConditions:
         self.fail_info: Union[str, None] = fail_info
 
     def __call__(
-        self, f: Callable[Concatenate["Server", Connection, ConnectionConditionsP], Awaitable[ConnectionConditionsR]]
+        self,
+        f: Callable[Concatenate["Server", Connection, ConnectionConditionsP], Awaitable[ConnectionConditionsR]],
     ) -> Callable[
-        Concatenate["Server", Connection, ConnectionConditionsP], Awaitable[Union[ConnectionConditionsR, bool]]
+        Concatenate["Server", Connection, ConnectionConditionsP],
+        Awaitable[Union[ConnectionConditionsR, bool]],
     ]:
         @functools.wraps(f)
         async def wrapper(
@@ -819,7 +829,10 @@ class Server:
         }
 
     async def start(
-        self, host: Union[str, None] = None, port: int = 0, **kwargs: Unpack[AsyncIOStartServerKwargs]
+        self,
+        host: Union[str, None] = None,
+        port: int = 0,
+        **kwargs: Unpack[AsyncIOStartServerKwargs],
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -864,7 +877,10 @@ class Server:
         return await self.server.serve_forever()
 
     async def run(
-        self, host: Union[str, None] = None, port: int = 0, **kwargs: Unpack[AsyncIOStartServerKwargs]
+        self,
+        host: Union[str, None] = None,
+        port: int = 0,
+        **kwargs: Unpack[AsyncIOStartServerKwargs],
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -1113,7 +1129,8 @@ class Server:
 
     @staticmethod
     def get_paths(
-        connection: Connection, path: Union[str, pathlib.PurePosixPath]
+        connection: Connection,
+        path: Union[str, pathlib.PurePosixPath],
     ) -> tuple[pathlib.Path, pathlib.PurePosixPath]:
         """
         Return *real* and *virtual* paths, resolves ".." with "up" action.

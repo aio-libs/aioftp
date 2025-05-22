@@ -105,12 +105,19 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         write_timeout: Union[float, int, None] = None,
     ) -> None:
         super().__init__(
-            reader, writer, throttles, timeout=timeout, read_timeout=read_timeout, write_timeout=write_timeout
+            reader,
+            writer,
+            throttles,
+            timeout=timeout,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
         )
         self.client = client
 
     async def finish(
-        self, expected_codes: Union[str, tuple[str, ...]] = "2xx", wait_codes: Union[str, tuple[str, ...]] = "1xx"
+        self,
+        expected_codes: Union[str, tuple[str, ...]] = "2xx",
+        wait_codes: Union[str, tuple[str, ...]] = "1xx",
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -130,7 +137,10 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         await self.client.command(None, expected_codes, wait_codes)
 
     async def __aexit__(
-        self, exc_type: Union[type[BaseException], None], exc: Union[BaseException, None], tb: TracebackType
+        self,
+        exc_type: Union[type[BaseException], None],
+        exc: Union[BaseException, None],
+        tb: TracebackType,
     ) -> None:
         if exc is None:
             await self.finish()
@@ -1090,7 +1100,9 @@ class Client(BaseClient):
             raise
 
     async def rename(
-        self, source: Union[str, pathlib.PurePosixPath], destination: Union[str, pathlib.PurePosixPath]
+        self,
+        source: Union[str, pathlib.PurePosixPath],
+        destination: Union[str, pathlib.PurePosixPath],
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -1138,7 +1150,10 @@ class Client(BaseClient):
                 await self.remove_directory(path)
 
     def upload_stream(
-        self, destination: Union[str, pathlib.PurePosixPath], *, offset: int = 0
+        self,
+        destination: Union[str, pathlib.PurePosixPath],
+        *,
+        offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
         """
         Create stream for write data to `destination` file.
@@ -1158,7 +1173,10 @@ class Client(BaseClient):
         )
 
     def append_stream(
-        self, destination: Union[str, pathlib.PurePosixPath], *, offset: int = 0
+        self,
+        destination: Union[str, pathlib.PurePosixPath],
+        *,
+        offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
         """
         Create stream for append (write) data to `destination` file.
@@ -1222,7 +1240,7 @@ class Client(BaseClient):
                 async for path in self.path_io.list(src):
                     if write_into:
                         relative: pathlib.PurePosixPath = pathlib.PurePosixPath(
-                            destination.name / path.relative_to(source)
+                            destination.name / path.relative_to(source),
                         )
                     else:
                         relative = pathlib.PurePosixPath(path.relative_to(source.parent))
@@ -1238,7 +1256,10 @@ class Client(BaseClient):
                         )
 
     def download_stream(
-        self, source: Union[str, pathlib.PurePosixPath], *, offset: int = 0
+        self,
+        source: Union[str, pathlib.PurePosixPath],
+        *,
+        offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
         """
         :py:func:`asyncio.coroutine`

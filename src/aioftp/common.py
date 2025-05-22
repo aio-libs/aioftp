@@ -284,7 +284,8 @@ def async_enterable(
 
     @functools.wraps(f)
     def wrapper(
-        *args: AsyncEnterableP.args, **kwargs: AsyncEnterableP.kwargs
+        *args: AsyncEnterableP.args,
+        **kwargs: AsyncEnterableP.kwargs,
     ) -> AsyncEnterableInstanceProtocol[AsyncEnterableR]:
         class AsyncEnterableInstance:
             async def __aenter__(self) -> AsyncEnterableR:
@@ -516,7 +517,9 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
 
     @classmethod
     def from_limits(
-        cls, read_speed_limit: Union[int, None] = None, write_speed_limit: Union[int, None] = None
+        cls,
+        read_speed_limit: Union[int, None] = None,
+        write_speed_limit: Union[int, None] = None,
     ) -> "StreamThrottle":
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
