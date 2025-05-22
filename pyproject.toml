@@ -40,6 +40,10 @@ classifiers = [
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 
+dependencies = [
+    "typing-extensions>=4.13.2",
+]
+
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
 Documentation = "https://aioftp.rtfd.io"
