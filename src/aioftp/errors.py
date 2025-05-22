@@ -58,8 +58,8 @@ class StatusCodeError(AIOFTPException):
         super().__init__(
             f"Waiting for {expected_codes} but got {received_codes} {info!r}",
         )
-        self.expected_codes: tuple[Code, ...] = common.wrap_with_container(expected_codes)
-        self.received_codes: tuple[Code, ...] = common.wrap_with_container(received_codes)
+        self.expected_codes: tuple["Code", ...] = common.wrap_with_container(expected_codes)  # noqa: UP037
+        self.received_codes: tuple["Code", ...] = common.wrap_with_container(received_codes)  # noqa: UP037
         self.info = info
 
 
