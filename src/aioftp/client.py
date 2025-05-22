@@ -43,7 +43,7 @@ from .common import (
 )
 
 try:
-    from siosocks.io.asyncio import open_connection  # type: ignore[import-untyped]
+    from siosocks.io.asyncio import open_connection  # type: ignore[import-untyped,import-not-found,unused-ignore]
 except ImportError:
     from asyncio import open_connection
 
