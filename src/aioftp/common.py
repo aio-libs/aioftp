@@ -411,7 +411,7 @@ class StreamIO:
         """
         Upgrades the connection to TLS
         """
-        await self.writer.start_tls(  # type: ignore[attr-defined]  # py3.12+
+        await self.writer.start_tls(  # type: ignore[attr-defined,unused-ignore]  # py3.12+
             sslcontext=sslcontext,
             server_hostname=server_hostname,
             ssl_handshake_timeout=self.write_timeout,
