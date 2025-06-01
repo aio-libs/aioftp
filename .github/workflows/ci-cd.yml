@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: ${{ env.lowest_python_version }}
     - run: python -m pip install -e ./[dev]
-    - run: PYTHONPATH=src mypy ./src/aioftp/
+    - run: mypy src/aioftp
 
   test:
     needs: lint
