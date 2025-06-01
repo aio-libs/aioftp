@@ -506,7 +506,7 @@ class PathIO(AbstractPathIO):
 
     def list(self, path: pathlib.Path) -> AsyncIterable[pathlib.Path]:
         class Lister(AbstractAsyncLister[pathlib.Path]):
-            iter = None
+            iter: Union[Iterator[pathlib.Path], None] = None
 
             @universal_exception
             async def __anext__(self) -> pathlib.Path:
@@ -927,7 +927,7 @@ class MemoryPathIO(AbstractPathIO):
 
     def list(self, path: pathlib.Path) -> AsyncIterable[pathlib.Path]:
         class Lister(AbstractAsyncLister[pathlib.Path]):
-            iter = None
+            iter: Union[Iterator[pathlib.Path], None] = None
 
             @universal_exception
             async def __anext__(cls) -> pathlib.Path:
