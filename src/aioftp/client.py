@@ -1448,15 +1448,14 @@ class Client(BaseClient):
             raise ConnectionError
         ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
         if ssl_object and not self.ssl:
-            if sys.version_info >= (3, 12):
-                await writer.start_tls(
-                    sslcontext=SSLSessionBoundContext(
-                        ssl.PROTOCOL_TLS_CLIENT,
-                        context=ssl_object.context,
-                        session=ssl_object.session,
-                    ),
-                    server_hostname=self.server_host,
-                )
+            await writer.start_tls(  # type: ignore[attr-defined,unused-ignore]
+                sslcontext=SSLSessionBoundContext(
+                    ssl.PROTOCOL_TLS_CLIENT,
+                    context=ssl_object.context,
+                    session=ssl_object.session,
+                ),
+                server_hostname=self.server_host,
+            )
 
         return stream
 
