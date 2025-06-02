@@ -41,7 +41,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "typing-extensions>=4.13.2",
+    "typing-extensions>=4.13.2",  # 3.9 typing support
 ]
 
 [project.urls]
@@ -84,7 +84,7 @@ lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 
 [tool.mypy]
-exclude = "^egg-info/|^docs/|^tests/|ftpbench.py"
+files = "src/aioftp"
 pretty = true
 strict = true
 ignore_missing_imports = true
