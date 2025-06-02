@@ -175,14 +175,14 @@ PathWithBasicInfo: TypeAlias = tuple[PurePosixPath, BasicListInfo]
 
 
 class ParseListLineCustomCallable(Protocol):
-    def __call__(self, b: Union[bytes, str]) -> PathWithBasicInfo: ...
+    def __call__(self, b: bytes) -> PathWithBasicInfo: ...
 
 
 PathWithInfo: TypeAlias = tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]
 
 
 class ParseListLineCallable(Protocol):
-    def __call__(self, b: Union[bytes, str]) -> PathWithInfo: ...
+    def __call__(self, b: bytes) -> PathWithInfo: ...
 
 
 class BaseClientArgs(TypedDict, total=False):
@@ -545,7 +545,7 @@ class BaseClient:
                 d = datetime.strptime(s, "%b %d  %Y")
         return cls.format_date_time(d)
 
-    def parse_list_line_unix(self, b: Union[bytes, str]) -> tuple[PurePosixPath, UnixListInfo]:
+    def parse_list_line_unix(self, b: bytes) -> tuple[PurePosixPath, UnixListInfo]:
         """
         Attempt to parse a LIST line (similar to unix ls utility).
 
@@ -555,10 +555,7 @@ class BaseClient:
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
-        if isinstance(b, bytes):
-            s = b.decode(encoding=self.encoding).rstrip()
-        else:
-            s = b
+        s = b.decode(encoding=self.encoding).rstrip()
         info = {}
         if s[0] == "-":
             info["type"] = "file"
@@ -604,7 +601,7 @@ class BaseClient:
             s = link_src
         return PurePosixPath(s), info  # type: ignore[return-value]
 
-    def parse_list_line_windows(self, b: Union[bytes, str]) -> tuple[PurePosixPath, BasicListInfo]:
+    def parse_list_line_windows(self, b: bytes) -> tuple[PurePosixPath, BasicListInfo]:
         """
         Parsing Microsoft Windows `dir` output
 
@@ -614,10 +611,7 @@ class BaseClient:
         :return: (path, info)
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
-        if isinstance(b, bytes):
-            line = b.decode(encoding=self.encoding).rstrip("\r\n")
-        else:
-            line = b.rstrip("\r\n")
+        line = b.decode(encoding=self.encoding).rstrip("\r\n")
 
         date_time_end = line.index("M")
         date_time_str_list = line[: date_time_end + 1].strip().split(" ")
@@ -644,7 +638,7 @@ class BaseClient:
             raise ValueError
         return PurePosixPath(filename), info  # type: ignore[return-value]
 
-    def parse_list_line(self, b: Union[bytes, str]) -> PathWithInfo:
+    def parse_list_line(self, b: bytes) -> PathWithInfo:
         """
         Parse LIST response with both Microsoft Windows® parser and
         UNIX parser
