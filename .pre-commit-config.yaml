@@ -39,9 +39,8 @@ repos:
   rev: v1.15.0
   hooks:
   - id: mypy
+    pass_filenames: false
     name: Type check with mypy
-    args: ["--config-file=pyproject.toml"]
-    files: ^src/aioftp/
 
 - repo: local
   hooks:
