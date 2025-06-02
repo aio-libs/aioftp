@@ -270,7 +270,8 @@ class BaseClient:
         """
         Close connection.
         """
-        self.stream.close()
+        if self._stream is not None:
+            self._stream.close()
 
     async def parse_line(self) -> tuple[Code, str]:
         """
@@ -1434,8 +1435,6 @@ class Client(BaseClient):
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
-        if not self.stream:
-            raise ConnectionError
         ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
         if ssl_object and not self.ssl:
             await writer.start_tls(  # type: ignore[attr-defined,unused-ignore]
