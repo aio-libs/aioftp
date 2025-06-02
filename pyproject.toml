@@ -87,6 +87,7 @@ src = ["src"]
 exclude = "^egg-info/|^docs/|^tests/|ftpbench.py"
 pretty = true
 strict = true
+ignore_missing_imports = true
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
