@@ -237,7 +237,7 @@ class BaseClient:
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout)
         self.encoding = encoding
-        self.stream: Union[ThrottleStreamIO, None] = None
+        self._stream: Union[ThrottleStreamIO, None] = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
@@ -253,19 +253,24 @@ class BaseClient:
             self._open_connection(host, port),
             self.connection_timeout,
         )
-        self.stream = ThrottleStreamIO(
+        self._stream = ThrottleStreamIO(
             reader,
             writer,
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
 
+    @property
+    def stream(self) -> ThrottleStreamIO:
+        if self._stream is None:
+            raise ConnectionError("Connect first")
+        return self._stream
+
     def close(self) -> None:
         """
         Close connection.
         """
-        if self.stream is not None:
-            self.stream.close()
+        self.stream.close()
 
     async def parse_line(self) -> tuple[Code, str]:
         """
@@ -281,8 +286,6 @@ class BaseClient:
         :raises asyncio.TimeoutError: if there where no data for `timeout`
             period
         """
-        if self.stream is None:
-            raise ConnectionResetError
         line = await self.stream.readline()
         if not line:
             self.stream.close()
@@ -379,8 +382,6 @@ class BaseClient:
             else:
                 logger.debug(command)
             message = command + END_OF_LINE
-            if self.stream is None:
-                raise ConnectionResetError
             await self.stream.write(message.encode(encoding=self.encoding))
         if expected_codes or wait_codes:
             code, info = await self.parse_response()
@@ -802,8 +803,6 @@ class Client(BaseClient):
         elif not isinstance(self.ssl, ssl.SSLContext):
             self.ssl = ssl.create_default_context()
 
-        if self.stream is None:
-            raise ConnectionResetError
         await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
 
         if self._logged_in:
