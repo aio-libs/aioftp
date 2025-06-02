@@ -2,14 +2,11 @@ import asyncio
 import calendar
 import collections
 import contextlib
-import datetime
-import datetime as dt
 import logging
-import pathlib
 import re
 import ssl
-import sys
 from collections.abc import AsyncGenerator, Generator, Iterable, Sequence
+from datetime import datetime
 from functools import partial
 from pathlib import Path, PurePosixPath
 from types import TracebackType
@@ -496,7 +493,7 @@ class BaseClient:
         return mode
 
     @staticmethod
-    def format_date_time(d: dt.datetime) -> str:
+    def format_date_time(d: datetime) -> str:
         """
         Formats dates from strptime in a consistent format
 
@@ -508,7 +505,7 @@ class BaseClient:
         return d.strftime("%Y%m%d%H%M00")
 
     @classmethod
-    def parse_ls_date(cls, s: str, *, now: Union[dt.datetime, None] = None) -> str:
+    def parse_ls_date(cls, s: str, *, now: Union[datetime, None] = None) -> str:
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958", "Jan 03 2018", and "Nov 18 12:29".
@@ -521,13 +518,13 @@ class BaseClient:
         with setlocale("C"):
             try:
                 if now is None:
-                    now = datetime.datetime.now()
+                    now = datetime.now()
                 if s.startswith("Feb 29"):
                     # Need to find the nearest previous leap year
                     prev_leap_year = now.year
                     while not calendar.isleap(prev_leap_year):
                         prev_leap_year -= 1
-                    d = datetime.datetime.strptime(
+                    d = datetime.strptime(
                         f"{prev_leap_year} {s}",
                         "%Y %b %d %H:%M",
                     )
@@ -536,7 +533,7 @@ class BaseClient:
                     if diff > TWO_YEARS_IN_SECONDS:
                         d = d.replace(year=prev_leap_year + 4)
                 else:
-                    d = datetime.datetime.strptime(s, "%b %d %H:%M")
+                    d = datetime.strptime(s, "%b %d %H:%M")
                     d = d.replace(year=now.year)
                     diff = (now - d).total_seconds()
                     if diff > HALF_OF_YEAR_IN_SECONDS:
@@ -544,7 +541,7 @@ class BaseClient:
                     elif diff < -HALF_OF_YEAR_IN_SECONDS:
                         d = d.replace(year=now.year - 1)
             except ValueError:
-                d = datetime.datetime.strptime(s, "%b %d  %Y")
+                d = datetime.strptime(s, "%b %d  %Y")
         return cls.format_date_time(d)
 
     def parse_list_line_unix(self, b: Union[bytes, str]) -> tuple[PurePosixPath, UnixListInfo]:
@@ -626,7 +623,7 @@ class BaseClient:
         date_time_str = " ".join([x for x in date_time_str_list if len(x) > 0])
         line = line[date_time_end + 1 :].lstrip()
         with setlocale("C"):
-            strptime = datetime.datetime.strptime
+            strptime = datetime.strptime
             date_time = strptime(date_time_str, "%m/%d/%Y %I:%M %p")
         info = {}
         info["modify"] = self.format_date_time(date_time)
