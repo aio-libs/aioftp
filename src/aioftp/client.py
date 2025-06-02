@@ -11,6 +11,7 @@ import ssl
 import sys
 from collections.abc import AsyncGenerator, Generator, Iterable, Sequence
 from functools import partial
+from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import (
     Any,
@@ -173,14 +174,14 @@ class BasicListInfo(TypedDict):
 ListInfo: TypeAlias = Union[BasicListInfo, UnixListInfo]
 
 
-PathWithBasicInfo: TypeAlias = tuple[pathlib.PurePosixPath, BasicListInfo]
+PathWithBasicInfo: TypeAlias = tuple[PurePosixPath, BasicListInfo]
 
 
 class ParseListLineCustomCallable(Protocol):
     def __call__(self, b: Union[bytes, str]) -> PathWithBasicInfo: ...
 
 
-PathWithInfo: TypeAlias = tuple[pathlib.PurePosixPath, Union[BasicListInfo, UnixListInfo]]
+PathWithInfo: TypeAlias = tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]
 
 
 class ParseListLineCallable(Protocol):
@@ -427,7 +428,7 @@ class BaseClient:
         return ip, port
 
     @staticmethod
-    def parse_directory_response(s: str) -> pathlib.PurePosixPath:
+    def parse_directory_response(s: str) -> PurePosixPath:
         """
         Parsing directory server response.
 
@@ -453,7 +454,7 @@ class BaseClient:
                         seq_quotes = 0
                         directory += '"'
                     directory += ch
-        return pathlib.PurePosixPath(directory)
+        return PurePosixPath(directory)
 
     @staticmethod
     def parse_unix_mode(s: str) -> int:
@@ -546,7 +547,7 @@ class BaseClient:
                 d = datetime.datetime.strptime(s, "%b %d  %Y")
         return cls.format_date_time(d)
 
-    def parse_list_line_unix(self, b: Union[bytes, str]) -> tuple[pathlib.PurePosixPath, UnixListInfo]:
+    def parse_list_line_unix(self, b: Union[bytes, str]) -> tuple[PurePosixPath, UnixListInfo]:
         """
         Attempt to parse a LIST line (similar to unix ls utility).
 
@@ -603,9 +604,9 @@ class BaseClient:
             info["type"] = "dir" if link_dst[i] == "/" else "file"
             info["link_dst"] = link_dst
             s = link_src
-        return pathlib.PurePosixPath(s), info  # type: ignore[return-value]
+        return PurePosixPath(s), info  # type: ignore[return-value]
 
-    def parse_list_line_windows(self, b: Union[bytes, str]) -> tuple[pathlib.PurePosixPath, BasicListInfo]:
+    def parse_list_line_windows(self, b: Union[bytes, str]) -> tuple[PurePosixPath, BasicListInfo]:
         """
         Parsing Microsoft Windows `dir` output
 
@@ -643,7 +644,7 @@ class BaseClient:
         filename = line[next_space:].lstrip()
         if filename == "." or filename == "..":
             raise ValueError
-        return pathlib.PurePosixPath(filename), info  # type: ignore[return-value]
+        return PurePosixPath(filename), info  # type: ignore[return-value]
 
     def parse_list_line(self, b: Union[bytes, str]) -> PathWithInfo:
         """
@@ -675,7 +676,7 @@ class BaseClient:
                 ex.append(e)
         raise ValueError("All parsers failed to parse", b, ex)
 
-    def parse_mlsx_line(self, b: Union[bytes, str]) -> tuple[pathlib.PurePosixPath, BasicListInfo]:
+    def parse_mlsx_line(self, b: Union[bytes, str]) -> tuple[PurePosixPath, BasicListInfo]:
         """
         Parsing MLS(T|D) response.
 
@@ -695,10 +696,13 @@ class BaseClient:
         for fact in facts_found[:-1].split(";"):
             key, _, value = fact.partition("=")
             entry[key.lower()] = value
-        return pathlib.PurePosixPath(name), entry  # type: ignore[return-value]
+        return PurePosixPath(name), entry  # type: ignore[return-value]
 
 
 ConnType: TypeAlias = Union[Literal["I"], Literal["A"], Literal["E"], Literal["L"]]
+
+
+PathLike: TypeAlias = Union[str, PurePosixPath]
 
 
 class Client(BaseClient):
@@ -857,7 +861,7 @@ class Client(BaseClient):
         if self._upgraded_to_tls:
             await self._send_tls_protection_commands()
 
-    async def get_current_directory(self) -> pathlib.PurePosixPath:
+    async def get_current_directory(self) -> PurePosixPath:
         """
         :py:func:`asyncio.coroutine`
 
@@ -872,7 +876,7 @@ class Client(BaseClient):
         directory = self.parse_directory_response(info[-1])
         return directory
 
-    async def change_directory(self, path: Union[str, pathlib.PurePosixPath] = "..") -> None:
+    async def change_directory(self, path: PathLike = "..") -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -881,14 +885,14 @@ class Client(BaseClient):
         :param path: new directory, goes «up» if omitted
         :type path: :py:class:`str` or :py:class:`pathlib.PurePosixPath`
         """
-        path = pathlib.PurePosixPath(path)
-        if path == pathlib.PurePosixPath(".."):
+        path = PurePosixPath(path)
+        if path == PurePosixPath(".."):
             cmd = "CDUP"
         else:
             cmd = "CWD " + str(path)
         await self.command(cmd, "2xx")
 
-    async def make_directory(self, path: Union[str, pathlib.PurePosixPath], *, parents: bool = True) -> None:
+    async def make_directory(self, path: PathLike, *, parents: bool = True) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -900,7 +904,7 @@ class Client(BaseClient):
         :param parents: create parents if does not exists
         :type parents: :py:class:`bool`
         """
-        path = pathlib.PurePosixPath(path)
+        path = PurePosixPath(path)
         need_create = []
         while path.name and not await self.exists(path):
             need_create.append(path)
@@ -911,7 +915,7 @@ class Client(BaseClient):
         for path in need_create:
             await self.command("MKD " + str(path), "257")
 
-    async def remove_directory(self, path: Union[str, pathlib.PurePosixPath]) -> None:
+    async def remove_directory(self, path: PathLike) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -924,7 +928,7 @@ class Client(BaseClient):
 
     def list(
         self,
-        path: Union[str, pathlib.PurePosixPath] = "",
+        path: PathLike = "",
         *,
         recursive: bool = False,
         raw_command: Union[Literal["MLSD"], Literal["LIST"], None] = None,
@@ -963,10 +967,10 @@ class Client(BaseClient):
             >>> stats = await client.list()
         """
 
-        class AsyncLister(AsyncListerMixin[tuple[pathlib.PurePosixPath, Union[BasicListInfo, UnixListInfo]]]):
+        class AsyncLister(AsyncListerMixin[tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]]):
             stream = None
 
-            async def _new_stream(cls, local_path: Union[str, pathlib.PurePosixPath]) -> DataConnectionThrottleStreamIO:  # type: ignore[return]
+            async def _new_stream(cls, local_path: PathLike) -> DataConnectionThrottleStreamIO:  # type: ignore[return]
                 cls.path = local_path
                 cls.parse_line: ParseListLineCallable = self.parse_mlsx_line
                 if raw_command not in [None, "MLSD", "LIST"]:
@@ -987,7 +991,7 @@ class Client(BaseClient):
                     return await self.get_stream(command, "1xx")
 
             def __aiter__(cls) -> Self:
-                cls.directories: collections.deque[tuple[pathlib.PurePosixPath, Union[BasicListInfo, UnixListInfo]]] = (
+                cls.directories: collections.deque[tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]] = (
                     collections.deque()
                 )
                 return cls
@@ -1017,7 +1021,7 @@ class Client(BaseClient):
 
         return AsyncLister()
 
-    async def stat(self, path: Union[str, pathlib.PurePosixPath]) -> Union[BasicListInfo, UnixListInfo]:
+    async def stat(self, path: PathLike) -> Union[BasicListInfo, UnixListInfo]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1029,7 +1033,7 @@ class Client(BaseClient):
         :return: path info
         :rtype: :py:class:`dict`
         """
-        path = pathlib.PurePosixPath(path)
+        path = PurePosixPath(path)
         file_info: Union[BasicListInfo, UnixListInfo]
         try:
             result = await self.command("MLST " + str(path), "2xx")
@@ -1052,7 +1056,7 @@ class Client(BaseClient):
                 "path does not exists",
             )
 
-    async def is_file(self, path: Union[str, pathlib.PurePosixPath]) -> bool:
+    async def is_file(self, path: PathLike) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1066,7 +1070,7 @@ class Client(BaseClient):
         info = await self.stat(path)
         return info["type"] == "file"
 
-    async def is_dir(self, path: Union[str, pathlib.PurePosixPath]) -> bool:
+    async def is_dir(self, path: PathLike) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1080,7 +1084,7 @@ class Client(BaseClient):
         info = await self.stat(path)
         return info["type"] == "dir"
 
-    async def exists(self, path: Union[str, pathlib.PurePosixPath]) -> bool:
+    async def exists(self, path: PathLike) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1101,8 +1105,8 @@ class Client(BaseClient):
 
     async def rename(
         self,
-        source: Union[str, pathlib.PurePosixPath],
-        destination: Union[str, pathlib.PurePosixPath],
+        source: PathLike,
+        destination: PathLike,
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -1118,7 +1122,7 @@ class Client(BaseClient):
         await self.command("RNFR " + str(source), "350")
         await self.command("RNTO " + str(destination), "2xx")
 
-    async def remove_file(self, path: Union[str, pathlib.PurePosixPath]) -> None:
+    async def remove_file(self, path: PathLike) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1129,7 +1133,7 @@ class Client(BaseClient):
         """
         await self.command("DELE " + str(path), "2xx")
 
-    async def remove(self, path: Union[str, pathlib.PurePosixPath]) -> None:
+    async def remove(self, path: PathLike) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1151,7 +1155,7 @@ class Client(BaseClient):
 
     def upload_stream(
         self,
-        destination: Union[str, pathlib.PurePosixPath],
+        destination: PathLike,
         *,
         offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
@@ -1174,7 +1178,7 @@ class Client(BaseClient):
 
     def append_stream(
         self,
-        destination: Union[str, pathlib.PurePosixPath],
+        destination: PathLike,
         *,
         offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
@@ -1197,8 +1201,8 @@ class Client(BaseClient):
 
     async def upload(
         self,
-        source: Union[str, pathlib.Path],
-        destination: Union[str, pathlib.PurePosixPath] = "",
+        source: Union[str, Path],
+        destination: PathLike = "",
         *,
         write_into: bool = False,
         block_size: int = DEFAULT_BLOCK_SIZE,
@@ -1223,8 +1227,8 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source = pathlib.Path(source)
-        destination = pathlib.PurePosixPath(destination)
+        source = Path(source)
+        destination = PurePosixPath(destination)
         if not write_into:
             destination = destination / source.name
         if await self.path_io.is_file(source):
@@ -1239,11 +1243,11 @@ class Client(BaseClient):
                 src = sources.popleft()
                 async for path in self.path_io.list(src):
                     if write_into:
-                        relative: pathlib.PurePosixPath = pathlib.PurePosixPath(
+                        relative: PurePosixPath = PurePosixPath(
                             destination.name / path.relative_to(source),
                         )
                     else:
-                        relative = pathlib.PurePosixPath(path.relative_to(source.parent))
+                        relative = PurePosixPath(path.relative_to(source.parent))
                     if await self.path_io.is_dir(path):
                         await self.make_directory(relative)
                         sources.append(path)
@@ -1257,7 +1261,7 @@ class Client(BaseClient):
 
     def download_stream(
         self,
-        source: Union[str, pathlib.PurePosixPath],
+        source: PathLike,
         *,
         offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
@@ -1278,8 +1282,8 @@ class Client(BaseClient):
 
     async def download(
         self,
-        source: Union[str, pathlib.PurePosixPath],
-        destination: Union[str, pathlib.PurePosixPath] = "",
+        source: PathLike,
+        destination: PathLike = "",
         *,
         write_into: bool = False,
         block_size: int = DEFAULT_BLOCK_SIZE,
@@ -1304,23 +1308,26 @@ class Client(BaseClient):
         :param block_size: block size for transaction
         :type block_size: :py:class:`int`
         """
-        source = pathlib.PurePosixPath(source)
-        dest = pathlib.Path(destination)
+        source = PurePosixPath(source)
+        destination_path = Path(destination)
         if not write_into:
-            dest = dest / source.name
+            destination_path = destination_path / source.name
         if await self.is_file(source):
             await self.path_io.mkdir(
-                dest.parent,
+                destination_path.parent,
                 parents=True,
                 exist_ok=True,
             )
-            async with self.path_io.open(dest, mode="wb") as file_out, self.download_stream(source) as stream:
+            async with (
+                self.path_io.open(destination_path, mode="wb") as file_out,
+                self.download_stream(source) as stream,
+            ):
                 async for block in stream.iter_by_block(block_size):
                     await file_out.write(block)
         elif await self.is_dir(source):
-            await self.path_io.mkdir(dest, parents=True, exist_ok=True)
+            await self.path_io.mkdir(destination_path, parents=True, exist_ok=True)
             for name, info in await self.list(source):
-                full = pathlib.PurePosixPath(dest / name.relative_to(source))
+                full = PurePosixPath(destination_path / name.relative_to(source))
                 if info["type"] in ("file", "dir"):
                     await self.download(
                         name,
