@@ -423,8 +423,7 @@ class BaseClient:
                     if diff > TWO_YEARS_IN_SECONDS:
                         d = d.replace(year=prev_leap_year + 4)
                 else:
-                    d = datetime.datetime.strptime(s, "%b %d %H:%M")
-                    d = d.replace(year=now.year)
+                    d = datetime.datetime.strptime(f"{now.year} {s}", "%Y %b %d %H:%M")
                     diff = (now - d).total_seconds()
                     if diff > HALF_OF_YEAR_IN_SECONDS:
                         d = d.replace(year=now.year + 1)
