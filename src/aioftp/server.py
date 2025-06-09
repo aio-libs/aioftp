@@ -1188,9 +1188,6 @@ class Server:
             connection.user = user
         elif state == AbstractUserManager.GetUserResponse.ERROR:
             code = "530"
-        else:
-            message = f"Unknown response {state}"
-            raise NotImplementedError(message)
 
         if connection.future.user.done():
             connection.current_directory = connection.user.home_path

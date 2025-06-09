@@ -648,7 +648,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        parsers: list[ParseListLineCallable] = [
+        parsers: list[Union[ParseListLineCallable, None]] = [
             self.parse_list_line_unix,
             self.parse_list_line_windows,
         ]

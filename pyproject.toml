@@ -88,6 +88,7 @@ files = "src/aioftp"
 pretty = true
 strict = true
 ignore_missing_imports = true
+warn_unreachable = true
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
