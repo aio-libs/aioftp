@@ -1,12 +1,9 @@
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Union
+from typing import Any, Union
 
 from typing_extensions import TypeAlias
 
 from . import common
-
-if TYPE_CHECKING:
-    from .client import Code
 
 __all__ = (
     "AIOFTPException",
@@ -51,15 +48,15 @@ class StatusCodeError(AIOFTPException):
 
     def __init__(
         self,
-        expected_codes: Union[tuple["Code", ...], "Code"],
-        received_codes: Union[tuple["Code", ...], "Code"],
+        expected_codes: Union[tuple[common.Code, ...], common.Code],
+        received_codes: Union[tuple[common.Code, ...], common.Code],
         info: Union[list[str], str],
     ) -> None:
         super().__init__(
             f"Waiting for {expected_codes} but got {received_codes} {info!r}",
         )
-        self.expected_codes: tuple["Code", ...] = common.wrap_with_container(expected_codes)  # noqa: UP037
-        self.received_codes: tuple["Code", ...] = common.wrap_with_container(received_codes)  # noqa: UP037
+        self.expected_codes: tuple[common.Code, ...] = common.wrap_with_container(expected_codes)
+        self.received_codes: tuple[common.Code, ...] = common.wrap_with_container(received_codes)
         self.info = info
 
 

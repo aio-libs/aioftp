@@ -6,7 +6,7 @@ import locale
 import socket
 import ssl
 import threading
-from collections.abc import AsyncIterator, Awaitable, Generator
+from collections.abc import AsyncIterator, Awaitable, Generator, Iterable
 from contextlib import contextmanager
 from typing import Callable, Generic, TypeVar, Union
 
@@ -34,6 +34,8 @@ __all__ = (
     "DEFAULT_ACCOUNT",
     "setlocale",
     "SSLSessionBoundContext",
+    "Code",
+    "wrap_into_codes",
 )
 
 END_OF_LINE = "\r\n"
@@ -303,6 +305,27 @@ def async_enterable(
     return wrapper
 
 
+class Code(str):
+    """
+    Representation of server status code.
+    """
+
+    def matches(self, mask: str) -> bool:
+        """
+        :param mask: Template for comparision. If mask symbol is not digit
+            then it passes.
+        :type mask: :py:class:`str`
+
+        ::
+
+            >>> Code("123").matches("1")
+            True
+            >>> Code("123").matches("1x3")
+            True
+        """
+        return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
+
+
 StrTypeVar = TypeVar("StrTypeVar", bound=str)
 
 
@@ -316,6 +339,10 @@ def wrap_with_container(o: Union[StrTypeVar, T]) -> Union[tuple[StrTypeVar], T]:
     if isinstance(o, str):
         return (o,)  # type: ignore[return-value]
     return o
+
+
+def wrap_into_codes(o: Iterable[str]) -> tuple[Code, ...]:
+    return tuple(Code(item) for item in o if not isinstance(item, Code))
 
 
 class StreamIO:

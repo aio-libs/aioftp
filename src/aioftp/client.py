@@ -32,11 +32,13 @@ from .common import (
     HALF_OF_YEAR_IN_SECONDS,
     TWO_YEARS_IN_SECONDS,
     AsyncListerMixin,
+    Code,
     SSLSessionBoundContext,
     StreamThrottle,
     ThrottleStreamIO,
     async_enterable,
     setlocale,
+    wrap_into_codes,
     wrap_with_container,
 )
 
@@ -50,30 +52,8 @@ __all__ = (
     "BaseClient",
     "Client",
     "DataConnectionThrottleStreamIO",
-    "Code",
 )
 logger = logging.getLogger(__name__)
-
-
-class Code(str):
-    """
-    Representation of server status code.
-    """
-
-    def matches(self, mask: str) -> bool:
-        """
-        :param mask: Template for comparision. If mask symbol is not digit
-            then it passes.
-        :type mask: :py:class:`str`
-
-        ::
-
-            >>> Code("123").matches("1")
-            True
-            >>> Code("123").matches("1x3")
-            True
-        """
-        return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
 
 
 class DataConnectionThrottleStreamIO(ThrottleStreamIO):
@@ -370,10 +350,8 @@ class BaseClient:
             when logging
         :type censor_after: :py:class:`None` or :py:class:`int`
         """
-        expected_code_strs = wrap_with_container(expected_codes)
-        expected_codes = tuple([Code(x) for x in expected_code_strs])
-        wait_code_strs = wrap_with_container(wait_codes)
-        wait_codes = tuple([Code(x) for x in wait_code_strs])
+        expected_codes = wrap_into_codes(wrap_with_container(expected_codes))
+        wait_codes = wrap_into_codes(wrap_with_container(wait_codes))
         if command:
             if censor_after:
                 # Censor the user's command
