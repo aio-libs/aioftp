@@ -17,6 +17,7 @@ from typing import (
     TypedDict,
     TypeVar,
     Union,
+    overload,
 )
 
 from typing_extensions import NotRequired, Self, TypeAlias, Unpack
@@ -318,6 +319,24 @@ class BaseClient:
         """
         if not any(map(received_code.matches, expected_codes)):
             raise errors.StatusCodeError(expected_codes, received_code, info)
+
+    @overload
+    async def command(
+        self,
+        command: Union[str, None] = None,
+        expected_codes: tuple[()] = (),
+        wait_codes: tuple[()] = (),
+        censor_after: None = None,
+    ) -> None: ...
+
+    @overload
+    async def command(
+        self,
+        command: Union[str, None] = None,
+        expected_codes: Union[str, tuple[str, ...]] = (),
+        wait_codes: Union[str, tuple[str, ...]] = (),
+        censor_after: Union[int, None] = None,
+    ) -> tuple[Code, list[str]]: ...
 
     async def command(
         self,
@@ -736,8 +755,6 @@ class Client(BaseClient):
         """
         await super().connect(host, port)
         result = await self.command(None, "220", "120")
-        if result is None:
-            raise TypeError
         code, info = result
         return info
 
@@ -804,8 +821,6 @@ class Client(BaseClient):
         :raises aioftp.StatusCodeError: if unknown code received
         """
         result = await self.command("USER " + user, ("230", "33x"))
-        if result is None:
-            raise TypeError
         code, info = result
         while code.matches("33x"):
             censor_after = None
@@ -821,8 +836,6 @@ class Client(BaseClient):
                 ("230", "33x"),
                 censor_after=censor_after,
             )
-            if result is None:
-                raise TypeError
             code, info = result
 
         self._logged_in = True
@@ -839,8 +852,6 @@ class Client(BaseClient):
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
         result = await self.command("PWD", "257")
-        if result is None:
-            raise TypeError
         code, info = result
         directory = self.parse_directory_response(info[-1])
         return directory
@@ -1006,8 +1017,6 @@ class Client(BaseClient):
         file_info: Union[BasicListInfo, UnixListInfo]
         try:
             result = await self.command("MLST " + str(path), "2xx")
-            if result is None:
-                raise TypeError
             code, info = result
             name, file_info = self.parse_mlsx_line(info[1].lstrip())
             return file_info
@@ -1316,16 +1325,12 @@ class Client(BaseClient):
 
     async def _do_epsv(self) -> tuple[None, int]:
         result = await self.command("EPSV", "229")
-        if result is None:
-            raise TypeError
         code, info = result
         ip, port = self.parse_epsv_response(info[-1])
         return ip, port
 
     async def _do_pasv(self) -> tuple[str, int]:
         result = await self.command("PASV", "227")
-        if result is None:
-            raise TypeError
         code, info = result
         ip, port = self.parse_pasv_response(info[-1])
         return ip, port
