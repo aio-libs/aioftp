@@ -14,14 +14,16 @@ def test_parse_directory_response():
     assert parsed == pathlib.PurePosixPath('baz " test nop')
 
 
-def test_connection_del_future():
+@pytest.mark.asyncio
+async def test_connection_del_future():
     loop = asyncio.new_event_loop()
     c = aioftp.Connection(loop=loop)
     c.foo = "bar"
     del c.future.foo
 
 
-def test_connection_not_in_storage():
+@pytest.mark.asyncio
+async def test_connection_not_in_storage():
     loop = asyncio.new_event_loop()
     c = aioftp.Connection(loop=loop)
     with pytest.raises(AttributeError):
@@ -244,7 +246,8 @@ def test_server_mtime_build():
     assert b(past, now) == "Jan  1  2001"
 
 
-def test_get_paths_windows_traverse():
+@pytest.mark.asyncio
+async def test_get_paths_windows_traverse():
     base_path = pathlib.PureWindowsPath("C:\\ftp")
     user = aioftp.User()
     user.base_path = base_path
