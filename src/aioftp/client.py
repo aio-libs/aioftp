@@ -611,8 +611,7 @@ class BaseClient:
         line = b.decode(encoding=self.encoding).rstrip("\r\n")
 
         date_time_end = line.index("M")
-        date_time_str_list = line[: date_time_end + 1].strip().split(" ")
-        date_time_str = " ".join([x for x in date_time_str_list if len(x) > 0])
+        date_time_str = " ".join(line[: date_time_end + 1].strip().split(" "))
         line = line[date_time_end + 1 :].lstrip()
         with setlocale("C"):
             strptime = datetime.strptime
