@@ -748,7 +748,7 @@ class Server:
         idle_timeout: Union[float, int, None] = None,
         wait_future_timeout: Union[float, int, None] = 1,
         path_timeout: Union[float, int, None] = None,
-        path_io_factory: type[pathio.AbstractPathIO] = pathio.PathIO,
+        path_io_factory: type[pathio.AbstractPathIO[pathlib.Path]] = pathio.PathIO,
         maximum_connections: Union[int, None] = None,
         read_speed_limit: Union[int, None] = None,
         write_speed_limit: Union[int, None] = None,

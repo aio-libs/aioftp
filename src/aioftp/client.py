@@ -172,7 +172,7 @@ class BaseClientArgs(TypedDict, total=False):
     read_speed_limit: Union[int, None]
     write_speed_limit: Union[int, None]
     path_timeout: Union[float, int, None]
-    path_io_factory: type[pathio.AbstractPathIO]
+    path_io_factory: type[pathio.AbstractPathIO[Path]]
     encoding: str
     ssl: Union[ssl.SSLContext, bool, None]
     parse_list_line_custom: Union[ParseListLineCustomCallable, None]
@@ -201,7 +201,7 @@ class BaseClient:
         read_speed_limit: Union[int, None] = None,
         write_speed_limit: Union[int, None] = None,
         path_timeout: Union[float, int, None] = None,
-        path_io_factory: type[pathio.AbstractPathIO] = pathio.PathIO,
+        path_io_factory: type[pathio.AbstractPathIO[Path]] = pathio.PathIO,
         encoding: str = "utf-8",
         ssl: Union[ssl.SSLContext, bool, None] = None,
         parse_list_line_custom: Union[ParseListLineCustomCallable, None] = None,
