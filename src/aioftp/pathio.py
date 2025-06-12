@@ -574,20 +574,26 @@ class PathIO(AbstractPathIO[pathlib.Path]):
         return source.rename(destination)
 
 
+class HasExecutor(Protocol):
+    executor: Union[Executor, None]
+
+
+_BlockingIOT = TypeVar("_BlockingIOT", bound=HasExecutor)
 _BlockingIOP = ParamSpec("_BlockingIOP")
 _BlockingIOR = TypeVar("_BlockingIOR")
 
 
 def _blocking_io(
-    f: Callable[Concatenate["AsyncPathIO", _BlockingIOP], _BlockingIOR],
-) -> Callable[Concatenate["AsyncPathIO", _BlockingIOP], Awaitable[_BlockingIOR]]:
+    f: Callable[Concatenate[_BlockingIOT, _BlockingIOP], _BlockingIOR],
+) -> Callable[Concatenate[_BlockingIOT, _BlockingIOP], Awaitable[_BlockingIOR]]:
     @functools.wraps(f)
-    async def wrapper(self: "AsyncPathIO", *args: _BlockingIOP.args, **kwargs: _BlockingIOP.kwargs) -> _BlockingIOR:
+    async def wrapper(self: _BlockingIOT, *args: _BlockingIOP.args, **kwargs: _BlockingIOP.kwargs) -> _BlockingIOR:
         return await asyncio.get_running_loop().run_in_executor(
             self.executor,
             functools.partial(f, self, *args, **kwargs),
         )
 
+    # Concatenate doesn't support pos-only arguments
     return wrapper  # type: ignore[return-value]
 
 
@@ -652,25 +658,23 @@ class AsyncPathIO(AbstractPathIO[pathlib.Path]):
 
     def list(self, path: pathlib.Path) -> AsyncIterable[pathlib.Path]:
         class Lister(AbstractAsyncLister[pathlib.Path]):
-            iter: Union[Iterator[pathlib.Path], None] = None
             executor: Union[Executor, None]
 
             def __init__(self, timeout: Union[float, int, None] = None, executor: Union[Executor, None] = None) -> None:
                 super().__init__(timeout=timeout)
                 self.executor = executor
+                self.iter = path.glob("*")
 
             def worker(self) -> pathlib.Path:
                 try:
-                    return next(self.iter)  # type: ignore[arg-type]
+                    return next(self.iter)
                 except StopIteration:
                     raise StopAsyncIteration
 
             @universal_exception
             @with_timeout
-            @_blocking_io  # type: ignore[arg-type]
+            @_blocking_io
             def __anext__(self) -> pathlib.Path:
-                if self.iter is None:
-                    self.iter = path.glob("*")
                 return self.worker()
 
         return Lister(timeout=self.timeout, executor=self.executor)
