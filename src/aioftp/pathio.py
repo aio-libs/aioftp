@@ -154,13 +154,13 @@ NodeProtocol: TypeAlias = Union[_DirNodeProtocol, _FileNodeProtocol]
 class PathIONursery(Generic[PathIOT]):
     def __init__(self, factory: type["PathIOT"]) -> None:
         self.factory = factory
-        self.state: Union[list[NodeProtocol], None] = None
+        self.state: Union[list[Node], None] = None
 
     def __call__(
         self,
         timeout: Union[float, int, None] = None,
         connection: Union["Connection", None] = None,
-        state: Union[list[NodeProtocol], None] = None,
+        state: Union[list["Node"], None] = None,
     ) -> PathIOT:
         instance = self.factory(timeout=timeout, connection=connection, state=self.state)
         if self.state is None:
@@ -231,13 +231,13 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
         self,
         timeout: Union[float, int, None] = None,
         connection: Union["Connection", None] = None,
-        state: Union[list[NodeProtocol], None] = None,
+        state: Union[list["Node"], None] = None,
     ) -> None:
         self.timeout = timeout
         self.connection = connection
 
     @property
-    def state(self) -> Union[list[NodeProtocol], None]:
+    def state(self) -> Union[list["Node"], None]:
         """
         Shared pathio state per server
         """
@@ -608,7 +608,7 @@ class AsyncPathIO(AbstractPathIO[pathlib.Path]):
         self,
         timeout: Union[float, int, None] = None,
         connection: Union["Connection", None] = None,
-        state: Union[list[NodeProtocol], None] = None,
+        state: Union[list["Node"], None] = None,
         executor: Union[Executor, None] = None,
     ) -> None:
         super().__init__(timeout, connection, state)
@@ -815,7 +815,7 @@ class MemoryPathIO(AbstractPathIO[pathlib.PurePosixPath]):
             self.fs = state
 
     @property
-    def state(self) -> list[Node]:  # type: ignore[override]
+    def state(self) -> list[Node]:
         return self.fs
 
     def __repr__(self) -> str:
