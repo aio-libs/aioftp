@@ -550,7 +550,7 @@ class PathIO(AbstractPathIO[pathlib.Path]):
         self,
         file: io.BytesIO,
         offset: int,
-        whence: int = 0,
+        whence: int = io.SEEK_SET,
     ) -> int:
         return file.seek(offset, whence)
 
@@ -713,7 +713,7 @@ class AsyncPathIO(AbstractPathIO[pathlib.Path]):
         self,
         file: io.BytesIO,
         offset: int,
-        whence: int = 0,
+        whence: int = io.SEEK_SET,
     ) -> int:
         return file.seek(offset, whence)
 
@@ -1009,19 +1009,20 @@ class MemoryPathIO(AbstractPathIO[pathlib.PurePosixPath]):
 
     @universal_exception
     @defend_file_methods
-    async def seek(self, file: io.BytesIO, *args: Unpack[tuple[int, int]], **kwargs: Any) -> int:  # type: ignore[override]
-        return file.seek(*args, **kwargs)
+    async def seek(self, file: io.BytesIO, offset: int, whence: int = io.SEEK_SET) -> int:
+        return file.seek(offset, whence)
 
     @universal_exception
     @defend_file_methods
-    async def write(self, file: io.BytesIO, buffer: "ReadableBuffer") -> None:  # type: ignore[override]
-        file.write(buffer)
+    async def write(self, file: io.BytesIO, buffer: "ReadableBuffer") -> int:
+        x = file.write(buffer)
         file.mtime = int(time.time())  # type: ignore[attr-defined]
+        return x
 
     @universal_exception
     @defend_file_methods
-    async def read(self, file: io.BytesIO, *args: Unpack[tuple[int]], **kwargs: Any) -> bytes:  # type: ignore[override]
-        return file.read(*args, **kwargs)
+    async def read(self, file: io.BytesIO, size: Union[int, None] = -1) -> bytes:
+        return file.read(size)
 
     @universal_exception
     @defend_file_methods
