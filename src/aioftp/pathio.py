@@ -870,10 +870,10 @@ class MemoryPathIO(AbstractPathIO[pathlib.PurePosixPath]):
             parent = self.get_node(path_.parent)
             if parent is None:
                 raise FileNotFoundError
-            if parent.type != "dir":
+            if isinstance(parent.content, io.BytesIO):
                 raise NotADirectoryError
             node = Node("dir", path_.name, content=[])
-            parent.content.append(node)  # type: ignore[union-attr]
+            parent.content.append(node)
         else:
             nodes: Union[list[Node], io.BytesIO] = self.fs
             for part in path_.parts:
@@ -995,13 +995,15 @@ class MemoryPathIO(AbstractPathIO[pathlib.PurePosixPath]):
             elif node.type != "file":
                 raise IsADirectoryError
             else:
+                if isinstance(node.content, list):
+                    raise IsADirectoryError
                 if mode == "wb":
                     file_like = node.content = io.BytesIO()
                 elif mode == "ab":
-                    file_like = node.content  # type: ignore[assignment]
+                    file_like = node.content
                     file_like.seek(0, io.SEEK_END)
                 elif mode == "r+b":
-                    file_like = node.content  # type: ignore[assignment]
+                    file_like = node.content
                     file_like.seek(0, io.SEEK_SET)
         else:
             raise ValueError(f"invalid mode: {mode}")
