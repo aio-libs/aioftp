@@ -333,6 +333,7 @@ class Connection(collections.defaultdict[str, asyncio.Future[Any]]):
             self.storage.pop(name)
 
     future: "Connection.Container"
+    default_factory: Callable[[], asyncio.Future[Any]]
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(asyncio.Future)
@@ -350,7 +351,7 @@ class Connection(collections.defaultdict[str, asyncio.Future[Any]]):
             super().__setattr__(name, value)
         else:
             if self[name].done():
-                self[name] = super().default_factory()  # type: ignore[misc]
+                self[name] = self.default_factory()
             self[name].set_result(value)
 
     def __delattr__(self, name: str) -> None:
@@ -391,9 +392,9 @@ class AvailableConnections:
         """
         Release, incrementing the internal counter by one.
         """
-        if self.value is not None:
+        if self.value is not None and self.maximum_value is not None:
             self.value += 1
-            if self.value > self.maximum_value:  # type: ignore[operator]
+            if self.value > self.maximum_value:
                 raise ValueError("Too many releases")
 
 
