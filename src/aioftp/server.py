@@ -10,7 +10,6 @@ import pathlib
 import socket
 import ssl
 import stat
-import sys
 import time
 from collections.abc import Awaitable, Iterable, MutableMapping, Sequence
 from typing import Any, Callable, Literal, TypedDict, TypeVar, Union
@@ -43,11 +42,8 @@ __all__ = (
     "Server",
 )
 
-IS_PY37_PLUS = sys.version_info[:2] >= (3, 7)
-if IS_PY37_PLUS:
-    get_current_task = asyncio.current_task
-else:
-    get_current_task = asyncio.Task.current_task  # type: ignore[attr-defined]
+
+get_current_task = asyncio.current_task
 
 logger = logging.getLogger(__name__)
 
