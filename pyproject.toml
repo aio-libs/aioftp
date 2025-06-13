@@ -1,6 +1,6 @@
 [project]
 name = "aioftp"
-version = "0.25.1"
+version = "0.25.2"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
 requires-python = ">= 3.9"
@@ -32,6 +32,7 @@ authors = [
     {name = "webknjaz", email="webknjaz+github/profile@redhat.com"},
     {name = "rcfox", email="ryan@rcfox.ca"},
     {name = "bellini666", email="thiago@bellini.dev"},
+    {name = "sakosha"},
 ]
 classifiers = [
     "Programming Language :: Python",
