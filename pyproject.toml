@@ -76,6 +76,8 @@ line-length = 120
 target-version = "py39"
 lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
+exclude = ["ftpbench.py"]
+
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
