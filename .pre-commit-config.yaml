@@ -35,13 +35,6 @@ repos:
     - --preserve-quotes
     - --indent=2
 
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.15.0
-  hooks:
-  - <<: *python-linters
-    id: mypy
-    name: Type check with mypy
-
 - repo: local
   hooks:
   - <<: *python-linters
@@ -55,3 +48,10 @@ repos:
     name: Check with ruff
     entry: ruff
     args: ["check", "--fix", "."]
+
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.15.0
+  hooks:
+  - <<: *python-linters
+    id: mypy
+    name: Type check with mypy
