@@ -659,23 +659,22 @@ class AsyncPathIO(AbstractPathIO[Path]):
     def list(self, path: Path) -> AsyncIterable[Path]:
         class Lister(AbstractAsyncLister[Path]):
             executor: Union[Executor, None]
+            iter: Union[Iterator[Path], None] = None
 
             def __init__(self, timeout: Union[float, int, None] = None, executor: Union[Executor, None] = None) -> None:
                 super().__init__(timeout=timeout)
                 self.executor = executor
-                self.iter = path.glob("*")
-
-            def worker(self) -> Path:
-                try:
-                    return next(self.iter)
-                except StopIteration:
-                    raise StopAsyncIteration
 
             @universal_exception
             @with_timeout
             @_blocking_io
             def __anext__(self) -> Path:
-                return self.worker()
+                if self.iter is None:
+                    self.iter = path.glob("*")
+                try:
+                    return next(self.iter)
+                except StopIteration:
+                    raise StopAsyncIteration
 
         return Lister(timeout=self.timeout, executor=self.executor)
 
