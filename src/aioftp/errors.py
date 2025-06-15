@@ -1,8 +1,6 @@
 from types import TracebackType
 from typing import Any, Union
 
-from typing_extensions import TypeAlias
-
 from . import common
 
 __all__ = (
@@ -66,8 +64,8 @@ class PathIsNotAbsolute(AIOFTPException):
     """
 
 
-ExcInfo: TypeAlias = tuple[type[BaseException], BaseException, TracebackType]
-OptExcInfo: TypeAlias = Union[ExcInfo, tuple[None, None, None]]
+ExcInfo = tuple[type[BaseException], BaseException, TracebackType]
+OptExcInfo = Union[ExcInfo, tuple[None, None, None]]
 
 
 class PathIOError(AIOFTPException):

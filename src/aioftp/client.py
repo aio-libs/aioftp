@@ -5,7 +5,7 @@ import contextlib
 import logging
 import re
 import ssl
-from collections.abc import AsyncGenerator, Generator, Iterable, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from types import TracebackType
@@ -14,12 +14,11 @@ from typing import (
     Literal,
     Protocol,
     TypedDict,
-    TypeVar,
     Union,
     overload,
 )
 
-from typing_extensions import NotRequired, Self, TypeAlias, Unpack
+from typing_extensions import NotRequired, Self, Unpack
 
 from . import errors, pathio
 from .common import (
@@ -31,7 +30,7 @@ from .common import (
     END_OF_LINE,
     HALF_OF_YEAR_IN_SECONDS,
     TWO_YEARS_IN_SECONDS,
-    AsyncListerMixin,
+    AbstractAsyncLister,
     Code,
     SSLSessionBoundContext,
     StreamThrottle,
@@ -148,17 +147,17 @@ class BasicListInfo(TypedDict):
     size: str
 
 
-ListInfo: TypeAlias = Union[BasicListInfo, UnixListInfo]
+ListInfo = Union[BasicListInfo, UnixListInfo]
 
 
-PathWithBasicInfo: TypeAlias = tuple[PurePosixPath, BasicListInfo]
+PathWithBasicInfo = tuple[PurePosixPath, BasicListInfo]
 
 
 class ParseListLineCustomCallable(Protocol):
     def __call__(self, b: bytes) -> PathWithBasicInfo: ...
 
 
-PathWithInfo: TypeAlias = tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]
+PathWithInfo = tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]
 
 
 class ParseListLineCallable(Protocol):
@@ -178,17 +177,6 @@ class BaseClientArgs(TypedDict, total=False):
     parse_list_line_custom_first: bool
     passive_commands: tuple[str, ...]
     siosocks_asyncio_kwargs: Any
-
-
-T = TypeVar("T", covariant=True)
-
-
-class AsyncListable(Protocol[T]):
-    def __await__(self) -> Generator[None, None, Iterable[T]]: ...
-
-    def __aiter__(self) -> Self: ...
-
-    async def __anext__(self) -> T: ...
 
 
 class BaseClient:
@@ -224,7 +212,7 @@ class BaseClient:
         self._passive_commands = passive_commands
         self._siosocks_asyncio_kwargs = siosocks_asyncio_kwargs
 
-    async def _open_connection(self, host, port):
+    async def _open_connection(self, host: str, port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         ssl_resolved = self.ssl
         if self.stream is not None:
             ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
@@ -234,7 +222,12 @@ class BaseClient:
                     context=ssl_object.context,
                     session=ssl_object.session,
                 )
-        connection = await open_connection(host, port, ssl=ssl_resolved, **self._siosocks_asyncio_kwargs)
+        connection: tuple[asyncio.StreamReader, asyncio.StreamWriter] = await open_connection(
+            host,
+            port,
+            ssl=ssl_resolved,
+            **self._siosocks_asyncio_kwargs,
+        )
         return connection
 
     async def connect(self, host: str, port: int = DEFAULT_PORT) -> None:
@@ -697,10 +690,10 @@ class BaseClient:
         return PurePosixPath(name), entry  # type: ignore[return-value]
 
 
-ConnType: TypeAlias = Union[Literal["I"], Literal["A"], Literal["E"], Literal["L"]]
+ConnType = Union[Literal["I"], Literal["A"], Literal["E"], Literal["L"]]
 
 
-PathLike: TypeAlias = Union[str, PurePosixPath]
+PathLike = Union[str, PurePosixPath]
 
 
 class Client(BaseClient):
@@ -827,14 +820,14 @@ class Client(BaseClient):
             elif code == "332":
                 cmd = "ACCT " + account
             else:
-                raise errors.StatusCodeError("33x", code, info)
+                raise errors.StatusCodeError(Code("33x"), code, info)
             code, info = await self.command(
                 cmd,
                 ("230", "33x"),
                 censor_after=censor_after,
             )
 
-    async def get_current_directory(self):
+    async def get_current_directory(self) -> PurePosixPath:
         """
         :py:func:`asyncio.coroutine`
 
@@ -842,8 +835,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`pathlib.PurePosixPath`
         """
-        result = await self.command("PWD", "257")
-        code, info = result
+        code, info = await self.command("PWD", "257")
         directory = self.parse_directory_response(info[-1])
         return directory
 
@@ -903,7 +895,7 @@ class Client(BaseClient):
         *,
         recursive: bool = False,
         raw_command: Union[Literal["MLSD"], Literal["LIST"], None] = None,
-    ) -> AsyncListable[PathWithInfo]:
+    ) -> AbstractAsyncLister[PathWithInfo]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -938,8 +930,8 @@ class Client(BaseClient):
             >>> stats = await client.list()
         """
 
-        class AsyncLister(AsyncListerMixin[tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]]):
-            stream = None
+        class AsyncLister(AbstractAsyncLister[PathWithInfo]):
+            stream: Union[DataConnectionThrottleStreamIO, None] = None
 
             async def _new_stream(cls, local_path: PathLike) -> DataConnectionThrottleStreamIO:  # type: ignore[return]
                 cls.path = local_path
@@ -1007,7 +999,7 @@ class Client(BaseClient):
         path = PurePosixPath(path)
         file_info: Union[BasicListInfo, UnixListInfo]
         try:
-            result = await self.command("MLST " + str(path), "2xx")
+            code, info = await self.command("MLST " + str(path), "2xx")
             name, file_info = self.parse_mlsx_line(info[1].lstrip())
             return file_info
         except errors.StatusCodeError as e:
@@ -1314,14 +1306,12 @@ class Client(BaseClient):
         self.close()
 
     async def _do_epsv(self) -> tuple[None, int]:
-        result = await self.command("EPSV", "229")
-        code, info = result
+        code, info = await self.command("EPSV", "229")
         ip, port = self.parse_epsv_response(info[-1])
         return ip, port
 
     async def _do_pasv(self) -> tuple[str, int]:
-        result = await self.command("PASV", "227")
-        code, info = result
+        code, info = await self.command("PASV", "227")
         ip, port = self.parse_pasv_response(info[-1])
         return ip, port
 
@@ -1355,6 +1345,7 @@ class Client(BaseClient):
         if not commands:
             raise ValueError("No passive commands provided")
         await self.command("TYPE " + conn_type, "200")
+        ip: Union[str, None]
         for i, name in enumerate(commands, start=1):
             name = name.lower()
             if name not in functions:
@@ -1366,7 +1357,7 @@ class Client(BaseClient):
                 is_last = i == len(commands)
                 if is_last or not e.received_codes[-1].matches("50x"):
                     raise
-        if ip in ("0.0.0.0", None):
+        if ip is None or ip == "0.0.0.0":
             ip = self.server_host
         reader, writer = await self._open_connection(ip, port)
         return reader, writer
@@ -1428,14 +1419,14 @@ class Client(BaseClient):
     @contextlib.asynccontextmanager
     async def context(
         cls,
-        host,
-        port=DEFAULT_PORT,
-        user=DEFAULT_USER,
-        password=DEFAULT_PASSWORD,
-        account=DEFAULT_ACCOUNT,
-        upgrade_to_tls=False,
-        **kwargs,
-    ):
+        host: str,
+        port: int = DEFAULT_PORT,
+        user: str = DEFAULT_USER,
+        password: str = DEFAULT_PASSWORD,
+        account: str = DEFAULT_ACCOUNT,
+        upgrade_to_tls: bool = False,
+        **kwargs: Unpack[BaseClientArgs],
+    ) -> AsyncGenerator[Self]:
         """
         Classmethod async context manager. This create
         :py:class:`aioftp.Client`, make async call to

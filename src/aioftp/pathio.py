@@ -23,20 +23,19 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Concatenate, ParamSpec, Self, TypeAlias, Unpack
+from typing_extensions import Concatenate, ParamSpec, Self, Unpack
 
 from .common import (
     DEFAULT_BLOCK_SIZE,
     AbstractAsyncLister,
     AsyncStreamIterator,
+    Connection,
     with_timeout,
 )
 from .errors import PathIOError
 
 if TYPE_CHECKING:
     from _typeshed import OpenBinaryMode, ReadableBuffer
-
-    from .server import Connection
 
 
 __all__ = (
@@ -48,7 +47,7 @@ __all__ = (
 )
 
 
-PathIOT = TypeVar("PathIOT", bound="AbstractPathIO[Any]")
+PathIOType = TypeVar("PathIOType", bound="AbstractPathIO[Any]")
 
 
 class _OpenKwargs(TypedDict, total=False):
@@ -77,7 +76,7 @@ class AsyncPathIOContext:
 
     """
 
-    def __init__(self, pathio: PathIOT, args: tuple[Any], kwargs: _OpenKwargs) -> None:
+    def __init__(self, pathio: PathIOType, args: tuple[Any], kwargs: _OpenKwargs) -> None:
         self.close: Union[Callable[..., Awaitable[None]], None] = None
         self.pathio = pathio
         self.args = args
@@ -103,13 +102,13 @@ class AsyncPathIOContext:
         return AsyncStreamIterator(lambda: self.read(count))
 
 
-UniversalExceptionP = ParamSpec("UniversalExceptionP")
-UniversalExceptionR = TypeVar("UniversalExceptionR")
+UniversalExceptionParamSpec = ParamSpec("UniversalExceptionParamSpec")
+UniversalExceptionReturnType = TypeVar("UniversalExceptionReturnType")
 
 
 def universal_exception(
-    coro: Callable[UniversalExceptionP, Awaitable[UniversalExceptionR]],
-) -> Callable[UniversalExceptionP, Awaitable[UniversalExceptionR]]:
+    coro: Callable[UniversalExceptionParamSpec, Awaitable[UniversalExceptionReturnType]],
+) -> Callable[UniversalExceptionParamSpec, Awaitable[UniversalExceptionReturnType]]:
     """
     Decorator. Reraising any exception (except `CancelledError` and
     `NotImplementedError`) with universal exception
@@ -117,7 +116,10 @@ def universal_exception(
     """
 
     @functools.wraps(coro)
-    async def wrapper(*args: UniversalExceptionP.args, **kwargs: UniversalExceptionP.kwargs) -> UniversalExceptionR:
+    async def wrapper(
+        *args: UniversalExceptionParamSpec.args,
+        **kwargs: UniversalExceptionParamSpec.kwargs,
+    ) -> UniversalExceptionReturnType:
         try:
             return await coro(*args, **kwargs)
         except (
@@ -148,11 +150,11 @@ class _FileNodeProtocol(Protocol):
     content: io.BytesIO
 
 
-NodeProtocol: TypeAlias = Union[_DirNodeProtocol, _FileNodeProtocol]
+NodeProtocol = Union[_DirNodeProtocol, _FileNodeProtocol]
 
 
-class PathIONursery(Generic[PathIOT]):
-    def __init__(self, factory: type["PathIOT"]) -> None:
+class PathIONursery(Generic[PathIOType]):
+    def __init__(self, factory: type["PathIOType"]) -> None:
         self.factory = factory
         self.state: Union[list[Node], None] = None
 
@@ -161,26 +163,25 @@ class PathIONursery(Generic[PathIOT]):
         timeout: Union[float, int, None] = None,
         connection: Union["Connection", None] = None,
         state: Union[list["Node"], None] = None,
-    ) -> PathIOT:
+    ) -> PathIOType:
         instance = self.factory(timeout=timeout, connection=connection, state=self.state)
         if self.state is None:
             self.state = instance.state
         return instance
 
 
-# DefendFileMethodsSelf = TypeVar("DefendFileMethodsSelf")
-DefendFileMethodsP = ParamSpec("DefendFileMethodsP")
-DefendFileMethodsR = TypeVar("DefendFileMethodsR")
+DefendFileMethodsParamSpec = ParamSpec("DefendFileMethodsParamSpec")
+DefendFileMethodsReturnType = TypeVar("DefendFileMethodsReturnType")
 
 
 def defend_file_methods(
     coro: Callable[
-        DefendFileMethodsP,
-        Awaitable[DefendFileMethodsR],
+        DefendFileMethodsParamSpec,
+        Awaitable[DefendFileMethodsReturnType],
     ],
 ) -> Callable[
-    DefendFileMethodsP,
-    Awaitable[DefendFileMethodsR],
+    DefendFileMethodsParamSpec,
+    Awaitable[DefendFileMethodsReturnType],
 ]:
     """
     Decorator. Raises exception when file methods called with wrapped by
@@ -189,9 +190,9 @@ def defend_file_methods(
 
     @functools.wraps(coro)
     async def wrapper(
-        *args: DefendFileMethodsP.args,
-        **kwargs: DefendFileMethodsP.kwargs,
-    ) -> DefendFileMethodsR:
+        *args: DefendFileMethodsParamSpec.args,
+        **kwargs: DefendFileMethodsParamSpec.kwargs,
+    ) -> DefendFileMethodsReturnType:
         file = args[1]
 
         if isinstance(file, AsyncPathIOContext):
@@ -211,10 +212,10 @@ class PathlibOpenKwargs(TypedDict, total=False):
     newline: Union[str, None]
 
 
-PathT = TypeVar("PathT", bound=PurePath)
+PathType = TypeVar("PathType", bound=PurePath)
 
 
-class AbstractPathIO(Generic[PathT], abc.ABC):
+class AbstractPathIO(Generic[PathType], abc.ABC):
     """
     Abstract class for path io operations.
 
@@ -244,7 +245,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def exists(self, path: PathT) -> bool:
+    async def exists(self, path: PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -258,7 +259,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def is_dir(self, path: PathT) -> bool:
+    async def is_dir(self, path: PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -272,7 +273,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def is_file(self, path: PathT) -> bool:
+    async def is_file(self, path: PathType) -> bool:
         """
         :py:func:`asyncio.coroutine`
 
@@ -286,7 +287,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def mkdir(self, path: PathT, *, parents: bool = False, exist_ok: bool = False) -> None:
+    async def mkdir(self, path: PathType, *, parents: bool = False, exist_ok: bool = False) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -304,7 +305,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def rmdir(self, path: PathT) -> None:
+    async def rmdir(self, path: PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -316,7 +317,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def unlink(self, path: PathT) -> None:
+    async def unlink(self, path: PathType) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -327,7 +328,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
         """
 
     @abc.abstractmethod
-    def list(self, path: PathT) -> AsyncIterable[PathT]:
+    def list(self, path: PathType) -> AsyncIterable[PathType]:
         """
         Create instance of subclass of :py:class:`aioftp.AbstractAsyncLister`.
         You should subclass and implement `__anext__` method
@@ -355,7 +356,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def stat(self, path: PathT) -> stat_result:
+    async def stat(self, path: PathType) -> stat_result:
         """
         :py:func:`asyncio.coroutine`
 
@@ -371,7 +372,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def _open(self, path: PathT, mode: str) -> io.BytesIO:
+    async def _open(self, path: PathType, mode: str) -> io.BytesIO:
         """
         :py:func:`asyncio.coroutine`
 
@@ -390,7 +391,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
         :return: file-object
         """
 
-    def open(self, *args: Unpack[tuple[PathT]], **kwargs: Unpack[_OpenKwargs]) -> AsyncPathIOContext:
+    def open(self, *args: Unpack[tuple[PathType]], **kwargs: Unpack[_OpenKwargs]) -> AsyncPathIOContext:
         """
         Create instance of :py:class:`aioftp.pathio.AsyncPathIOContext`,
         parameters passed to :py:meth:`aioftp.AbstractPathIO._open`
@@ -464,7 +465,7 @@ class AbstractPathIO(Generic[PathT], abc.ABC):
 
     @universal_exception
     @abc.abstractmethod
-    async def rename(self, source: PathT, destination: PathT) -> PathT:
+    async def rename(self, source: PathType, destination: PathType) -> PathType:
         """
         :py:func:`asyncio.coroutine`
 
@@ -578,16 +579,20 @@ class HasExecutor(Protocol):
     executor: Union[Executor, None]
 
 
-_BlockingIOT = TypeVar("_BlockingIOT", bound=HasExecutor)
-_BlockingIOP = ParamSpec("_BlockingIOP")
-_BlockingIOR = TypeVar("_BlockingIOR")
+_BlockingIOType = TypeVar("_BlockingIOType", bound=HasExecutor)
+_BlockingIOParamSpec = ParamSpec("_BlockingIOParamSpec")
+_BlockingIOReturnType = TypeVar("_BlockingIOReturnType")
 
 
 def _blocking_io(
-    f: Callable[Concatenate[_BlockingIOT, _BlockingIOP], _BlockingIOR],
-) -> Callable[Concatenate[_BlockingIOT, _BlockingIOP], Awaitable[_BlockingIOR]]:
+    f: Callable[Concatenate[_BlockingIOType, _BlockingIOParamSpec], _BlockingIOReturnType],
+) -> Callable[Concatenate[_BlockingIOType, _BlockingIOParamSpec], Awaitable[_BlockingIOReturnType]]:
     @functools.wraps(f)
-    async def wrapper(self: _BlockingIOT, *args: _BlockingIOP.args, **kwargs: _BlockingIOP.kwargs) -> _BlockingIOR:
+    async def wrapper(
+        self: _BlockingIOType,
+        *args: _BlockingIOParamSpec.args,
+        **kwargs: _BlockingIOParamSpec.kwargs,
+    ) -> _BlockingIOReturnType:
         return await asyncio.get_running_loop().run_in_executor(
             self.executor,
             functools.partial(f, self, *args, **kwargs),
@@ -824,12 +829,12 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
     def __repr__(self) -> str:
         return repr(self.fs)
 
-    def _absolute(self, path: PurePath) -> PurePath:
+    def _absolute(self, path: PurePosixPath) -> PurePosixPath:
         if not path.is_absolute():
             path = self.cwd / path
         return path
 
-    def get_node(self, path: PurePath) -> Union[Node, None]:
+    def get_node(self, path: PurePosixPath) -> Union[Node, None]:
         nodes: Union[list[Node], io.BytesIO] = self.fs
         node = None
         path = self._absolute(path)
@@ -903,8 +908,8 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
             raise FileNotFoundError
         if not isinstance(parent.content, list):
             raise NotADirectoryError
-        for i, n in enumerate(parent.content):
-            if n.name == path.name:
+        for i, node in enumerate(parent.content):
+            if node.name == path.name:
                 break
         parent.content.pop(i)
 
@@ -970,7 +975,7 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
     @universal_exception
     async def _open(  # type: ignore[override]
         self,
-        path: Path,
+        path: PurePosixPath,
         mode: "OpenBinaryMode" = "rb",
     ) -> io.BytesIO:
         if mode == "rb":

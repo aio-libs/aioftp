@@ -1,6 +1,5 @@
 import abc
 import asyncio
-import collections
 import enum
 import errno
 import functools
@@ -10,7 +9,7 @@ import socket
 import ssl
 import stat
 import time
-from collections.abc import Awaitable, Iterable, MutableMapping, Sequence
+from collections.abc import Awaitable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Literal, TypedDict, TypeVar, Union
 
@@ -21,6 +20,7 @@ from .common import (
     DEFAULT_BLOCK_SIZE,
     END_OF_LINE,
     HALF_OF_YEAR_IN_SECONDS,
+    Connection,
     StreamIO,
     StreamThrottle,
     ThrottleStreamIO,
@@ -33,7 +33,6 @@ __all__ = (
     "User",
     "AbstractUserManager",
     "MemoryUserManager",
-    "Connection",
     "AvailableConnections",
     "ConnectionConditions",
     "PathConditions",
@@ -288,75 +287,6 @@ class MemoryUserManager(AbstractUserManager):
 
     async def notify_logout(self, user: User) -> None:
         self.available_connections[user].release()
-
-
-class Connection(collections.defaultdict[str, asyncio.Future[Any]]):
-    """
-    Connection state container for transparent work with futures for async
-    wait
-
-    :param kwargs: initialization parameters
-
-    Container based on :py:class:`collections.defaultdict`, which holds
-    :py:class:`asyncio.Future` as default factory. There is two layers of
-    abstraction:
-
-    * Low level based on simple dictionary keys to attributes mapping and
-        available at Connection.future.
-    * High level based on futures result and dictionary keys to attributes
-        mapping and available at Connection.
-
-    To clarify, here is groups of equal expressions
-    ::
-
-        >>> connection.future.foo
-        >>> connection["foo"]
-
-        >>> connection.foo
-        >>> connection["foo"].result()
-
-        >>> del connection.future.foo
-        >>> del connection.foo
-        >>> del connection["foo"]
-    """
-
-    __slots__ = ("future",)
-
-    class Container:
-        def __init__(self, storage: MutableMapping[str, asyncio.Future[Any]]) -> None:
-            self.storage = storage
-
-        def __getattr__(self, name: str) -> asyncio.Future[Any]:
-            return self.storage[name]
-
-        def __delattr__(self, name: str) -> None:
-            self.storage.pop(name)
-
-    future: "Connection.Container"
-    default_factory: Callable[[], asyncio.Future[Any]]
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(asyncio.Future)
-        self.future = Connection.Container(self)
-        for k, v in kwargs.items():
-            self[k].set_result(v)
-
-    def __getattr__(self, name: str) -> Any:
-        if name in self:
-            return self[name].result()
-        raise AttributeError(f"{name!r} not in storage")
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in Connection.__slots__:
-            super().__setattr__(name, value)
-        else:
-            if self[name].done():
-                self[name] = self.default_factory()
-            self[name].set_result(value)
-
-    def __delattr__(self, name: str) -> None:
-        if name in self:
-            self.pop(name)
 
 
 class AvailableConnections:

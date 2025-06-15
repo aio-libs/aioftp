@@ -6,14 +6,11 @@ import locale
 import socket
 import ssl
 import threading
-from collections.abc import AsyncIterator, Awaitable, Generator, Iterable
+from collections.abc import AsyncIterator, Awaitable, Generator, Iterable, MutableMapping
 from contextlib import contextmanager
-from typing import Callable, Generic, TypeVar, Union
+from typing import Any, Callable, Generic, Protocol, TypeVar, Union, overload
 
-from typing_extensions import Any, ParamSpec, Protocol, Self, overload
-
-T = TypeVar("T")
-
+from typing_extensions import ParamSpec, Self
 
 __all__ = (
     "with_timeout",
@@ -36,6 +33,7 @@ __all__ = (
     "SSLSessionBoundContext",
     "Code",
     "wrap_into_codes",
+    "Connection",
 )
 
 END_OF_LINE = "\r\n"
@@ -53,21 +51,24 @@ def _now() -> float:
     return asyncio.get_running_loop().time()
 
 
-_WithTimeOutP = ParamSpec("_WithTimeOutP")
-_WithTimeOutParamR = TypeVar("_WithTimeOutParamR")
+WithTimeOutParamSpec = ParamSpec("WithTimeOutParamSpec")
+WithTimeOutReturnType = TypeVar("WithTimeOutReturnType")
 
 
 def _with_timeout(
     name: str,
 ) -> Callable[
-    [Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]],
-    Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
+    [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
 ]:
     def decorator(
-        f: Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
-    ) -> Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]:
+        f: Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+    ) -> Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]:
         @functools.wraps(f)
-        async def wrapper(*args: _WithTimeOutP.args, **kwargs: _WithTimeOutP.kwargs) -> _WithTimeOutParamR:
+        async def wrapper(
+            *args: WithTimeOutParamSpec.args,
+            **kwargs: WithTimeOutParamSpec.kwargs,
+        ) -> WithTimeOutReturnType:
             cls = args[0]
             timeout = getattr(cls, name)
             return await asyncio.wait_for(f(*args, **kwargs), timeout)
@@ -81,25 +82,25 @@ def _with_timeout(
 def with_timeout(
     name: str,
 ) -> Callable[
-    [Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]],
-    Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
+    [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
 ]: ...
 
 
 @overload
 def with_timeout(
-    name: Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
-) -> Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]: ...
+    name: Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+) -> Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]: ...
 
 
 def with_timeout(
-    name: Union[str, Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]],
+    name: Union[str, Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
 ) -> Union[
     Callable[
-        [Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]]],
-        Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
+        [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+        Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
     ],
-    Callable[_WithTimeOutP, Awaitable[_WithTimeOutParamR]],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
 ]:
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
@@ -157,7 +158,10 @@ class AsyncStreamIterator:
             raise StopAsyncIteration
 
 
-class AsyncListerMixin(abc.ABC, Generic[T]):
+IterableType = TypeVar("IterableType")
+
+
+class AsyncListerMixin(abc.ABC, Generic[IterableType]):
     """
     Add ability to `async for` context to collect data to list via await.
 
@@ -168,21 +172,21 @@ class AsyncListerMixin(abc.ABC, Generic[T]):
         >>> results = await Context(...)
     """
 
-    async def _to_list(self) -> list[T]:
+    async def _to_list(self) -> list[IterableType]:
         items = []
         async for item in self:
             items.append(item)
         return items
 
-    def __await__(self) -> Generator[None, None, list[T]]:
+    def __await__(self) -> Generator[None, None, list[IterableType]]:
         return self._to_list().__await__()
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> AsyncIterator[IterableType]:
         pass
 
 
-class AbstractAsyncLister(AsyncListerMixin[T], abc.ABC):
+class AbstractAsyncLister(AsyncListerMixin[IterableType], abc.ABC):
     """
     Abstract context with ability to collect all iterables into
     :py:class:`list` via `await` with optional timeout (via
@@ -220,7 +224,7 @@ class AbstractAsyncLister(AsyncListerMixin[T], abc.ABC):
 
     @with_timeout
     @abc.abstractmethod
-    async def __anext__(self) -> Any:
+    async def __anext__(self) -> IterableType:
         """
         :py:func:`asyncio.coroutine`
 
@@ -228,28 +232,28 @@ class AbstractAsyncLister(AsyncListerMixin[T], abc.ABC):
         """
 
 
-AsyncEnterableP = ParamSpec("AsyncEnterableP")
-
-
 class AsyncContextManager(Protocol):
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None: ...
 
 
-AsyncEnterableR = TypeVar("AsyncEnterableR", bound=AsyncContextManager, covariant=True)
+AsyncEnterableReturnType = TypeVar("AsyncEnterableReturnType", bound=AsyncContextManager, covariant=True)
 
 
-class AsyncEnterableInstanceProtocol(Protocol[AsyncEnterableR]):
-    async def __aenter__(self) -> AsyncEnterableR: ...
+class AsyncEnterableInstanceProtocol(Protocol[AsyncEnterableReturnType]):
+    async def __aenter__(self) -> AsyncEnterableReturnType: ...
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None: ...
 
-    def __await__(self) -> Generator[None, None, AsyncEnterableR]: ...
+    def __await__(self) -> Generator[None, None, AsyncEnterableReturnType]: ...
+
+
+AsyncEnterableParamSpec = ParamSpec("AsyncEnterableParamSpec")
 
 
 def async_enterable(
-    f: Callable[AsyncEnterableP, Awaitable[AsyncEnterableR]],
-) -> Callable[AsyncEnterableP, AsyncEnterableInstanceProtocol[AsyncEnterableR]]:
+    f: Callable[AsyncEnterableParamSpec, Awaitable[AsyncEnterableReturnType]],
+) -> Callable[AsyncEnterableParamSpec, AsyncEnterableInstanceProtocol[AsyncEnterableReturnType]]:
     """
     Decorator. Bring coroutine result up, so it can be used as async context
 
@@ -286,18 +290,18 @@ def async_enterable(
 
     @functools.wraps(f)
     def wrapper(
-        *args: AsyncEnterableP.args,
-        **kwargs: AsyncEnterableP.kwargs,
-    ) -> AsyncEnterableInstanceProtocol[AsyncEnterableR]:
+        *args: AsyncEnterableParamSpec.args,
+        **kwargs: AsyncEnterableParamSpec.kwargs,
+    ) -> AsyncEnterableInstanceProtocol[AsyncEnterableReturnType]:
         class AsyncEnterableInstance:
-            async def __aenter__(self) -> AsyncEnterableR:
+            async def __aenter__(self) -> AsyncEnterableReturnType:
                 self.context = await f(*args, **kwargs)
                 return await self.context.__aenter__()
 
             async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
                 await self.context.__aexit__(*args, **kwargs)
 
-            def __await__(self) -> Generator[None, None, AsyncEnterableR]:
+            def __await__(self) -> Generator[None, None, AsyncEnterableReturnType]:
                 return f(*args, **kwargs).__await__()
 
         return AsyncEnterableInstance()
@@ -326,16 +330,17 @@ class Code(str):
         return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
 
 
-StrTypeVar = TypeVar("StrTypeVar", bound=str)
+StrType = TypeVar("StrType", bound=str)
+NotStrType = TypeVar("NotStrType")  # typing doesn't support ~T to exclude all subclasses of str
 
 
 @overload
-def wrap_with_container(o: StrTypeVar) -> tuple[StrTypeVar]: ...
+def wrap_with_container(o: StrType) -> tuple[StrType]: ...
 @overload
-def wrap_with_container(o: T) -> T: ...
+def wrap_with_container(o: NotStrType) -> NotStrType: ...
 
 
-def wrap_with_container(o: Union[StrTypeVar, T]) -> Union[tuple[StrTypeVar], T]:
+def wrap_with_container(o: Union[StrType, NotStrType]) -> Union[tuple[StrType], NotStrType]:
     if isinstance(o, str):
         return (o,)  # type: ignore[return-value]
     return o
@@ -791,3 +796,72 @@ class SSLSessionBoundContext(ssl.SSLContext):
             server_side=server_side,
             session=self.session,
         )
+
+
+class Connection(collections.defaultdict[str, asyncio.Future[Any]]):
+    """
+    Connection state container for transparent work with futures for async
+    wait
+
+    :param kwargs: initialization parameters
+
+    Container based on :py:class:`collections.defaultdict`, which holds
+    :py:class:`asyncio.Future` as default factory. There is two layers of
+    abstraction:
+
+    * Low level based on simple dictionary keys to attributes mapping and
+        available at Connection.future.
+    * High level based on futures result and dictionary keys to attributes
+        mapping and available at Connection.
+
+    To clarify, here is groups of equal expressions
+    ::
+
+        >>> connection.future.foo
+        >>> connection["foo"]
+
+        >>> connection.foo
+        >>> connection["foo"].result()
+
+        >>> del connection.future.foo
+        >>> del connection.foo
+        >>> del connection["foo"]
+    """
+
+    __slots__ = ("future",)
+
+    class Container:
+        def __init__(self, storage: MutableMapping[str, asyncio.Future[Any]]) -> None:
+            self.storage = storage
+
+        def __getattr__(self, name: str) -> asyncio.Future[Any]:
+            return self.storage[name]
+
+        def __delattr__(self, name: str) -> None:
+            self.storage.pop(name)
+
+    future: "Connection.Container"
+    default_factory: Callable[[], asyncio.Future[Any]]
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(asyncio.Future)
+        self.future = Connection.Container(self)
+        for k, v in kwargs.items():
+            self[k].set_result(v)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self:
+            return self[name].result()
+        raise AttributeError(f"{name!r} not in storage")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in Connection.__slots__:
+            super().__setattr__(name, value)
+        else:
+            if self[name].done():
+                self[name] = self.default_factory()
+            self[name].set_result(value)
+
+    def __delattr__(self, name: str) -> None:
+        if name in self:
+            self.pop(name)
