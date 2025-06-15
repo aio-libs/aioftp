@@ -161,7 +161,7 @@ class PathIONursery(Generic[PathIOType]):
     def __call__(
         self,
         timeout: Union[float, int, None] = None,
-        connection: Union["Connection", None] = None,
+        connection: Union[Connection, None] = None,
         state: Union[list["Node"], None] = None,
     ) -> PathIOType:
         instance = self.factory(timeout=timeout, connection=connection, state=self.state)
@@ -231,7 +231,7 @@ class AbstractPathIO(Generic[PathType], abc.ABC):
     def __init__(
         self,
         timeout: Union[float, int, None] = None,
-        connection: Union["Connection", None] = None,
+        connection: Union[Connection, None] = None,
         state: Union[list["Node"], None] = None,
     ) -> None:
         self.timeout = timeout
@@ -618,7 +618,7 @@ class AsyncPathIO(AbstractPathIO[Path]):
     def __init__(
         self,
         timeout: Union[float, int, None] = None,
-        connection: Union["Connection", None] = None,
+        connection: Union[Connection, None] = None,
         state: Union[list["Node"], None] = None,
         executor: Union[Executor, None] = None,
     ) -> None:
@@ -811,7 +811,7 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
     def __init__(
         self,
         timeout: Union[float, int, None] = None,
-        connection: Union["Connection", None] = None,
+        connection: Union[Connection, None] = None,
         state: Union[list[Node], None] = None,
         cwd: Union[str, PurePosixPath, None] = None,
     ) -> None:
