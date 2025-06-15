@@ -31,6 +31,7 @@ from .common import (
     HALF_OF_YEAR_IN_SECONDS,
     TWO_YEARS_IN_SECONDS,
     AbstractAsyncLister,
+    AsyncEnterableInstanceProtocol,
     Code,
     SSLSessionBoundContext,
     StreamThrottle,
@@ -214,8 +215,8 @@ class BaseClient:
 
     async def _open_connection(self, host: str, port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         ssl_resolved = self.ssl
-        if self.stream is not None:
-            ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
+        if self._stream is not None:
+            ssl_object = self._stream.writer.transport.get_extra_info("ssl_object")
             if ssl_object is not None:
                 ssl_resolved = SSLSessionBoundContext(
                     ssl.PROTOCOL_TLS_CLIENT,
@@ -1118,7 +1119,7 @@ class Client(BaseClient):
         destination: PathLike,
         *,
         offset: int = 0,
-    ) -> DataConnectionThrottleStreamIO:
+    ) -> AsyncEnterableInstanceProtocol[DataConnectionThrottleStreamIO]:
         """
         Create stream for write data to `destination` file.
 
@@ -1130,7 +1131,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
-        return self.get_stream(  # type: ignore
+        return self.get_stream(
             "STOR " + str(destination),
             "1xx",
             offset=offset,
@@ -1141,7 +1142,7 @@ class Client(BaseClient):
         destination: PathLike,
         *,
         offset: int = 0,
-    ) -> DataConnectionThrottleStreamIO:
+    ) -> AsyncEnterableInstanceProtocol[DataConnectionThrottleStreamIO]:
         """
         Create stream for append (write) data to `destination` file.
 
@@ -1153,7 +1154,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
-        return self.get_stream(  # type: ignore
+        return self.get_stream(
             "APPE " + str(destination),
             "1xx",
             offset=offset,
