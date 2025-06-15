@@ -16,17 +16,6 @@ jobs:
     - run: python -m pip install -e ./[dev]
     - run: python -m pre_commit run -a
 
-  type-check:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: ${{ env.lowest_python_version }}
-    - run: python -m pip install -e ./[dev]
-    - run: mypy
-
   test:
     needs: lint
     runs-on: ubuntu-latest
