@@ -41,6 +41,7 @@ classifiers = [
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 
+# TODO: remove `typing-extensions` when requires-python = ">= 3.11"
 dependencies = [
     "typing-extensions>=4.13.2",  # 3.9 typing support
 ]
