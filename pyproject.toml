@@ -1,6 +1,6 @@
 [project]
 name = "aioftp"
-version = "0.25.0"
+version = "0.25.2"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
 requires-python = ">= 3.9"
@@ -32,6 +32,7 @@ authors = [
     {name = "webknjaz", email="webknjaz+github/profile@redhat.com"},
     {name = "rcfox", email="ryan@rcfox.ca"},
     {name = "bellini666", email="thiago@bellini.dev"},
+    {name = "sakosha"},
 ]
 classifiers = [
     "Programming Language :: Python",
@@ -82,6 +83,8 @@ line-length = 120
 target-version = "py39"
 lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
+exclude = ["ftpbench.py"]
+
 
 [tool.mypy]
 files = "src/aioftp"

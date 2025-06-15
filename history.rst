@@ -1,5 +1,16 @@
 x.x.x (xxxx-xx-xx)
 
+0.25.2 (2025-06-13)
+-------------------
+- adjust codebase for python 3.14 (#190)
+- client: resolve tls issues (fixes #186) (#187)
+Thanks to `sakosha <https://github.com/sakosha>`_
+
+
+0.25.1 (2025-04-11)
+-------------------
+- client: do not start explicit tls if implicit mode used (#184)
+
 0.25.0 (2025-04-08)
 -------------------
 - client: add partial client support for explicit tls (#183)

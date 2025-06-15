@@ -7,7 +7,6 @@ import re
 import ssl
 from collections.abc import AsyncGenerator, Generator, Iterable, Sequence
 from datetime import datetime
-from functools import partial
 from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import (
@@ -223,9 +222,20 @@ class BaseClient:
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
-        self._open_connection = partial(open_connection, ssl=self.ssl, **siosocks_asyncio_kwargs)
-        self._upgraded_to_tls = False
-        self._logged_in = False
+        self._siosocks_asyncio_kwargs = siosocks_asyncio_kwargs
+
+    async def _open_connection(self, host, port):
+        ssl_resolved = self.ssl
+        if self.stream is not None:
+            ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
+            if ssl_object is not None:
+                ssl_resolved = SSLSessionBoundContext(
+                    ssl.PROTOCOL_TLS_CLIENT,
+                    context=ssl_object.context,
+                    session=ssl_object.session,
+                )
+        connection = await open_connection(host, port, ssl=ssl_resolved, **self._siosocks_asyncio_kwargs)
+        return connection
 
     async def connect(self, host: str, port: int = DEFAULT_PORT) -> None:
         self.server_host = host
@@ -752,8 +762,7 @@ class Client(BaseClient):
         :type port: :py:class:`int`
         """
         await super().connect(host, port)
-        result = await self.command(None, "220", "120")
-        code, info = result
+        code, info = await self.command(None, "220", "120")
         return info
 
     async def _send_tls_protection_commands(self) -> None:
@@ -779,22 +788,13 @@ class Client(BaseClient):
         :type sslcontext: :py:class:`ssl.SSLContext`
         """
         if self.ssl:
-            raise RuntimeError("SSL context is already set in implicit mode, can't use explicit mode")
-
-        if self._upgraded_to_tls:
-            return
+            raise RuntimeError("ssl context is already set and used implicitly")
 
         await self.command("AUTH TLS", "234")
-
-        if sslcontext:
-            self.ssl = sslcontext
-        elif not isinstance(self.ssl, ssl.SSLContext):
-            self.ssl = ssl.create_default_context()
-
-        await self.stream.start_tls(sslcontext=self.ssl, server_hostname=self.server_host)
-
-        if self._logged_in:
-            await self._send_tls_protection_commands()
+        if sslcontext is None:
+            sslcontext = ssl.create_default_context()
+        await self.stream.start_tls(sslcontext=sslcontext, server_hostname=self.server_host)
+        await self._send_tls_protection_commands()
 
     async def login(
         self,
@@ -818,8 +818,7 @@ class Client(BaseClient):
 
         :raises aioftp.StatusCodeError: if unknown code received
         """
-        result = await self.command("USER " + user, ("230", "33x"))
-        code, info = result
+        code, info = await self.command("USER " + user, ("230", "33x"))
         while code.matches("33x"):
             censor_after = None
             if code == "331":
@@ -828,20 +827,14 @@ class Client(BaseClient):
             elif code == "332":
                 cmd = "ACCT " + account
             else:
-                raise errors.StatusCodeError(Code("33x"), code, info)
-            result = await self.command(
+                raise errors.StatusCodeError("33x", code, info)
+            code, info = await self.command(
                 cmd,
                 ("230", "33x"),
                 censor_after=censor_after,
             )
-            code, info = result
 
-        self._logged_in = True
-
-        if self._upgraded_to_tls:
-            await self._send_tls_protection_commands()
-
-    async def get_current_directory(self) -> PurePosixPath:
+    async def get_current_directory(self):
         """
         :py:func:`asyncio.coroutine`
 
@@ -1015,7 +1008,6 @@ class Client(BaseClient):
         file_info: Union[BasicListInfo, UnixListInfo]
         try:
             result = await self.command("MLST " + str(path), "2xx")
-            code, info = result
             name, file_info = self.parse_mlsx_line(info[1].lstrip())
             return file_info
         except errors.StatusCodeError as e:
@@ -1416,17 +1408,6 @@ class Client(BaseClient):
             throttles={"_": self.throttle},
             timeout=self.socket_timeout,
         )
-        ssl_object = self.stream.writer.transport.get_extra_info("ssl_object")
-        if ssl_object and not self.ssl:
-            await writer.start_tls(  # type: ignore[attr-defined,unused-ignore]
-                sslcontext=SSLSessionBoundContext(
-                    ssl.PROTOCOL_TLS_CLIENT,
-                    context=ssl_object.context,
-                    session=ssl_object.session,
-                ),
-                server_hostname=self.server_host,
-            )
-
         return stream
 
     async def abort(self, *, wait: bool = True) -> None:
@@ -1447,13 +1428,14 @@ class Client(BaseClient):
     @contextlib.asynccontextmanager
     async def context(
         cls,
-        host: str,
-        port: int = DEFAULT_PORT,
-        user: str = DEFAULT_USER,
-        password: str = DEFAULT_PASSWORD,
-        account: str = DEFAULT_ACCOUNT,
-        **kwargs: Unpack[BaseClientArgs],
-    ) -> AsyncGenerator[Self, None]:
+        host,
+        port=DEFAULT_PORT,
+        user=DEFAULT_USER,
+        password=DEFAULT_PASSWORD,
+        account=DEFAULT_ACCOUNT,
+        upgrade_to_tls=False,
+        **kwargs,
+    ):
         """
         Classmethod async context manager. This create
         :py:class:`aioftp.Client`, make async call to
@@ -1486,6 +1468,8 @@ class Client(BaseClient):
         client = cls(**kwargs)
         try:
             await client.connect(host, port)
+            if upgrade_to_tls:
+                await client.upgrade_to_tls()
             await client.login(user, password, account)
         except Exception:
             client.close()
