@@ -183,7 +183,10 @@ class AsyncListerMixin(abc.ABC, Generic[IterableType]):
 
     @abc.abstractmethod
     def __aiter__(self) -> AsyncIterator[IterableType]:
-        pass
+        """
+        Must be implemented by subclasses to enable iteration using ``async for``.
+        :rtype: :py:class:`typing.AsyncIterator`[:py:class:`IterableType`]
+        """
 
 
 class AbstractAsyncLister(AsyncListerMixin[IterableType], abc.ABC):
