@@ -5,6 +5,7 @@ import contextlib
 import logging
 import re
 import ssl
+import sys
 from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -17,8 +18,6 @@ from typing import (
     Union,
     overload,
 )
-
-from typing_extensions import NotRequired, Self, Unpack
 
 from . import errors, pathio
 from .common import (
@@ -41,6 +40,11 @@ from .common import (
     wrap_into_codes,
     wrap_with_container,
 )
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired, Self, Unpack
+else:
+    from typing_extensions import NotRequired, Self, Unpack
 
 try:
     from siosocks.io.asyncio import open_connection

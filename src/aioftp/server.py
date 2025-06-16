@@ -8,6 +8,7 @@ import os
 import socket
 import ssl
 import stat
+import sys
 import time
 from collections.abc import Awaitable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
@@ -27,6 +28,12 @@ from .common import (
     setlocale,
     wrap_with_container,
 )
+
+if sys.version_info >= (3, 11):
+    from typing import Concatenate, ParamSpec, Unpack  # type: ignore[assignment,unused-ignore]
+else:
+    from typing_extensions import Concatenate, ParamSpec, Unpack
+
 
 __all__ = (
     "Permission",

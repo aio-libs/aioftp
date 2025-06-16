@@ -23,8 +23,6 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Concatenate, ParamSpec, Self, Unpack
-
 from .common import (
     DEFAULT_BLOCK_SIZE,
     AbstractAsyncLister,
@@ -33,6 +31,12 @@ from .common import (
     with_timeout,
 )
 from .errors import PathIOError
+
+if sys.version_info >= (3, 11):
+    from typing import Concatenate, ParamSpec, Self, Unpack
+else:
+    from typing_extensions import Concatenate, ParamSpec, Self, Unpack
+
 
 if TYPE_CHECKING:
     from _typeshed import OpenBinaryMode, ReadableBuffer

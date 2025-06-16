@@ -43,7 +43,7 @@ classifiers = [
 
 # TODO: remove `typing-extensions` when requires-python = ">= 3.11"
 dependencies = [
-    "typing-extensions>=4.13.2",  # 3.9 typing support
+    "typing-extensions>=4.13.2; python_version < '3.11'",  # 3.9-10 typing support
 ]
 
 [project.urls]

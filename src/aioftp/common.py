@@ -5,12 +5,17 @@ import functools
 import locale
 import socket
 import ssl
+import sys
 import threading
 from collections.abc import AsyncIterator, Awaitable, Generator, Iterable, MutableMapping
 from contextlib import contextmanager
 from typing import Any, Callable, Generic, Protocol, TypeVar, Union, overload
 
-from typing_extensions import ParamSpec, Self
+if sys.version_info >= (3, 11):
+    from typing import ParamSpec, Self
+else:
+    from typing_extensions import ParamSpec, Self
+
 
 __all__ = (
     "with_timeout",
