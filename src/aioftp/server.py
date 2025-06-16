@@ -660,6 +660,7 @@ class Server:
         data_ports=None,
         encoding="utf-8",
         ssl=None,
+        extra_commands_mapping={},
     ):
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -718,7 +719,7 @@ class Server:
             "syst": self.syst,
             "type": self.type,
             "user": self.user,
-        }
+        } | extra_commands_mapping
 
     async def start(self, host=None, port=0, **kwargs):
         """
