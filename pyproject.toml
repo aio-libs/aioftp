@@ -41,6 +41,11 @@ classifiers = [
     "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 
+# TODO: remove `typing-extensions` when requires-python = ">= 3.11"
+dependencies = [
+    "typing-extensions>=4.13.2; python_version < '3.11'",  # 3.9-10 typing support
+]
+
 [project.urls]
 Github = "https://github.com/aio-libs/aioftp"
 Documentation = "https://aioftp.rtfd.io"
@@ -62,6 +67,7 @@ dev = [
     # linters
     "pre-commit",
     "ruff",
+    "mypy",
 ]
 
 [build-system]
@@ -70,6 +76,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages.find.where = ["src"]
+package-data.aioftp = ["py.typed"]
 
 # tools
 [tool.ruff]
@@ -79,6 +86,13 @@ lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 exclude = ["ftpbench.py"]
 
+
+[tool.mypy]
+files = "src/aioftp"
+pretty = true
+strict = true
+ignore_missing_imports = true
+warn_unreachable = true
 
 [tool.coverage]
 run.source = ["./src/aioftp"]
