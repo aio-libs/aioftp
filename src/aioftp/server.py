@@ -14,8 +14,6 @@ from collections.abc import Awaitable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Literal, TypedDict, TypeVar, Union
 
-from typing_extensions import Concatenate, ParamSpec, Unpack
-
 from . import errors, pathio
 from .common import (
     DEFAULT_BLOCK_SIZE,
