@@ -1,5 +1,9 @@
 x.x.x (xxxx-xx-xx)
 
+0.26.1 (2025-06-25)
+-------------------
+- fix minor documentaion bugs
+
 0.26.0 (2025-06-25)
 -------------------
 - add type annotations (#188) (closes #164)
