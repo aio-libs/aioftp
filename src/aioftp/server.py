@@ -49,8 +49,6 @@ __all__ = (
 )
 
 
-get_current_task = asyncio.current_task
-
 logger = logging.getLogger(__name__)
 
 
@@ -335,8 +333,8 @@ class AvailableConnections:
                 raise ValueError("Too many releases")
 
 
-ConnectionConditionsP = ParamSpec("ConnectionConditionsP")
-ConnectionConditionsR = TypeVar("ConnectionConditionsR")
+ConnectionConditionsParamSpec = ParamSpec("ConnectionConditionsParamSpec")
+ConnectionConditionsReturnType = TypeVar("ConnectionConditionsReturnType")
 
 
 class ConnectionConditions:
@@ -401,18 +399,21 @@ class ConnectionConditions:
 
     def __call__(
         self,
-        f: Callable[Concatenate["Server", Connection, ConnectionConditionsP], Awaitable[ConnectionConditionsR]],
+        f: Callable[
+            Concatenate["Server", Connection, ConnectionConditionsParamSpec],
+            Awaitable[ConnectionConditionsReturnType],
+        ],
     ) -> Callable[
-        Concatenate["Server", Connection, ConnectionConditionsP],
-        Awaitable[Union[ConnectionConditionsR, bool]],
+        Concatenate["Server", Connection, ConnectionConditionsParamSpec],
+        Awaitable[Union[ConnectionConditionsReturnType, bool]],
     ]:
         @functools.wraps(f)
         async def wrapper(
             cls: "Server",
             connection: Connection,
-            *args: ConnectionConditionsP.args,
-            **kwargs: ConnectionConditionsP.kwargs,
-        ) -> Union[ConnectionConditionsR, bool]:
+            *args: ConnectionConditionsParamSpec.args,
+            **kwargs: ConnectionConditionsParamSpec.kwargs,
+        ) -> Union[ConnectionConditionsReturnType, bool]:
             futures = {connection[name]: msg for name, msg in self.fields}
             aggregate = asyncio.gather(*futures)
             if self.wait:
@@ -439,8 +440,8 @@ class ConnectionConditions:
         return wrapper  # type: ignore[return-value]
 
 
-PathConditionsP = ParamSpec("PathConditionsP")
-PathConditionsR = TypeVar("PathConditionsR")
+PathConditionsParamSpec = ParamSpec("PathConditionsParamSpec")
+PathConditionsReturnType = TypeVar("PathConditionsReturnType")
 
 
 class PathConditions:
@@ -472,21 +473,21 @@ class PathConditions:
     def __call__(
         self,
         f: Callable[
-            Concatenate["Server", Connection, Union[str, PurePosixPath], PathConditionsP],
-            Awaitable[PathConditionsR],
+            Concatenate["Server", Connection, Union[str, PurePosixPath], PathConditionsParamSpec],
+            Awaitable[PathConditionsReturnType],
         ],
     ) -> Callable[
-        Concatenate["Server", Connection, Union[str, PurePosixPath], PathConditionsP],
-        Awaitable[Union[PathConditionsR, bool]],
+        Concatenate["Server", Connection, Union[str, PurePosixPath], PathConditionsParamSpec],
+        Awaitable[Union[PathConditionsReturnType, bool]],
     ]:
         @functools.wraps(f)
         async def wrapper(
             cls: "Server",
             connection: Connection,
             rest: Union[str, PurePosixPath],
-            *args: PathConditionsP.args,
-            **kwargs: PathConditionsP.kwargs,
-        ) -> Union[PathConditionsR, bool]:
+            *args: PathConditionsParamSpec.args,
+            **kwargs: PathConditionsParamSpec.kwargs,
+        ) -> Union[PathConditionsReturnType, bool]:
             real_path, virtual_path = cls.get_paths(connection, rest)
             for name, fail, message in self.conditions:
                 coro = getattr(connection.path_io, name)
@@ -498,8 +499,8 @@ class PathConditions:
         return wrapper  # type: ignore[return-value]
 
 
-PathPermissionsP = ParamSpec("PathPermissionsP")
-PathPermissionsR = TypeVar("PathPermissionsR")
+PathPermissionsParamSpec = ParamSpec("PathPermissionsParamSpec")
+PathPermissionsReturnType = TypeVar("PathPermissionsReturnType")
 
 
 class PathPermissions:
@@ -531,21 +532,21 @@ class PathPermissions:
     def __call__(
         self,
         f: Callable[
-            Concatenate["Server", Connection, Union[str, PurePosixPath], PathPermissionsP],
-            Awaitable[PathPermissionsR],
+            Concatenate["Server", Connection, Union[str, PurePosixPath], PathPermissionsParamSpec],
+            Awaitable[PathPermissionsReturnType],
         ],
     ) -> Callable[
-        Concatenate["Server", Connection, Union[str, PurePosixPath], PathPermissionsP],
-        Awaitable[Union[PathPermissionsR, bool]],
+        Concatenate["Server", Connection, Union[str, PurePosixPath], PathPermissionsParamSpec],
+        Awaitable[Union[PathPermissionsReturnType, bool]],
     ]:
         @functools.wraps(f)
         async def wrapper(
             cls: "Server",
             connection: Connection,
             rest: Union[str, PurePosixPath],
-            *args: PathPermissionsP.args,
-            **kwargs: PathPermissionsP.kwargs,
-        ) -> Union[PathPermissionsR, bool]:
+            *args: PathPermissionsParamSpec.args,
+            **kwargs: PathPermissionsParamSpec.kwargs,
+        ) -> Union[PathPermissionsReturnType, bool]:
             real_path, virtual_path = cls.get_paths(connection, rest)
             current_permission = await connection.user.get_permissions(
                 virtual_path,
@@ -985,7 +986,7 @@ class Server:
             response=lambda *args: response_queue.put_nowait(args),
             acquired=False,
             restart_offset=0,
-            _dispatcher=get_current_task(),
+            _dispatcher=asyncio.current_task(),
         )
         connection.path_io = self.path_io_factory(
             timeout=self.path_timeout,

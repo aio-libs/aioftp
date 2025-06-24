@@ -250,9 +250,7 @@ AsyncEnterableReturnType = TypeVar("AsyncEnterableReturnType", bound=AsyncContex
 
 class AsyncEnterableInstanceProtocol(Protocol[AsyncEnterableReturnType]):
     async def __aenter__(self) -> AsyncEnterableReturnType: ...
-
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None: ...
-
     def __await__(self) -> Generator[None, None, AsyncEnterableReturnType]: ...
 
 

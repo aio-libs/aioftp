@@ -53,4 +53,3 @@ repos:
     id: mypy
     name: Type check with mypy
     entry: mypy
-    args: ["--config-file", "pyproject.toml"]

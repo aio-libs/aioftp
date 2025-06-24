@@ -617,8 +617,6 @@ class AsyncPathIO(AbstractPathIO[Path]):
     :type executor: :py:class:`concurrent.futures.Executor`
     """
 
-    executor: Union[Executor, None]
-
     def __init__(
         self,
         timeout: Union[float, int, None] = None,
@@ -667,12 +665,10 @@ class AsyncPathIO(AbstractPathIO[Path]):
 
     def list(self, path: Path) -> AsyncIterable[Path]:
         class Lister(AbstractAsyncLister[Path]):
-            executor: Union[Executor, None]
-            iter: Union[Iterator[Path], None] = None
-
             def __init__(self, timeout: Union[float, int, None] = None, executor: Union[Executor, None] = None) -> None:
                 super().__init__(timeout=timeout)
                 self.executor = executor
+                self.iter: Union[Iterator[Path], None] = None
 
             @universal_exception
             @with_timeout
