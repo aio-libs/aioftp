@@ -1,5 +1,10 @@
 x.x.x (xxxx-xx-xx)
 
+0.26.0 (2025-06-25)
+-------------------
+- add type annotations (#188) (closes #164)
+Thanks to `sakosha <https://github.com/sakosha>`_
+
 0.25.2 (2025-06-13)
 -------------------
 - adjust codebase for python 3.14 (#190)
