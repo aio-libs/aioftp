@@ -5,8 +5,17 @@ import functools
 import locale
 import socket
 import ssl
+import sys
 import threading
+from collections.abc import AsyncIterator, Awaitable, Generator, Iterable, MutableMapping
 from contextlib import contextmanager
+from typing import Any, Callable, Generic, Protocol, TypeVar, Union, overload
+
+if sys.version_info >= (3, 11):
+    from typing import ParamSpec, Self
+else:
+    from typing_extensions import ParamSpec, Self
+
 
 __all__ = (
     "with_timeout",
@@ -27,6 +36,9 @@ __all__ = (
     "DEFAULT_ACCOUNT",
     "setlocale",
     "SSLSessionBoundContext",
+    "Code",
+    "wrap_into_codes",
+    "Connection",
 )
 
 END_OF_LINE = "\r\n"
@@ -40,24 +52,61 @@ HALF_OF_YEAR_IN_SECONDS = 15778476
 TWO_YEARS_IN_SECONDS = ((365 * 3 + 366) * 24 * 60 * 60) / 2
 
 
-def _now():
+def _now() -> float:
     return asyncio.get_running_loop().time()
 
 
-def _with_timeout(name):
-    def decorator(f):
+WithTimeOutParamSpec = ParamSpec("WithTimeOutParamSpec")
+WithTimeOutReturnType = TypeVar("WithTimeOutReturnType")
+
+
+def _with_timeout(
+    name: str,
+) -> Callable[
+    [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+]:
+    def decorator(
+        f: Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+    ) -> Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]:
         @functools.wraps(f)
-        def wrapper(cls, *args, **kwargs):
-            coro = f(cls, *args, **kwargs)
+        async def wrapper(
+            *args: WithTimeOutParamSpec.args,
+            **kwargs: WithTimeOutParamSpec.kwargs,
+        ) -> WithTimeOutReturnType:
+            cls = args[0]
             timeout = getattr(cls, name)
-            return asyncio.wait_for(coro, timeout)
+            return await asyncio.wait_for(f(*args, **kwargs), timeout)
 
         return wrapper
 
     return decorator
 
 
-def with_timeout(name):
+@overload
+def with_timeout(
+    name: str,
+) -> Callable[
+    [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+]: ...
+
+
+@overload
+def with_timeout(
+    name: Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+) -> Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]: ...
+
+
+def with_timeout(
+    name: Union[str, Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+) -> Union[
+    Callable[
+        [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
+        Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+    ],
+    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+]:
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -100,13 +149,13 @@ def with_timeout(name):
 
 
 class AsyncStreamIterator:
-    def __init__(self, read_coro):
+    def __init__(self, read_coro: Callable[[], Awaitable[bytes]]) -> None:
         self.read_coro = read_coro
 
-    def __aiter__(self):
+    def __aiter__(self) -> Self:
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> bytes:
         data = await self.read_coro()
         if data:
             return data
@@ -114,7 +163,10 @@ class AsyncStreamIterator:
             raise StopAsyncIteration
 
 
-class AsyncListerMixin:
+IterableType = TypeVar("IterableType")
+
+
+class AsyncListerMixin(abc.ABC, Generic[IterableType]):
     """
     Add ability to `async for` context to collect data to list via await.
 
@@ -125,17 +177,24 @@ class AsyncListerMixin:
         >>> results = await Context(...)
     """
 
-    async def _to_list(self):
+    async def _to_list(self) -> list[IterableType]:
         items = []
         async for item in self:
             items.append(item)
         return items
 
-    def __await__(self):
+    def __await__(self) -> Generator[None, None, list[IterableType]]:
         return self._to_list().__await__()
 
+    @abc.abstractmethod
+    def __aiter__(self) -> AsyncIterator[IterableType]:
+        """
+        Must be implemented by subclasses to enable iteration using ``async for``.
+        :rtype: :py:class:`typing.AsyncIterator`[:py:class:`IterableType`]
+        """
 
-class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
+
+class AbstractAsyncLister(AsyncListerMixin[IterableType], abc.ABC):
     """
     Abstract context with ability to collect all iterables into
     :py:class:`list` via `await` with optional timeout (via
@@ -164,16 +223,16 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         [block, block, block, ...]
     """
 
-    def __init__(self, *, timeout=None):
+    def __init__(self, *, timeout: Union[float, int, None] = None) -> None:
         super().__init__()
         self.timeout = timeout
 
-    def __aiter__(self):
+    def __aiter__(self) -> Self:
         return self
 
     @with_timeout
     @abc.abstractmethod
-    async def __anext__(self):
+    async def __anext__(self) -> IterableType:
         """
         :py:func:`asyncio.coroutine`
 
@@ -181,7 +240,26 @@ class AbstractAsyncLister(AsyncListerMixin, abc.ABC):
         """
 
 
-def async_enterable(f):
+class AsyncContextManager(Protocol):
+    async def __aenter__(self) -> Self: ...
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None: ...
+
+
+AsyncEnterableReturnType = TypeVar("AsyncEnterableReturnType", bound=AsyncContextManager, covariant=True)
+
+
+class AsyncEnterableInstanceProtocol(Protocol[AsyncEnterableReturnType]):
+    async def __aenter__(self) -> AsyncEnterableReturnType: ...
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None: ...
+    def __await__(self) -> Generator[None, None, AsyncEnterableReturnType]: ...
+
+
+AsyncEnterableParamSpec = ParamSpec("AsyncEnterableParamSpec")
+
+
+def async_enterable(
+    f: Callable[AsyncEnterableParamSpec, Awaitable[AsyncEnterableReturnType]],
+) -> Callable[AsyncEnterableParamSpec, AsyncEnterableInstanceProtocol[AsyncEnterableReturnType]]:
     """
     Decorator. Bring coroutine result up, so it can be used as async context
 
@@ -217,16 +295,19 @@ def async_enterable(f):
     """
 
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+    def wrapper(
+        *args: AsyncEnterableParamSpec.args,
+        **kwargs: AsyncEnterableParamSpec.kwargs,
+    ) -> AsyncEnterableInstanceProtocol[AsyncEnterableReturnType]:
         class AsyncEnterableInstance:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncEnterableReturnType:
                 self.context = await f(*args, **kwargs)
                 return await self.context.__aenter__()
 
-            async def __aexit__(self, *args, **kwargs):
+            async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
                 await self.context.__aexit__(*args, **kwargs)
 
-            def __await__(self):
+            def __await__(self) -> Generator[None, None, AsyncEnterableReturnType]:
                 return f(*args, **kwargs).__await__()
 
         return AsyncEnterableInstance()
@@ -234,10 +315,45 @@ def async_enterable(f):
     return wrapper
 
 
-def wrap_with_container(o):
+class Code(str):
+    """
+    Representation of server status code.
+    """
+
+    def matches(self, mask: str) -> bool:
+        """
+        :param mask: Template for comparision. If mask symbol is not digit
+            then it passes.
+        :type mask: :py:class:`str`
+
+        ::
+
+            >>> Code("123").matches("1")
+            True
+            >>> Code("123").matches("1x3")
+            True
+        """
+        return all(map(lambda m, c: not m.isdigit() or m == c, mask, self))
+
+
+StrType = TypeVar("StrType", bound=str)
+NotStrType = TypeVar("NotStrType")  # typing doesn't support ~T to exclude all subclasses of str
+
+
+@overload
+def wrap_with_container(o: StrType) -> tuple[StrType]: ...
+@overload
+def wrap_with_container(o: NotStrType) -> NotStrType: ...
+
+
+def wrap_with_container(o: Union[StrType, NotStrType]) -> Union[tuple[StrType], NotStrType]:
     if isinstance(o, str):
-        o = (o,)
+        return (o,)  # type: ignore[return-value]
     return o
+
+
+def wrap_into_codes(o: Iterable[str]) -> tuple[Code, ...]:
+    return tuple(Code(item) for item in o if not isinstance(item, Code))
 
 
 class StreamIO:
@@ -262,14 +378,22 @@ class StreamIO:
     :type write_timeout: :py:class:`int`, :py:class:`float` or :py:class:`None`
     """
 
-    def __init__(self, reader, writer, *, timeout=None, read_timeout=None, write_timeout=None):
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        *,
+        timeout: Union[float, int, None] = None,
+        read_timeout: Union[float, int, None] = None,
+        write_timeout: Union[float, int, None] = None,
+    ):
         self.reader = reader
         self.writer = writer
         self.read_timeout = read_timeout or timeout
         self.write_timeout = write_timeout or timeout
 
     @with_timeout("read_timeout")
-    async def readline(self):
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -278,7 +402,7 @@ class StreamIO:
         return await self.reader.readline()
 
     @with_timeout("read_timeout")
-    async def read(self, count=-1):
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -290,7 +414,7 @@ class StreamIO:
         return await self.reader.read(count)
 
     @with_timeout("read_timeout")
-    async def readexactly(self, count):
+    async def readexactly(self, count: int) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -302,7 +426,7 @@ class StreamIO:
         return await self.reader.readexactly(count)
 
     @with_timeout("write_timeout")
-    async def write(self, data):
+    async def write(self, data: bytes) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -315,17 +439,17 @@ class StreamIO:
         self.writer.write(data)
         await self.writer.drain()
 
-    def close(self):
+    def close(self) -> None:
         """
         Close connection.
         """
         self.writer.close()
 
-    async def start_tls(self, sslcontext, server_hostname):
+    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: Union[str, None]) -> None:
         """
         Upgrades the connection to TLS
         """
-        await self.writer.start_tls(
+        await self.writer.start_tls(  # type: ignore[attr-defined,unused-ignore]  # py3.12+
             sslcontext=sslcontext,
             server_hostname=server_hostname,
             ssl_handshake_timeout=self.write_timeout,
@@ -344,13 +468,13 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    def __init__(self, *, limit=None, reset_rate=10):
+    def __init__(self, *, limit: Union[int, None] = None, reset_rate: Union[float, int] = 10) -> None:
         self._limit = limit
         self.reset_rate = reset_rate
-        self._start = None
+        self._start: Union[float, None] = None
         self._sum = 0
 
-    async def wait(self):
+    async def wait(self) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -361,7 +485,7 @@ class Throttle:
             end = self._start + self._sum / self._limit
             await asyncio.sleep(max(0, end - now))
 
-    def append(self, data, start):
+    def append(self, data: bytes, start: float) -> None:
         """
         Count `data` for throttle
 
@@ -381,14 +505,14 @@ class Throttle:
             self._sum += len(data)
 
     @property
-    def limit(self):
+    def limit(self) -> Union[int, None]:
         """
         Throttle limit
         """
         return self._limit
 
     @limit.setter
-    def limit(self, value):
+    def limit(self, value: Union[int, None]) -> None:
         """
         Set throttle limit
 
@@ -399,13 +523,13 @@ class Throttle:
         self._start = None
         self._sum = 0
 
-    def clone(self):
+    def clone(self) -> "Throttle":
         """
         Clone throttle without memory
         """
         return Throttle(limit=self._limit, reset_rate=self.reset_rate)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(limit={self._limit!r}, reset_rate={self.reset_rate!r})"
 
 
@@ -420,7 +544,7 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     :type write: :py:class:`aioftp.Throttle`
     """
 
-    def clone(self):
+    def clone(self) -> "StreamThrottle":
         """
         Clone throttles without memory
         """
@@ -430,7 +554,11 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
         )
 
     @classmethod
-    def from_limits(cls, read_speed_limit=None, write_speed_limit=None):
+    def from_limits(
+        cls,
+        read_speed_limit: Union[int, None] = None,
+        write_speed_limit: Union[int, None] = None,
+    ) -> "StreamThrottle":
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
 
@@ -475,11 +603,20 @@ class ThrottleStreamIO(StreamIO):
         ... )
     """
 
-    def __init__(self, *args, throttles={}, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        throttles: dict[str, StreamThrottle] = {},
+        *,
+        timeout: Union[float, int, None] = None,
+        read_timeout: Union[float, int, None] = None,
+        write_timeout: Union[float, int, None] = None,
+    ):
+        super().__init__(reader, writer, timeout=timeout, read_timeout=read_timeout, write_timeout=write_timeout)
         self.throttles = throttles
 
-    async def wait(self, name):
+    async def wait(self, name: str) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -496,7 +633,7 @@ class ThrottleStreamIO(StreamIO):
         if tasks:
             await asyncio.wait(tasks)
 
-    def append(self, name, data, start):
+    def append(self, name: str, data: bytes, start: float) -> None:
         """
         Update timeout for all throttles
 
@@ -513,7 +650,7 @@ class ThrottleStreamIO(StreamIO):
         for throttle in self.throttles.values():
             getattr(throttle, name).append(data, start)
 
-    async def read(self, count=-1):
+    async def read(self, count: int = -1) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -525,7 +662,7 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def readline(self):
+    async def readline(self) -> bytes:
         """
         :py:func:`asyncio.coroutine`
 
@@ -537,7 +674,7 @@ class ThrottleStreamIO(StreamIO):
         self.append("read", data, start)
         return data
 
-    async def write(self, data):
+    async def write(self, data: bytes) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -548,13 +685,13 @@ class ThrottleStreamIO(StreamIO):
         await super().write(data)
         self.append("write", data, start)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         self.close()
 
-    def iter_by_line(self):
+    def iter_by_line(self) -> AsyncStreamIterator:
         """
         Read/iterate stream by line.
 
@@ -567,7 +704,7 @@ class ThrottleStreamIO(StreamIO):
         """
         return AsyncStreamIterator(self.readline)
 
-    def iter_by_block(self, count=DEFAULT_BLOCK_SIZE):
+    def iter_by_block(self, count: int = DEFAULT_BLOCK_SIZE) -> AsyncStreamIterator:
         """
         Read/iterate stream by block.
 
@@ -585,7 +722,7 @@ LOCALE_LOCK = threading.Lock()
 
 
 @contextmanager
-def setlocale(name):
+def setlocale(name: str) -> Generator[str, None, None]:
     """
     Context manager with threading lock for set locale on enter, and set it
     back to original state on exit.
@@ -634,8 +771,8 @@ class SSLSessionBoundContext(ssl.SSLContext):
         server_side: bool = False,
         do_handshake_on_connect: bool = True,
         suppress_ragged_eofs: bool = True,
-        server_hostname: bool = None,
-        session: ssl.SSLSession = None,
+        server_hostname: Union[str, bytes, None] = None,
+        session: Union[ssl.SSLSession, None] = None,
     ) -> ssl.SSLSocket:
         if session is not None:
             raise ValueError("expected session to be None")
@@ -653,8 +790,8 @@ class SSLSessionBoundContext(ssl.SSLContext):
         incoming: ssl.MemoryBIO,
         outgoing: ssl.MemoryBIO,
         server_side: bool = False,
-        server_hostname: bool = None,
-        session: ssl.SSLSession = None,
+        server_hostname: Union[str, bytes, None] = None,
+        session: Union[ssl.SSLSession, None] = None,
     ) -> ssl.SSLObject:
         if session is not None:
             raise ValueError("expected session to be None")
@@ -665,3 +802,72 @@ class SSLSessionBoundContext(ssl.SSLContext):
             server_side=server_side,
             session=self.session,
         )
+
+
+class Connection(collections.defaultdict[str, asyncio.Future[Any]]):
+    """
+    Connection state container for transparent work with futures for async
+    wait
+
+    :param kwargs: initialization parameters
+
+    Container based on :py:class:`collections.defaultdict`, which holds
+    :py:class:`asyncio.Future` as default factory. There is two layers of
+    abstraction:
+
+    * Low level based on simple dictionary keys to attributes mapping and
+        available at Connection.future.
+    * High level based on futures result and dictionary keys to attributes
+        mapping and available at Connection.
+
+    To clarify, here is groups of equal expressions
+    ::
+
+        >>> connection.future.foo
+        >>> connection["foo"]
+
+        >>> connection.foo
+        >>> connection["foo"].result()
+
+        >>> del connection.future.foo
+        >>> del connection.foo
+        >>> del connection["foo"]
+    """
+
+    __slots__ = ("future",)
+
+    class Container:
+        def __init__(self, storage: MutableMapping[str, asyncio.Future[Any]]) -> None:
+            self.storage = storage
+
+        def __getattr__(self, name: str) -> asyncio.Future[Any]:
+            return self.storage[name]
+
+        def __delattr__(self, name: str) -> None:
+            self.storage.pop(name)
+
+    future: "Connection.Container"
+    default_factory: Callable[[], asyncio.Future[Any]]
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(asyncio.Future)
+        self.future = Connection.Container(self)
+        for k, v in kwargs.items():
+            self[k].set_result(v)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self:
+            return self[name].result()
+        raise AttributeError(f"{name!r} not in storage")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in Connection.__slots__:
+            super().__setattr__(name, value)
+        else:
+            if self[name].done():
+                self[name] = self.default_factory()
+            self[name].set_result(value)
+
+    def __delattr__(self, name: str) -> None:
+        if name in self:
+            self.pop(name)
