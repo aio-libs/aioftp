@@ -1229,7 +1229,7 @@ class Client(BaseClient):
         source: PathLike,
         *,
         offset: int = 0,
-    ) -> DataConnectionThrottleStreamIO:
+    ) -> AsyncEnterableInstanceProtocol[DataConnectionThrottleStreamIO]:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1243,7 +1243,7 @@ class Client(BaseClient):
 
         :rtype: :py:class:`aioftp.DataConnectionThrottleStreamIO`
         """
-        return self.get_stream("RETR " + str(source), "1xx", offset=offset)  # type: ignore
+        return self.get_stream("RETR " + str(source), "1xx", offset=offset)
 
     async def download(
         self,
