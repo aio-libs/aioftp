@@ -1,5 +1,10 @@
 x.x.x (xxxx-xx-xx)
 
+0.26.2 (2025-06-27)
+-------------------
+- fix type hinting (#193)
+Thanks to `sakosha <https://github.com/sakosha>`_
+
 0.26.1 (2025-06-25)
 -------------------
 - fix minor documentaion bugs
