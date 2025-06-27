@@ -1,6 +1,6 @@
 [project]
 name = "aioftp"
-version = "0.26.1"
+version = "0.26.2"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
 requires-python = ">= 3.9"
