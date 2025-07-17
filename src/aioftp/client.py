@@ -380,6 +380,8 @@ class BaseClient:
         expected_codes = wrap_into_codes(wrap_with_container(expected_codes))
         wait_codes = wrap_into_codes(wrap_with_container(wait_codes))
         if command:
+            if "\r" in command or "\n" in command:
+                raise errors.InvalidCommand("Command must not contain CR/LF")
             if censor_after:
                 # Censor the user's command
                 raw = command[:censor_after]
