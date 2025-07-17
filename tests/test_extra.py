@@ -41,3 +41,10 @@ async def test_syst_command(pair_factory):
     async with pair_factory() as pair:
         code, info = await pair.client.command("syst", "215")
         assert info == [" UNIX Type: L8"]
+
+
+@pytest.mark.asyncio
+async def test_illegal_command(pair_factory):
+    async with pair_factory() as pair:
+        with pytest.raises(aioftp.errors.InvalidCommand):
+            await pair.client.command("LIST\r\nfoo")

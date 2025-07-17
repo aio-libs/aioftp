@@ -93,3 +93,9 @@ class NoAvailablePort(AIOFTPException, OSError):
     """
     Raised when there is no available data port
     """
+
+
+class InvalidCommand(AIOFTPException, ValueError):
+    """
+    Raised when command contains illegal characters
+    """
