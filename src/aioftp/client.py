@@ -27,7 +27,6 @@ from .common import (
     DEFAULT_PORT,
     DEFAULT_USER,
     END_OF_LINE,
-    HALF_OF_YEAR_IN_SECONDS,
     TWO_YEARS_IN_SECONDS,
     AbstractAsyncLister,
     AsyncEnterableInstanceProtocol,
@@ -543,10 +542,8 @@ class BaseClient:
                         d = d.replace(year=prev_leap_year + 4)
                 else:
                     d = datetime.strptime(f"{now.year} {s}", "%Y %b %d %H:%M")
-                    diff = (now - d).total_seconds()
-                    if diff > HALF_OF_YEAR_IN_SECONDS:
-                        d = d.replace(year=now.year + 1)
-                    elif diff < -HALF_OF_YEAR_IN_SECONDS:
+                    # If the date would be in the future, use previous year instead
+                    if d > now:
                         d = d.replace(year=now.year - 1)
             except ValueError:
                 d = datetime.strptime(s, "%b %d  %Y")
