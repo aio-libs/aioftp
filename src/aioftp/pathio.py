@@ -19,7 +19,6 @@ from typing import (
     Protocol,
     TypedDict,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -35,7 +34,9 @@ from .errors import PathIOError
 if sys.version_info >= (3, 11):
     from typing import Concatenate, ParamSpec, Self, Unpack
 else:
-    from typing_extensions import Concatenate, ParamSpec, Self, Unpack
+    from typing import Concatenate
+
+    from typing_extensions import ParamSpec, Self, Unpack
 
 
 if TYPE_CHECKING:
@@ -81,7 +82,7 @@ class AsyncPathIOContext:
     """
 
     def __init__(self, pathio: PathIOType, args: tuple[Any], kwargs: _OpenKwargs) -> None:
-        self.close: Union[Callable[..., Awaitable[None]], None] = None
+        self.close: Callable[..., Awaitable[None]] | None = None
         self.pathio = pathio
         self.args = args
         self.kwargs = kwargs
@@ -154,19 +155,19 @@ class _FileNodeProtocol(Protocol):
     content: io.BytesIO
 
 
-NodeProtocol = Union[_DirNodeProtocol, _FileNodeProtocol]
+NodeProtocol = _DirNodeProtocol | _FileNodeProtocol
 
 
 class PathIONursery(Generic[PathIOType]):
     def __init__(self, factory: type["PathIOType"]) -> None:
         self.factory = factory
-        self.state: Union[list[Node], None] = None
+        self.state: list[Node] | None = None
 
     def __call__(
         self,
-        timeout: Union[float, int, None] = None,
-        connection: Union[Connection, None] = None,
-        state: Union[list["Node"], None] = None,
+        timeout: float | int | None = None,
+        connection: Connection | None = None,
+        state: list["Node"] | None = None,
     ) -> PathIOType:
         instance = self.factory(timeout=timeout, connection=connection, state=self.state)
         if self.state is None:
@@ -211,9 +212,9 @@ def defend_file_methods(
 class PathlibOpenKwargs(TypedDict, total=False):
     mode: "OpenBinaryMode"
     buffering: int
-    encoding: Union[str, None]
-    errors: Union[str, None]
-    newline: Union[str, None]
+    encoding: str | None
+    errors: str | None
+    newline: str | None
 
 
 PathType = TypeVar("PathType", bound=PurePath)
@@ -234,15 +235,15 @@ class AbstractPathIO(Generic[PathType], abc.ABC):
 
     def __init__(
         self,
-        timeout: Union[float, int, None] = None,
-        connection: Union[Connection, None] = None,
-        state: Union[list["Node"], None] = None,
+        timeout: float | int | None = None,
+        connection: Connection | None = None,
+        state: list["Node"] | None = None,
     ) -> None:
         self.timeout = timeout
         self.connection = connection
 
     @property
-    def state(self) -> Union[list["Node"], None]:
+    def state(self) -> list["Node"] | None:
         """
         Shared pathio state per server
         """
@@ -514,7 +515,7 @@ class PathIO(AbstractPathIO[Path]):
 
     def list(self, path: Path) -> AsyncIterable[Path]:
         class Lister(AbstractAsyncLister[Path]):
-            iter: Union[Iterator[Path], None] = None
+            iter: Iterator[Path] | None = None
 
             @universal_exception
             async def __anext__(self) -> Path:
@@ -537,9 +538,9 @@ class PathIO(AbstractPathIO[Path]):
         path: Path,
         mode: "OpenBinaryMode" = "rb",
         buffering: int = -1,
-        encoding: Union[str, None] = None,
-        errors: Union[str, None] = None,
-        newline: Union[str, None] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
     ) -> io.BytesIO:
         return path.open(  # type: ignore[return-value]
             mode=mode,
@@ -580,7 +581,7 @@ class PathIO(AbstractPathIO[Path]):
 
 
 class HasExecutor(Protocol):
-    executor: Union[Executor, None]
+    executor: Executor | None
 
 
 _BlockingIOType = TypeVar("_BlockingIOType", bound=HasExecutor)
@@ -619,10 +620,10 @@ class AsyncPathIO(AbstractPathIO[Path]):
 
     def __init__(
         self,
-        timeout: Union[float, int, None] = None,
-        connection: Union[Connection, None] = None,
-        state: Union[list["Node"], None] = None,
-        executor: Union[Executor, None] = None,
+        timeout: float | int | None = None,
+        connection: Connection | None = None,
+        state: list["Node"] | None = None,
+        executor: Executor | None = None,
     ) -> None:
         super().__init__(timeout, connection, state)
         self.executor = executor
@@ -665,10 +666,10 @@ class AsyncPathIO(AbstractPathIO[Path]):
 
     def list(self, path: Path) -> AsyncIterable[Path]:
         class Lister(AbstractAsyncLister[Path]):
-            def __init__(self, timeout: Union[float, int, None] = None, executor: Union[Executor, None] = None) -> None:
+            def __init__(self, timeout: float | int | None = None, executor: Executor | None = None) -> None:
                 super().__init__(timeout=timeout)
                 self.executor = executor
-                self.iter: Union[Iterator[Path], None] = None
+                self.iter: Iterator[Path] | None = None
 
             @universal_exception
             @with_timeout
@@ -697,9 +698,9 @@ class AsyncPathIO(AbstractPathIO[Path]):
         path: Path,
         mode: "OpenBinaryMode" = "rb",
         buffering: int = -1,
-        encoding: Union[str, None] = None,
-        errors: Union[str, None] = None,
-        newline: Union[str, None] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
     ) -> io.BytesIO:
         return path.open(  # type: ignore[return-value]
             mode=mode,
@@ -755,8 +756,8 @@ class Node:
         self: _FileNodeProtocol,
         type: Literal["file"],
         name: str,
-        ctime: Union[int, None] = None,
-        mtime: Union[int, None] = None,
+        ctime: int | None = None,
+        mtime: int | None = None,
         *,
         content: io.BytesIO,
     ) -> None: ...
@@ -766,20 +767,20 @@ class Node:
         self: _DirNodeProtocol,
         type: Literal["dir"],
         name: str,
-        ctime: Union[int, None] = None,
-        mtime: Union[int, None] = None,
+        ctime: int | None = None,
+        mtime: int | None = None,
         *,
         content: list["Node"],
     ) -> None: ...
 
     def __init__(
         self,
-        type: Union[Literal["dir"], Literal["file"]],
+        type: Literal["dir", "file"],
         name: str,
-        ctime: Union[int, None] = None,
-        mtime: Union[int, None] = None,
+        ctime: int | None = None,
+        mtime: int | None = None,
         *,
-        content: Union[list["Node"], io.BytesIO],
+        content: list["Node"] | io.BytesIO,
     ) -> None:
         self.type = type
         self.name = name
@@ -810,10 +811,10 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
 
     def __init__(
         self,
-        timeout: Union[float, int, None] = None,
-        connection: Union[Connection, None] = None,
-        state: Union[list[Node], None] = None,
-        cwd: Union[str, PurePosixPath, None] = None,
+        timeout: float | int | None = None,
+        connection: Connection | None = None,
+        state: list[Node] | None = None,
+        cwd: str | PurePosixPath | None = None,
     ) -> None:
         super().__init__(timeout=timeout, connection=connection)
         self.cwd = PurePosixPath(cwd or "/")
@@ -834,8 +835,8 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
             path = self.cwd / path
         return path
 
-    def get_node(self, path: PurePosixPath) -> Union[Node, None]:
-        nodes: Union[list[Node], io.BytesIO] = self.fs
+    def get_node(self, path: PurePosixPath) -> Node | None:
+        nodes: list[Node] | io.BytesIO = self.fs
         node = None
         path = self._absolute(path)
         for part in path.parts:
@@ -879,7 +880,7 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
             node = Node("dir", path_.name, content=[])
             parent.content.append(node)
         else:
-            nodes: Union[list[Node], io.BytesIO] = self.fs
+            nodes: list[Node] | io.BytesIO = self.fs
             for part in path_.parts:
                 if isinstance(nodes, list):
                     for node in nodes:
@@ -933,7 +934,7 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
 
     def list(self, path: PurePosixPath) -> AsyncIterable[PurePosixPath]:
         class Lister(AbstractAsyncLister[PurePosixPath]):
-            iter: Union[Iterator[PurePosixPath], None] = None
+            iter: Iterator[PurePosixPath] | None = None
 
             @universal_exception
             async def __anext__(cls) -> PurePosixPath:
@@ -1027,7 +1028,7 @@ class MemoryPathIO(AbstractPathIO[PurePosixPath]):
 
     @universal_exception
     @defend_file_methods
-    async def read(self, file: io.BytesIO, size: Union[int, None] = -1) -> bytes:
+    async def read(self, file: io.BytesIO, size: int | None = -1) -> bytes:
         return file.read(size)
 
     @universal_exception

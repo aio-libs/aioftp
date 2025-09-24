@@ -3,7 +3,7 @@ name = "aioftp"
 version = "0.26.3"
 description = "ftp client/server for asyncio"
 readme = "README.rst"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 license = {file = "license.txt"}
 authors = [
     {name = "pohmelie", email = "multisosnooley@gmail.com"},
@@ -81,7 +81,7 @@ package-data.aioftp = ["py.typed"]
 # tools
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py310"
 lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
 src = ["src"]
 exclude = ["ftpbench.py"]

@@ -7,9 +7,9 @@ import socket
 import ssl
 import sys
 import threading
-from collections.abc import AsyncIterator, Awaitable, Generator, Iterable, MutableMapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Iterable, MutableMapping
 from contextlib import contextmanager
-from typing import Any, Callable, Generic, Protocol, TypeVar, Union, overload
+from typing import Any, Generic, Protocol, TypeVar, overload
 
 if sys.version_info >= (3, 11):
     from typing import ParamSpec, Self
@@ -99,14 +99,14 @@ def with_timeout(
 
 
 def with_timeout(
-    name: Union[str, Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
-) -> Union[
+    name: str | Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
+) -> (
     Callable[
         [Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]],
         Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
-    ],
-    Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]],
-]:
+    ]
+    | Callable[WithTimeOutParamSpec, Awaitable[WithTimeOutReturnType]]
+):
     """
     Method decorator, wraps method with :py:func:`asyncio.wait_for`. `timeout`
     argument takes from `name` decorator argument or "timeout".
@@ -223,7 +223,7 @@ class AbstractAsyncLister(AsyncListerMixin[IterableType], abc.ABC):
         [block, block, block, ...]
     """
 
-    def __init__(self, *, timeout: Union[float, int, None] = None) -> None:
+    def __init__(self, *, timeout: float | int | None = None) -> None:
         super().__init__()
         self.timeout = timeout
 
@@ -346,7 +346,7 @@ def wrap_with_container(o: StrType) -> tuple[StrType]: ...
 def wrap_with_container(o: NotStrType) -> NotStrType: ...
 
 
-def wrap_with_container(o: Union[StrType, NotStrType]) -> Union[tuple[StrType], NotStrType]:
+def wrap_with_container(o: StrType | NotStrType) -> tuple[StrType] | NotStrType:
     if isinstance(o, str):
         return (o,)  # type: ignore[return-value]
     return o
@@ -383,9 +383,9 @@ class StreamIO:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         *,
-        timeout: Union[float, int, None] = None,
-        read_timeout: Union[float, int, None] = None,
-        write_timeout: Union[float, int, None] = None,
+        timeout: float | int | None = None,
+        read_timeout: float | int | None = None,
+        write_timeout: float | int | None = None,
     ):
         self.reader = reader
         self.writer = writer
@@ -445,7 +445,7 @@ class StreamIO:
         """
         self.writer.close()
 
-    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: Union[str, None]) -> None:
+    async def start_tls(self, sslcontext: ssl.SSLContext, server_hostname: str | None) -> None:
         """
         Upgrades the connection to TLS
         """
@@ -468,10 +468,10 @@ class Throttle:
     :type reset_rate: :py:class:`int` or :py:class:`float`
     """
 
-    def __init__(self, *, limit: Union[int, None] = None, reset_rate: Union[float, int] = 10) -> None:
+    def __init__(self, *, limit: int | None = None, reset_rate: float | int = 10) -> None:
         self._limit = limit
         self.reset_rate = reset_rate
-        self._start: Union[float, None] = None
+        self._start: float | None = None
         self._sum = 0
 
     async def wait(self) -> None:
@@ -505,14 +505,14 @@ class Throttle:
             self._sum += len(data)
 
     @property
-    def limit(self) -> Union[int, None]:
+    def limit(self) -> int | None:
         """
         Throttle limit
         """
         return self._limit
 
     @limit.setter
-    def limit(self, value: Union[int, None]) -> None:
+    def limit(self, value: int | None) -> None:
         """
         Set throttle limit
 
@@ -556,8 +556,8 @@ class StreamThrottle(collections.namedtuple("StreamThrottle", "read write")):
     @classmethod
     def from_limits(
         cls,
-        read_speed_limit: Union[int, None] = None,
-        write_speed_limit: Union[int, None] = None,
+        read_speed_limit: int | None = None,
+        write_speed_limit: int | None = None,
     ) -> "StreamThrottle":
         """
         Simple wrapper for creation :py:class:`aioftp.StreamThrottle`
@@ -609,9 +609,9 @@ class ThrottleStreamIO(StreamIO):
         writer: asyncio.StreamWriter,
         throttles: dict[str, StreamThrottle] = {},
         *,
-        timeout: Union[float, int, None] = None,
-        read_timeout: Union[float, int, None] = None,
-        write_timeout: Union[float, int, None] = None,
+        timeout: float | int | None = None,
+        read_timeout: float | int | None = None,
+        write_timeout: float | int | None = None,
     ):
         super().__init__(reader, writer, timeout=timeout, read_timeout=read_timeout, write_timeout=write_timeout)
         self.throttles = throttles
@@ -771,8 +771,8 @@ class SSLSessionBoundContext(ssl.SSLContext):
         server_side: bool = False,
         do_handshake_on_connect: bool = True,
         suppress_ragged_eofs: bool = True,
-        server_hostname: Union[str, bytes, None] = None,
-        session: Union[ssl.SSLSession, None] = None,
+        server_hostname: str | bytes | None = None,
+        session: ssl.SSLSession | None = None,
     ) -> ssl.SSLSocket:
         if session is not None:
             raise ValueError("expected session to be None")
@@ -790,8 +790,8 @@ class SSLSessionBoundContext(ssl.SSLContext):
         incoming: ssl.MemoryBIO,
         outgoing: ssl.MemoryBIO,
         server_side: bool = False,
-        server_hostname: Union[str, bytes, None] = None,
-        session: Union[ssl.SSLSession, None] = None,
+        server_hostname: str | bytes | None = None,
+        session: ssl.SSLSession | None = None,
     ) -> ssl.SSLObject:
         if session is not None:
             raise ValueError("expected session to be None")

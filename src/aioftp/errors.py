@@ -1,5 +1,5 @@
 from types import TracebackType
-from typing import Any, Union
+from typing import Any
 
 from . import common
 
@@ -46,9 +46,9 @@ class StatusCodeError(AIOFTPException):
 
     def __init__(
         self,
-        expected_codes: Union[tuple[common.Code, ...], common.Code],
-        received_codes: Union[tuple[common.Code, ...], common.Code],
-        info: Union[list[str], str],
+        expected_codes: tuple[common.Code, ...] | common.Code,
+        received_codes: tuple[common.Code, ...] | common.Code,
+        info: list[str] | str,
     ) -> None:
         super().__init__(
             f"Waiting for {expected_codes} but got {received_codes} {info!r}",
@@ -65,7 +65,7 @@ class PathIsNotAbsolute(AIOFTPException):
 
 
 ExcInfo = tuple[type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, tuple[None, None, None]]
+OptExcInfo = ExcInfo | tuple[None, None, None]
 
 
 class PathIOError(AIOFTPException):
@@ -84,7 +84,7 @@ class PathIOError(AIOFTPException):
         ...         # handle
     """
 
-    def __init__(self, *args: Any, reason: Union[OptExcInfo, None] = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, reason: OptExcInfo | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.reason = reason
 

@@ -15,7 +15,6 @@ from typing import (
     Literal,
     Protocol,
     TypedDict,
-    Union,
     overload,
 )
 
@@ -85,9 +84,9 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
         writer: asyncio.StreamWriter,
         throttles: dict[str, StreamThrottle],
         *,
-        timeout: Union[float, int, None] = None,
-        read_timeout: Union[float, int, None] = None,
-        write_timeout: Union[float, int, None] = None,
+        timeout: float | int | None = None,
+        read_timeout: float | int | None = None,
+        write_timeout: float | int | None = None,
     ) -> None:
         super().__init__(
             reader,
@@ -101,8 +100,8 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
     async def finish(
         self,
-        expected_codes: Union[str, tuple[str, ...]] = "2xx",
-        wait_codes: Union[str, tuple[str, ...]] = "1xx",
+        expected_codes: str | tuple[str, ...] = "2xx",
+        wait_codes: str | tuple[str, ...] = "1xx",
     ) -> None:
         """
         :py:func:`asyncio.coroutine`
@@ -123,8 +122,8 @@ class DataConnectionThrottleStreamIO(ThrottleStreamIO):
 
     async def __aexit__(
         self,
-        exc_type: Union[type[BaseException], None],
-        exc: Union[BaseException, None],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType,
     ) -> None:
         if exc is None:
@@ -155,7 +154,7 @@ class BasicListInfo(TypedDict):
     size: str
 
 
-ListInfo = Union[BasicListInfo, UnixListInfo]
+ListInfo = BasicListInfo | UnixListInfo
 
 
 PathWithBasicInfo = tuple[PurePosixPath, BasicListInfo]
@@ -165,7 +164,7 @@ class ParseListLineCustomCallable(Protocol):
     def __call__(self, b: bytes) -> PathWithBasicInfo: ...
 
 
-PathWithInfo = tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]
+PathWithInfo = tuple[PurePosixPath, BasicListInfo | UnixListInfo]
 
 
 class ParseListLineCallable(Protocol):
@@ -173,15 +172,15 @@ class ParseListLineCallable(Protocol):
 
 
 class BaseClientArgs(TypedDict, total=False):
-    socket_timeout: Union[float, int, None]
-    connection_timeout: Union[float, int, None]
-    read_speed_limit: Union[int, None]
-    write_speed_limit: Union[int, None]
-    path_timeout: Union[float, int, None]
+    socket_timeout: float | int | None
+    connection_timeout: float | int | None
+    read_speed_limit: int | None
+    write_speed_limit: int | None
+    path_timeout: float | int | None
     path_io_factory: type[pathio.AbstractPathIO[Path]]
     encoding: str
-    ssl: Union[ssl.SSLContext, bool, None]
-    parse_list_line_custom: Union[ParseListLineCustomCallable, None]
+    ssl: ssl.SSLContext | bool | None
+    parse_list_line_custom: ParseListLineCustomCallable | None
     parse_list_line_custom_first: bool
     passive_commands: tuple[str, ...]
     siosocks_asyncio_kwargs: Any
@@ -191,15 +190,15 @@ class BaseClient:
     def __init__(
         self,
         *,
-        socket_timeout: Union[float, int, None] = None,
-        connection_timeout: Union[float, int, None] = None,
-        read_speed_limit: Union[int, None] = None,
-        write_speed_limit: Union[int, None] = None,
-        path_timeout: Union[float, int, None] = None,
+        socket_timeout: float | int | None = None,
+        connection_timeout: float | int | None = None,
+        read_speed_limit: int | None = None,
+        write_speed_limit: int | None = None,
+        path_timeout: float | int | None = None,
         path_io_factory: type[pathio.AbstractPathIO[Path]] = pathio.PathIO,
         encoding: str = "utf-8",
-        ssl: Union[ssl.SSLContext, bool, None] = None,
-        parse_list_line_custom: Union[ParseListLineCustomCallable, None] = None,
+        ssl: ssl.SSLContext | bool | None = None,
+        parse_list_line_custom: ParseListLineCustomCallable | None = None,
         parse_list_line_custom_first: bool = True,
         passive_commands: tuple[str, ...] = ("epsv", "pasv"),
         **siosocks_asyncio_kwargs: Any,
@@ -213,7 +212,7 @@ class BaseClient:
         self.path_timeout = path_timeout
         self.path_io = path_io_factory(timeout=path_timeout)
         self.encoding = encoding
-        self._stream: Union[ThrottleStreamIO, None] = None
+        self._stream: ThrottleStreamIO | None = None
         self.ssl = ssl
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
@@ -312,7 +311,7 @@ class BaseClient:
                 info.append(curr_code + rest)
         return code, info
 
-    def check_codes(self, expected_codes: Union[Code, tuple[Code, ...]], received_code: Code, info: list[str]) -> None:
+    def check_codes(self, expected_codes: Code | tuple[Code, ...], received_code: Code, info: list[str]) -> None:
         """
         Checks if any of expected matches received.
 
@@ -334,7 +333,7 @@ class BaseClient:
     @overload
     async def command(
         self,
-        command: Union[str, None] = None,
+        command: str | None = None,
         expected_codes: tuple[()] = (),
         wait_codes: tuple[()] = (),
         censor_after: None = None,
@@ -343,19 +342,19 @@ class BaseClient:
     @overload
     async def command(
         self,
-        command: Union[str, None] = None,
-        expected_codes: Union[str, tuple[str, ...]] = (),
-        wait_codes: Union[str, tuple[str, ...]] = (),
-        censor_after: Union[int, None] = None,
+        command: str | None = None,
+        expected_codes: str | tuple[str, ...] = (),
+        wait_codes: str | tuple[str, ...] = (),
+        censor_after: int | None = None,
     ) -> tuple[Code, list[str]]: ...
 
     async def command(
         self,
-        command: Union[str, None] = None,
-        expected_codes: Union[str, tuple[str, ...]] = (),
-        wait_codes: Union[str, tuple[str, ...]] = (),
-        censor_after: Union[int, None] = None,
-    ) -> Union[tuple[Code, list[str]], None]:
+        command: str | None = None,
+        expected_codes: str | tuple[str, ...] = (),
+        wait_codes: str | tuple[str, ...] = (),
+        censor_after: int | None = None,
+    ) -> tuple[Code, list[str]] | None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -517,7 +516,7 @@ class BaseClient:
         return d.strftime("%Y%m%d%H%M00")
 
     @classmethod
-    def parse_ls_date(cls, s: str, *, now: Union[datetime, None] = None) -> str:
+    def parse_ls_date(cls, s: str, *, now: datetime | None = None) -> str:
         """
         Parsing dates from the ls unix utility. For example,
         "Nov 18  1958", "Jan 03 2018", and "Nov 18 12:29".
@@ -659,7 +658,7 @@ class BaseClient:
         :rtype: (:py:class:`pathlib.PurePosixPath`, :py:class:`dict`)
         """
         ex = []
-        parsers: list[Union[ParseListLineCallable, None]] = [
+        parsers: list[ParseListLineCallable | None] = [
             self.parse_list_line_unix,
             self.parse_list_line_windows,
         ]
@@ -677,7 +676,7 @@ class BaseClient:
                 ex.append(e)
         raise ValueError("All parsers failed to parse", b, ex)
 
-    def parse_mlsx_line(self, b: Union[bytes, str]) -> tuple[PurePosixPath, BasicListInfo]:
+    def parse_mlsx_line(self, b: bytes | str) -> tuple[PurePosixPath, BasicListInfo]:
         """
         Parsing MLS(T|D) response.
 
@@ -700,10 +699,10 @@ class BaseClient:
         return PurePosixPath(name), entry  # type: ignore[return-value]
 
 
-ConnType = Union[Literal["I"], Literal["A"], Literal["E"], Literal["L"]]
+ConnType = Literal["I", "A", "E", "L"]
 
 
-PathLike = Union[str, PurePosixPath]
+PathLike = str | PurePosixPath
 
 
 class Client(BaseClient):
@@ -777,7 +776,7 @@ class Client(BaseClient):
         await self.command("PBSZ 0", "200")
         await self.command("PROT P", "200")
 
-    async def upgrade_to_tls(self, sslcontext: Union[ssl.SSLContext, None] = None) -> None:
+    async def upgrade_to_tls(self, sslcontext: ssl.SSLContext | None = None) -> None:
         """
         :py:func:`asyncio.coroutine`
 
@@ -904,7 +903,7 @@ class Client(BaseClient):
         path: PathLike = "",
         *,
         recursive: bool = False,
-        raw_command: Union[Literal["MLSD"], Literal["LIST"], None] = None,
+        raw_command: Literal["MLSD", "LIST"] | None = None,
     ) -> AbstractAsyncLister[PathWithInfo]:
         """
         :py:func:`asyncio.coroutine`
@@ -941,7 +940,7 @@ class Client(BaseClient):
         """
 
         class AsyncLister(AbstractAsyncLister[PathWithInfo]):
-            stream: Union[DataConnectionThrottleStreamIO, None] = None
+            stream: DataConnectionThrottleStreamIO | None = None
 
             async def _new_stream(cls, local_path: PathLike) -> DataConnectionThrottleStreamIO:  # type: ignore[return]
                 cls.path = local_path
@@ -964,7 +963,7 @@ class Client(BaseClient):
                     return await self.get_stream(command, "1xx")
 
             def __aiter__(cls) -> Self:
-                cls.directories: collections.deque[tuple[PurePosixPath, Union[BasicListInfo, UnixListInfo]]] = (
+                cls.directories: collections.deque[tuple[PurePosixPath, BasicListInfo | UnixListInfo]] = (
                     collections.deque()
                 )
                 return cls
@@ -994,7 +993,7 @@ class Client(BaseClient):
 
         return AsyncLister()
 
-    async def stat(self, path: PathLike) -> Union[BasicListInfo, UnixListInfo]:
+    async def stat(self, path: PathLike) -> BasicListInfo | UnixListInfo:
         """
         :py:func:`asyncio.coroutine`
 
@@ -1007,7 +1006,7 @@ class Client(BaseClient):
         :rtype: :py:class:`dict`
         """
         path = PurePosixPath(path)
-        file_info: Union[BasicListInfo, UnixListInfo]
+        file_info: BasicListInfo | UnixListInfo
         try:
             code, info = await self.command("MLST " + str(path), "2xx")
             name, file_info = self.parse_mlsx_line(info[1].lstrip())
@@ -1171,7 +1170,7 @@ class Client(BaseClient):
 
     async def upload(
         self,
-        source: Union[str, Path],
+        source: str | Path,
         destination: PathLike = "",
         *,
         write_into: bool = False,
@@ -1328,7 +1327,7 @@ class Client(BaseClient):
     async def get_passive_connection(
         self,
         conn_type: ConnType = "I",
-        commands: Union[Sequence[str], None] = None,
+        commands: Sequence[str] | None = None,
     ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
         :py:func:`asyncio.coroutine`
@@ -1355,7 +1354,7 @@ class Client(BaseClient):
         if not commands:
             raise ValueError("No passive commands provided")
         await self.command("TYPE " + conn_type, "200")
-        ip: Union[str, None]
+        ip: str | None
         for i, name in enumerate(commands, start=1):
             name = name.lower()
             if name not in functions:
@@ -1375,10 +1374,10 @@ class Client(BaseClient):
     @async_enterable
     async def get_stream(
         self,
-        command: Union[str, None] = None,
-        expected_codes: Union[str, tuple[str, ...]] = (),
-        wait_codes: Union[str, tuple[str, ...]] = (),
-        censor_after: Union[int, None] = None,
+        command: str | None = None,
+        expected_codes: str | tuple[str, ...] = (),
+        wait_codes: str | tuple[str, ...] = (),
+        censor_after: int | None = None,
         conn_type: ConnType = "I",
         offset: int = 0,
     ) -> DataConnectionThrottleStreamIO:
