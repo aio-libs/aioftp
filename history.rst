@@ -1,5 +1,9 @@
 x.x.x (xxxx-xx-xx)
 
+0.27.2 (2025-09-25)
+-------------------
+- ci: fix python version rendered as a float number instead of string
+
 0.27.1 (2025-09-25)
 -------------------
 - ci: bump lowest_python_version to 3.10
