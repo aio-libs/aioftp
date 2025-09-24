@@ -54,8 +54,11 @@ except ImportError:
 
 __all__ = (
     "BaseClient",
+    "BasicListInfo",
     "Client",
     "DataConnectionThrottleStreamIO",
+    "ListInfo",
+    "UnixListInfo",
 )
 logger = logging.getLogger(__name__)
 
