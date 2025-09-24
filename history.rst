@@ -1,5 +1,9 @@
 x.x.x (xxxx-xx-xx)
 
+0.27.1 (2025-09-25)
+-------------------
+- ci: bump lowest_python_version to 3.10
+
 0.27.0 (2025-09-25)
 -------------------
 - minimal python version upgraded to 3.10
