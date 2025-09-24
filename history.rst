@@ -1,5 +1,12 @@
 x.x.x (xxxx-xx-xx)
 
+0.26.3 (2025-09-25)
+-------------------
+- check for CRLF injection in client (fixes #194) (#195)
+- upgrade pre-commit hooks (#200)
+- make `ListInfo`, `BasicListInfo` and `UnixListInfo` available to import from top-level (#199)
+Thanks to `sakosha <https://github.com/sakosha>`_, `Cycloctane <https://github.com/Cycloctane>`_
+
 0.26.2 (2025-06-27)
 -------------------
 - fix type hinting (#193)
