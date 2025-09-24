@@ -1,5 +1,9 @@
 x.x.x (xxxx-xx-xx)
 
+0.27.0 (2025-09-25)
+-------------------
+- minimal python version upgraded to 3.10
+
 0.26.3 (2025-09-25)
 -------------------
 - check for CRLF injection in client (fixes #194) (#195)
