@@ -697,6 +697,7 @@ class Server:
         data_ports: Iterable[int] | None = None,
         encoding: str = "utf-8",
         ssl: ssl.SSLContext | None = None,
+        welcome_message: str = "welcome",
     ) -> None:
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -729,6 +730,7 @@ class Server:
         self.throttle_per_user: dict[User | None, StreamThrottle] = {}
         self.encoding = encoding
         self.ssl = ssl
+        self.welcome_message = welcome_message
         self.commands_mapping: dict[
             str,
             Callable[[Connection, str], Awaitable[bool]] | Callable[[Connection, str | PurePosixPath], Awaitable[bool]],
@@ -1098,7 +1100,7 @@ class Server:
         if self.available_connections.locked():
             ok, code, info = False, "421", "Too many connections"
         else:
-            ok, code, info = True, "220", "welcome"
+            ok, code, info = True, "220", self.welcome_message
             connection.acquired = True
             self.available_connections.acquire()
         connection.response(code, info)
