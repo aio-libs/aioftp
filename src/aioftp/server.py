@@ -676,6 +676,9 @@ class Server:
         to enable TLS over the accepted connections.
         Please look :py:meth:`asyncio.loop.create_server` docs.
     :type ssl: :py:class:`ssl.SSLContext`
+
+    :param welcome_message: welcome message for new connections
+    :type welcome_message: :py:class:`str`
     """
 
     def __init__(
