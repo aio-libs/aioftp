@@ -294,3 +294,17 @@ async def test_bad_sublines_seq(pair_factory, expect_codes_in_exception):
                 pair.server.server_port,
             )
             await pair.client.login()
+
+
+@pytest.mark.asyncio
+async def test_welcome_message(pair_factory, Server):
+    welcome_message = "Welcome to the FTP server!"
+    async with pair_factory(
+        server=Server(welcome_message=welcome_message),
+        connected=False,
+    ) as pair:
+        lines = await pair.client.connect(
+            pair.server.server_host,
+            pair.server.server_port,
+        )
+        assert lines == [" " + welcome_message]
