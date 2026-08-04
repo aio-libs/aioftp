@@ -1,5 +1,10 @@
 x.x.x (xxxx-xx-xx)
 
+0.28.0 (2026-08-05)
+-------------------
+- add `welcome_message` parameter for a server (#207)
+Thanks to `rwakulszowa <https://github.com/rwakulszowa>`_
+
 0.27.2 (2025-09-25)
 -------------------
 - ci: fix python version rendered as a float number instead of string
