@@ -83,6 +83,7 @@ package-data.aioftp = ["py.typed"]
 line-length = 120
 target-version = "py310"
 lint.select = ["E", "W", "F", "Q", "UP", "I", "ASYNC"]
+lint.ignore = ["ASYNC240"]
 src = ["src"]
 exclude = ["ftpbench.py"]
 
