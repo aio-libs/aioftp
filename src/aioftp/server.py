@@ -679,6 +679,9 @@ class Server:
 
     :param welcome_message: welcome message for new connections
     :type welcome_message: :py:class:`str`
+
+    :param system_type: identifier of the OS running the server
+    :type system_type: :py:class:`str`
     """
 
     def __init__(
@@ -701,6 +704,7 @@ class Server:
         encoding: str = "utf-8",
         ssl: ssl.SSLContext | None = None,
         welcome_message: str = "welcome",
+        system_type: str = "UNIX Type: L8",
     ) -> None:
         self.block_size = block_size
         self.socket_timeout = socket_timeout
@@ -734,6 +738,7 @@ class Server:
         self.encoding = encoding
         self.ssl = ssl
         self.welcome_message = welcome_message
+        self.system_type = system_type
         self.commands_mapping: dict[
             str,
             Callable[[Connection, str], Awaitable[bool]] | Callable[[Connection, str | PurePosixPath], Awaitable[bool]],
@@ -1617,6 +1622,6 @@ class Server:
         return True
 
     async def syst(self, connection: Connection, rest: str) -> bool:
-        """Return system type (always returns UNIX type: L8)."""
-        connection.response("215", "UNIX Type: L8")
+        """Return system type."""
+        connection.response("215", self.system_type)
         return True

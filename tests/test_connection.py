@@ -308,3 +308,13 @@ async def test_welcome_message(pair_factory, Server):
             pair.server.server_port,
         )
         assert lines == [" " + welcome_message]
+
+
+@pytest.mark.asyncio
+async def test_system_type(pair_factory, Server):
+    system_type = "My custom OS"
+    async with pair_factory(
+        server=Server(system_type=system_type),
+    ) as pair:
+        resp = await pair.client.command("SYST", expected_codes=(215,))
+        assert resp == ("215", [" " + system_type])
