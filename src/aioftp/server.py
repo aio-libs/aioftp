@@ -1036,6 +1036,8 @@ class Server:
                             connection.response("502", message)
         except asyncio.CancelledError:
             raise
+        except ConnectionResetError:
+            pass
         except Exception:
             logger.exception("dispatcher caught exception")
         finally:
