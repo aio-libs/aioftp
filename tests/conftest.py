@@ -12,7 +12,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 import trustme
-from async_timeout import timeout
+try:
+    from asyncio import timeout
+except ImportError:
+    from async_timeout import timeout
+
 from siosocks.io.asyncio import socks_server_handler
 
 import aioftp

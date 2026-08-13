@@ -57,7 +57,7 @@ socks = [
 ]
 dev = [
     # tests
-    "async_timeout >= 4.0.0",
+    "async_timeout >= 4.0.0; python_version < '3.11'", # 3.10 support
     "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
