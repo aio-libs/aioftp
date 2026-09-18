@@ -1368,7 +1368,10 @@ class Client(BaseClient):
                     raise
         if ip is None or ip == "0.0.0.0":
             ip = self.server_host
-        reader, writer = await self._open_connection(ip, port)
+        reader, writer = await asyncio.wait_for(
+            self._open_connection(ip, port),
+            self.connection_timeout,
+        )
         return reader, writer
 
     @async_enterable
