@@ -329,7 +329,7 @@ async def test_client_timeout_passive_connection(pair_factory, Client, monkeypat
         return await open_connection(host, port, **kwargs)
 
     async with pair_factory(Client(connection_timeout=0.5), logged=True) as pair:
-        monkeypatch.setattr("asyncio.open_connection", slow_open_connection)
-        with pytest.raises(asyncio.TimeoutError):
-            await pair.client.get_passive_connection()
-        monkeypatch.undo()
+        with monkeypatch.context() as m:
+            m.setattr("asyncio.open_connection", slow_open_connection)
+            with pytest.raises(asyncio.TimeoutError):
+                await pair.client.get_passive_connection()
