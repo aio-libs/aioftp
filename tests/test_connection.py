@@ -319,3 +319,18 @@ async def test_system_type(pair_factory, Server):
     ) as pair:
         resp = await pair.client.command("SYST", expected_codes=(215,))
         assert resp == ("215", [" " + system_type])
+
+
+@pytest.mark.asyncio
+async def test_client_timeout_passive_connection(pair_factory, Client, monkeypatch):
+    open_connection = asyncio.open_connection
+
+    async def slow_open_connection(host, port, **kwargs):
+        await asyncio.sleep(1)
+        return await open_connection(host, port, **kwargs)
+
+    async with pair_factory(Client(connection_timeout=0.5), logged=True) as pair:
+        with monkeypatch.context() as m:
+            m.setattr("asyncio.open_connection", slow_open_connection)
+            with pytest.raises(asyncio.TimeoutError):
+                await pair.client.get_passive_connection()
