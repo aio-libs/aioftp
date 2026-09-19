@@ -1,4 +1,8 @@
-x.x.x (xxxx-xx-xx)
+0.28.1 (2026-09-19)
+-------------------
+- add `trust_server_pasv_ipv4_address` option with default to `False` to avoid possible ipv4 spoofing in server response
+- add `system_type` parameter to server (#208)
+Thanks to `rwakulszowa <https://github.com/rwakulszowa>`_
 
 0.28.0 (2026-08-05)
 -------------------
