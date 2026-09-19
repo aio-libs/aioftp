@@ -1,3 +1,8 @@
+0.28.2 (2026-09-19)
+-------------------
+- apply `connection_timeout` to passive connections (#212)
+Thanks to `Cycloctane <https://github.com/Cycloctane>`_
+
 0.28.1 (2026-09-19)
 -------------------
 - add `trust_server_pasv_ipv4_address` option with default to `False` to avoid possible ipv4 spoofing in server response
