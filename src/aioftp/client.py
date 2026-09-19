@@ -201,6 +201,7 @@ class BaseClient:
         parse_list_line_custom: ParseListLineCustomCallable | None = None,
         parse_list_line_custom_first: bool = True,
         passive_commands: tuple[str, ...] = ("epsv", "pasv"),
+        trust_server_pasv_ipv4_address: bool = False,
         **siosocks_asyncio_kwargs: Any,
     ):
         self.socket_timeout = socket_timeout
@@ -217,6 +218,7 @@ class BaseClient:
         self.parse_list_line_custom = parse_list_line_custom
         self.parse_list_line_custom_first = parse_list_line_custom_first
         self._passive_commands = passive_commands
+        self.trust_server_pasv_ipv4_address = trust_server_pasv_ipv4_address
         self._siosocks_asyncio_kwargs = siosocks_asyncio_kwargs
 
     async def _open_connection(self, host: str, port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
@@ -1319,9 +1321,12 @@ class Client(BaseClient):
         ip, port = self.parse_epsv_response(info[-1])
         return ip, port
 
-    async def _do_pasv(self) -> tuple[str, int]:
+    async def _do_pasv(self) -> tuple[str | None, int]:
         code, info = await self.command("PASV", "227")
+        ip: str | None
         ip, port = self.parse_pasv_response(info[-1])
+        if not self.trust_server_pasv_ipv4_address:
+            ip = None
         return ip, port
 
     async def get_passive_connection(

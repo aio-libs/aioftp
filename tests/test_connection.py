@@ -129,7 +129,7 @@ async def test_pasv_connection_port_reused(
 
 
 @pytest.mark.asyncio
-async def test_pasv_connection_pasv_forced_response_address(pair_factory, Server):
+async def test_pasv_connection_pasv_forced_response_address(pair_factory, Client, Server):
     def ipv4_used():
         try:
             ipaddress.IPv4Address(pair.host)
@@ -140,6 +140,7 @@ async def test_pasv_connection_pasv_forced_response_address(pair_factory, Server
     # using TEST-NET-1 address
     ipv4_address = "192.0.2.1"
     async with pair_factory(
+        client=Client(trust_server_pasv_ipv4_address=True),
         server=Server(ipv4_pasv_forced_response_address=ipv4_address),
     ) as pair:
         assert pair.server.ipv4_pasv_forced_response_address == ipv4_address
