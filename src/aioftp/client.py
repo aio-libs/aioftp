@@ -229,21 +229,21 @@ class BaseClient:
                     context=ssl_object.context,
                     session=ssl_object.session,
                 )
-        connection: tuple[asyncio.StreamReader, asyncio.StreamWriter] = await open_connection(
-            host,
-            port,
-            ssl=ssl_resolved,
-            **self._siosocks_asyncio_kwargs,
+        connection: tuple[asyncio.StreamReader, asyncio.StreamWriter] = await asyncio.wait_for(
+            open_connection(
+                host,
+                port,
+                ssl=ssl_resolved,
+                **self._siosocks_asyncio_kwargs,
+            ),
+            self.connection_timeout,
         )
         return connection
 
     async def connect(self, host: str, port: int = DEFAULT_PORT) -> None:
         self.server_host = host
         self.server_port = port
-        reader, writer = await asyncio.wait_for(
-            self._open_connection(host, port),
-            self.connection_timeout,
-        )
+        reader, writer = await self._open_connection(host, port)
         self._stream = ThrottleStreamIO(
             reader,
             writer,
@@ -1368,10 +1368,7 @@ class Client(BaseClient):
                     raise
         if ip is None or ip == "0.0.0.0":
             ip = self.server_host
-        reader, writer = await asyncio.wait_for(
-            self._open_connection(ip, port),
-            self.connection_timeout,
-        )
+        reader, writer = await self._open_connection(ip, port)
         return reader, writer
 
     @async_enterable
