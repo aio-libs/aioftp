@@ -323,6 +323,7 @@ async def test_system_type(pair_factory, Server):
 @pytest.mark.asyncio
 async def test_client_timeout_passive_connection(pair_factory, Client, monkeypatch):
     open_connection = asyncio.open_connection
+
     async def slow_open_connection(host, port, **kwargs):
         await asyncio.sleep(1)
         return await open_connection(host, port, **kwargs)
