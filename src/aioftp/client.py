@@ -1053,7 +1053,7 @@ class Client(BaseClient):
         :rtype: :py:class:`bool`
         """
         info = await self.stat(path)
-        return info["type"] == "dir"
+        return info["type"] in ("dir", "cdir", "pdir")
 
     async def exists(self, path: PathLike) -> bool:
         """
