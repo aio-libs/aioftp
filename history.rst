@@ -1,3 +1,7 @@
+0.28.3 (2026-09-19)
+-------------------
+- client `is_dir` should treat `cdir` and `pdir` as a directory too, according to RFC3659 (fixes #211)
+
 0.28.2 (2026-09-19)
 -------------------
 - apply `connection_timeout` to passive connections (#212)
