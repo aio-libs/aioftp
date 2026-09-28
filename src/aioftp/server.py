@@ -790,10 +790,12 @@ class Server:
         :param kwargs: keyword arguments, they passed to
             :py:func:`asyncio.start_server`
         """
-        self._start_server_extra_arguments = kwargs
         self.connections: dict[StreamIO, Connection] = {}
         self.server_host = host
         self.server_port = port
+        if "ssl" in kwargs:
+            self.ssl = kwargs.pop("ssl")
+        self._start_server_extra_arguments = kwargs
         self.server = await asyncio.start_server(
             self.dispatcher,
             host,
