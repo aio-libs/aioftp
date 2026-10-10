@@ -56,7 +56,8 @@ Server benchmark
 ----------------
 
 Compared with `pyftpdlib <https://github.com/giampaolo/pyftpdlib>`_ and
-checked with its ftpbench script.
+checked with its ftpbench script. The ftpbench script is very old,
+for python 3.12+ you need extra packages `pip install pyasyncore pyasynchat`
 
 aioftp 0.8.0
 
