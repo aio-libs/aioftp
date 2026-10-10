@@ -147,11 +147,7 @@ UnixListInfo = TypedDict(
 )
 
 
-class BasicListInfo(TypedDict):
-    modify: str
-    type: str
-    create: NotRequired[str]
-    size: str
+BasicListInfo = dict[str, str]
 
 
 ListInfo = BasicListInfo | UnixListInfo
@@ -646,7 +642,7 @@ class BaseClient:
         filename = line[next_space:].lstrip()
         if filename == "." or filename == "..":
             raise ValueError
-        return PurePosixPath(filename), info  # type: ignore[return-value]
+        return PurePosixPath(filename), info
 
     def parse_list_line(self, b: bytes) -> PathWithInfo:
         """
@@ -698,7 +694,7 @@ class BaseClient:
         for fact in facts_found[:-1].split(";"):
             key, _, value = fact.partition("=")
             entry[key.lower()] = value
-        return PurePosixPath(name), entry  # type: ignore[return-value]
+        return PurePosixPath(name), entry
 
 
 ConnType = Literal["I", "A", "E", "L"]
