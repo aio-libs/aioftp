@@ -334,3 +334,24 @@ async def test_client_timeout_passive_connection(pair_factory, Client, monkeypat
             m.setattr("asyncio.open_connection", slow_open_connection)
             with pytest.raises(asyncio.TimeoutError):
                 await pair.client.get_passive_connection()
+
+
+@pytest.mark.asyncio
+async def test_start_ssl_kwarg_does_not_conflict(mocker):
+    ssl_context = object()
+    sock = mocker.Mock()
+    sock.family = 2  # socket.AF_INET
+    sock.getsockname.return_value = ("127.0.0.1", 2121)
+    start_server = mocker.patch(
+        "aioftp.server.asyncio.start_server",
+        new_callable=mocker.AsyncMock,
+    )
+    start_server.return_value.sockets = [sock]
+
+    server = aioftp.Server()
+    await server.start(host="127.0.0.1", port=0, ssl=ssl_context)
+
+    start_server.assert_awaited_once()
+    kwargs = start_server.call_args.kwargs
+    assert kwargs["ssl"] is ssl_context
+    assert start_server.call_args.args[2] == 0

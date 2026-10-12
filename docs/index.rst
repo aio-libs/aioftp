@@ -145,7 +145,7 @@ Server example
 
 
     async def main():
-        server = aioftp.Server([user], path_io_factory=path_io_factory)
+        server = aioftp.Server()
         await server.run()
 
     asyncio.run(main())
