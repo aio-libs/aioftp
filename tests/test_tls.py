@@ -1,9 +1,14 @@
+import ssl
 import sys
 
 import pytest
 
 if sys.version_info < (3, 11):
     pytest.skip(reason="required python 3.11+", allow_module_level=True)
+
+
+def _is_tls_connection(conn):
+    return isinstance(conn.get_extra_info("ssl_object"), (ssl.SSLObject, ssl.SSLSocket))
 
 
 def simple_response(code, message):
@@ -95,3 +100,83 @@ async def test_upgrade_to_tls_when_logged_in(mocker, pair_factory):
             mocker.call("PROT P", "200"),
         ],
     )
+
+
+@pytest.mark.asyncio
+async def test_ftps_connection(pair_factory, Server, Client, server_ssl, client_ssl):
+    async with pair_factory(server=Server(ssl=server_ssl), client=Client(ssl=client_ssl)) as pair:
+        assert pair.client._stream.writer.get_extra_info("ssl_object") is not None
+
+
+@pytest.mark.asyncio
+async def test_ftps_passive_connection(pair_factory, Server, Client, server_ssl, client_ssl):
+    async with pair_factory(server=Server(ssl=server_ssl), client=Client(ssl=client_ssl)) as pair:
+        reader, writer = await pair.client.get_passive_connection("A")
+        assert _is_tls_connection(writer)
+
+
+@pytest.mark.asyncio
+async def test_ftpes_connection(pair_factory, Server, server_ssl, client_ssl, expect_codes_in_exception):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=False) as pair:
+        assert not _is_tls_connection(pair.client._stream.writer)
+        await pair.client.upgrade_to_tls(client_ssl)
+        assert _is_tls_connection(pair.client._stream.writer)
+        with expect_codes_in_exception("503"):
+            await pair.client.upgrade_to_tls(client_ssl)
+
+
+@pytest.mark.asyncio
+async def test_ftpes_passive_connection(pair_factory, Server, server_ssl, client_ssl):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=False) as pair:
+        await pair.client.upgrade_to_tls(client_ssl)
+        await pair.client.login()
+        reader, writer = await pair.client.get_passive_connection("A")
+        assert _is_tls_connection(writer)
+
+
+@pytest.mark.asyncio
+async def test_authtls_fail_after_login(pair_factory, Server, server_ssl, client_ssl, expect_codes_in_exception):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=True) as pair:
+        with expect_codes_in_exception("503"):
+            await pair.client.upgrade_to_tls(client_ssl)
+
+
+@pytest.mark.asyncio
+async def test_authtls_not_supported(pair_factory, client_ssl, expect_codes_in_exception):
+    async with pair_factory(logged=False) as pair:
+        with expect_codes_in_exception("502"):
+            await pair.client.upgrade_to_tls(client_ssl)
+
+
+@pytest.mark.asyncio
+async def test_authtls_type_not_supported(pair_factory, Server, server_ssl, expect_codes_in_exception):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=False) as pair:
+        with expect_codes_in_exception("504"):
+            await pair.client.command("AUTH foo", "234")
+
+
+@pytest.mark.asyncio
+async def test_ssl_parameter(pair_factory, Server):
+    with pytest.raises(ValueError):
+        async with pair_factory(server=Server(ssl=None, ssl_explicit=True)):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_pbsz(pair_factory, Server, server_ssl, client_ssl, expect_codes_in_exception):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=False) as pair:
+        with expect_codes_in_exception("503"):
+            await pair.client.command("pbsz 0", "200")
+        await pair.client.upgrade_to_tls(client_ssl)
+        await pair.client.command("pbsz 0", "200")
+
+
+@pytest.mark.asyncio
+async def test_prot(pair_factory, Server, server_ssl, client_ssl, expect_codes_in_exception):
+    async with pair_factory(server=Server(ssl=server_ssl, ssl_explicit=True), logged=False) as pair:
+        with expect_codes_in_exception("503"):
+            await pair.client.command("prot P", "200")
+        await pair.client.upgrade_to_tls(client_ssl)
+        await pair.client.command("prot P", "200")
+        with expect_codes_in_exception("502"):
+            await pair.client.command("prot foo", "200")

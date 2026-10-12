@@ -29,20 +29,6 @@ async def test_bad_type_value(pair_factory, expect_codes_in_exception):
 
 
 @pytest.mark.asyncio
-async def test_pbsz(pair_factory):
-    async with pair_factory() as pair:
-        await pair.client.command("pbsz", "200")
-
-
-@pytest.mark.asyncio
-async def test_prot(pair_factory, expect_codes_in_exception):
-    async with pair_factory() as pair:
-        await pair.client.command("prot P", "200")
-        with expect_codes_in_exception("502"):
-            await pair.client.command("prot foo", "200")
-
-
-@pytest.mark.asyncio
 async def test_server_ipv6_pasv(pair_factory, expect_codes_in_exception):
     async with pair_factory(host="::1", do_quit=False) as pair:
         with expect_codes_in_exception("503"):

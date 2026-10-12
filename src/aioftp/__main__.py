@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import logging
 import socket
+import ssl
 from typing import Any
 
 import aioftp
@@ -56,6 +57,24 @@ parser.add_argument(
     default="auto",
     help="Socket family [default: %(default)s]",
 )
+parser.add_argument(
+    "--ftps",
+    choices=("off", "implicit", "explicit"),
+    default="off",
+    help="enable FTPS support",
+)
+parser.add_argument(
+    "--certfile",
+    metavar="PATH",
+    default=None,
+    help="TLS certificate file",
+)
+parser.add_argument(
+    "--keyfile",
+    metavar="PATH",
+    default=None,
+    help="TLS key file",
+)
 
 args = parser.parse_args()
 print(f"aioftp v{aioftp.__version__}")
@@ -75,6 +94,16 @@ else:
     else:
         user = aioftp.User(args.login, args.password)
     path_io_factory = aioftp.PathIO
+
+ssl_context: ssl.SSLContext | None = None
+if args.ftps != "off":
+    if not all((args.keyfile, args.certfile)):
+        raise ValueError("certfile and keyfile is required for FTPS")
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(args.certfile, args.keyfile)
+elif any((args.keyfile, args.certfile)):
+    raise ValueError("--certfile and --keyfile args require --ftps to be set")
+
 family = {
     "ipv4": socket.AF_INET,
     "ipv6": socket.AF_INET6,
@@ -83,7 +112,12 @@ family = {
 
 
 async def main() -> None:
-    server = aioftp.Server([user], path_io_factory=path_io_factory)
+    server = aioftp.Server(
+        [user],
+        path_io_factory=path_io_factory,
+        ssl=ssl_context,
+        ssl_explicit=args.ftps == "explicit",
+    )
     await server.run(args.host, args.port, family=family)
 
 

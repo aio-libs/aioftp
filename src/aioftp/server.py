@@ -6,12 +6,12 @@ import functools
 import logging
 import os
 import socket
-import ssl
 import stat
 import sys
 import time
 from collections.abc import Awaitable, Callable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
+from ssl import SSLContext
 from typing import Any, Literal, TypedDict, TypeVar
 
 from . import errors, pathio
@@ -353,6 +353,8 @@ class ConnectionConditions:
           "data_connection" key, user already connected to passive connection
         * `ConnectionConditions.rename_from_required` — required "rename_from"
           key, user already tell filename for rename
+        * `ConnectionConditions.ssl_required` — required "ssl_enabled" key,
+          user's connection is secured with SSL/TLS
 
     :param wait: Indicates if should wait for parameters for
         `connection.wait_future_timeout`
@@ -384,6 +386,7 @@ class ConnectionConditions:
     )
     data_connection_made = ("data_connection", "no data connection made")
     rename_from_required = ("rename_from", "no filename (use RNFR firstly)")
+    ssl_required = ("ssl_enabled", "connection not secure")
 
     def __init__(
         self,
@@ -598,7 +601,6 @@ class AsyncIOStartServerKwargs(TypedDict, total=False):
     flags: int
     sock: None
     backlog: int
-    ssl: bool | None | ssl.SSLContext
     reuse_address: bool | None
     reuse_port: bool | None
     start_serving: bool
@@ -673,9 +675,13 @@ class Server:
     :type encoding: :py:class:`str`
 
     :param ssl: can be set to an :py:class:`ssl.SSLContext` instance
-        to enable TLS over the accepted connections.
+        to enable FTPS support
         Please look :py:meth:`asyncio.loop.create_server` docs.
     :type ssl: :py:class:`ssl.SSLContext`
+
+    :param ssl_explicit: if True, the server will use explicit FTPS mode
+        (default is implicit mode)
+    :type ssl_explicit: :py:class:`bool`
 
     :param welcome_message: welcome message for new connections
     :type welcome_message: :py:class:`str`
@@ -702,7 +708,8 @@ class Server:
         ipv4_pasv_forced_response_address: str | None = None,
         data_ports: Iterable[int] | None = None,
         encoding: str = "utf-8",
-        ssl: ssl.SSLContext | None = None,
+        ssl: SSLContext | None = None,
+        ssl_explicit: bool = False,
         welcome_message: str = "welcome",
         system_type: str = "UNIX Type: L8",
     ) -> None:
@@ -737,18 +744,31 @@ class Server:
         self.throttle_per_user: dict[User | None, StreamThrottle] = {}
         self.encoding = encoding
         self.ssl = ssl
+        if ssl_explicit and not self.ssl:
+            raise ValueError('"ssl" parameter must be set to enable explicit FTPS')
+        self.ssl_explicit = ssl_explicit
         self.welcome_message = welcome_message
         self.system_type = system_type
+
+        self.features: list[str] = [
+            "EPSV",
+            "MLST type;size;create;modify;",
+        ]
+        if self.ssl:
+            self.features.extend(("AUTH TLS", "PROT", "PBSZ"))
+
         self.commands_mapping: dict[
             str,
             Callable[[Connection, str], Awaitable[bool]] | Callable[[Connection, str | PurePosixPath], Awaitable[bool]],
         ] = {
             "abor": self.abor,
             "appe": self.appe,
+            "auth": self.auth,
             "cdup": self.cdup,
             "cwd": self.cwd,
             "dele": self.dele,
             "epsv": self.epsv,
+            "feat": self.feat,
             "list": self.list,
             "mkd": self.mkd,
             "mlsd": self.mlsd,
@@ -798,7 +818,7 @@ class Server:
             self.dispatcher,
             host,
             port,
-            ssl=self.ssl,
+            ssl=self.ssl if not self.ssl_explicit else None,  # implicit ftps
             **self._start_server_extra_arguments,
         )
         for sock in self.server.sockets:
@@ -995,6 +1015,8 @@ class Server:
             restart_offset=0,
             _dispatcher=asyncio.current_task(),
         )
+        if self.ssl and not self.ssl_explicit:
+            connection.ssl_enabled = True
         connection.path_io = self.path_io_factory(
             timeout=self.path_timeout,
             connection=connection,
@@ -1113,6 +1135,25 @@ class Server:
             self.available_connections.acquire()
         connection.response(code, info)
         return ok
+
+    async def feat(self, connection: Connection, rest: str) -> bool:
+        connection.response("211", ["features supported:", *self.features, "end"], True)
+        return True
+
+    async def auth(self, connection: Connection, rest: str) -> bool:
+        if not self.ssl:
+            connection.response("502", "'AUTH' not implemented")
+        elif connection.future.ssl_enabled.done():
+            connection.response("503", "already using TLS")
+        elif connection.future.logged.done() or connection.future.passive_server.done():
+            connection.response("503", "'AUTH' command disabled after login")
+        elif rest.upper() not in ("TLS", "SSL"):
+            connection.response("504", f"AUTH {rest!r} not implemented")
+        else:
+            connection.ssl_enabled = True
+            await self.write_response(connection.command_connection, "234", "ready for TLS")
+            await connection.command_connection.start_tls(self.ssl)
+        return True
 
     async def user(self, connection: Connection, rest: str) -> bool:
         if connection.future.user.done():
@@ -1462,17 +1503,17 @@ class Server:
         connection.response(code, info)
         return True
 
-    @ConnectionConditions(ConnectionConditions.login_required)
+    @ConnectionConditions(ConnectionConditions.ssl_required)
     async def pbsz(self, connection: Connection, rest: str | PurePosixPath) -> bool:
         connection.response("200", "")
         return True
 
-    @ConnectionConditions(ConnectionConditions.login_required)
+    @ConnectionConditions(ConnectionConditions.ssl_required)
     async def prot(self, connection: Connection, rest: str | PurePosixPath) -> bool:
         if rest == "P":
-            code, info = "200", ""
+            code, info = "200", "protection level set to P"
         else:
-            code, info = "502", ""
+            code, info = "502", f"level {rest!r} not implemented"
         connection.response(code, info)
         return True
 
@@ -1481,6 +1522,7 @@ class Server:
         connection: Connection,
         handler_callback: Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]],
     ) -> asyncio.Server:
+        ssl = self.ssl if connection.future.ssl_enabled.done() else None
         if self.available_data_ports is not None:
             viewed_ports = set()
             while True:
@@ -1493,7 +1535,7 @@ class Server:
                         handler_callback,
                         connection.server_host,
                         port,
-                        ssl=self.ssl,
+                        ssl=ssl,
                         **self._start_server_extra_arguments,
                     )
                     connection.passive_server_port = port
@@ -1509,7 +1551,7 @@ class Server:
                 handler_callback,
                 connection.server_host,
                 connection.passive_server_port,
-                ssl=self.ssl,
+                ssl=ssl,
                 **self._start_server_extra_arguments,
             )
         return passive_server

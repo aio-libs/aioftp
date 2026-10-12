@@ -22,6 +22,29 @@ Default arguments allow anonymous login and read/write current directory. So,
 there is one user with anonymous login and read/write permissions on "/"
 virtual path. Real path is current working directory.
 
+FTPS (FTP over TLS) Support
+---------------------------
+
+Both implicit and explicit FTPS modes are supported by aioftp server.
+
+To enable FTPS, pass the server ``ssl.SSLContext`` object to ``ssl`` parameter
+when creating :class:`aioftp.Server` instance.
+
+::
+
+    >>> import ssl
+    >>> ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    >>> ssl_context.load_cert_chain(certfile="./cert.pem", keyfile="./key.pem")
+    >>> server = aioftp.Server(ssl=ssl_context)
+    >>> await server.start()
+
+This will enable the FTPS in implicit mode. If you want to use explicit FTPS
+(FTPES) instead, set ``ssl_explicit`` parameter.
+
+::
+
+    >>> server = aioftp.Server(ssl=ssl_context, ssl_explicit=True)
+
 Dealing with users and permissions
 ----------------------------------
 

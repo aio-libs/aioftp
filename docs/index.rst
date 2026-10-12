@@ -17,6 +17,7 @@ Features
 - Extensible.
 - Client socks proxy via `siosocks <https://github.com/pohmelie/siosocks>`_
   (`pip install aioftp[socks]`).
+- Implicit and explicit FTPS support on both client and server sides.
 
 Goals
 -----
@@ -25,13 +26,14 @@ Goals
 - Do not use deprecated or overridden commands and features (if possible).
 - Very high level api.
 
-Client use this commands: USER, PASS, ACCT, PWD, CWD, CDUP, MKD, RMD, MLSD,
-MLST, RNFR, RNTO, DELE, STOR, APPE, RETR, TYPE, PASV, ABOR, QUIT, REST, LIST
-(as fallback)
+Client use this commands: USER, PASS, AUTH ("TLS") ACCT, PWD, CWD, CDUP, MKD,
+RMD, MLSD, MLST, RNFR, RNTO, DELE, STOR, APPE, RETR, TYPE, PASV, ABOR, QUIT,
+REST, LIST (as fallback), PBSZ, PROT
 
-Server support this commands: USER, PASS, QUIT, PWD, CWD, CDUP, MKD, RMD, MLSD,
-LIST (but it's not recommended to use it, cause it has no standard format),
-MLST, RNFR, RNTO, DELE, STOR, RETR, TYPE ("I" and "A"), PASV, ABOR, APPE, REST
+Server support this commands: USER, PASS, AUTH ("TLS"), FEAT, QUIT, PWD, CWD,
+CDUP, MKD, RMD, MLSD, LIST (but it's not recommended to use it, cause it has no
+standard format), MLST, RNFR, RNTO, DELE, STOR, RETR, TYPE ("I" and "A"), PASV,
+ABOR, APPE, REST, PBSZ, PROT
 
 This subsets are enough for 99% of tasks, but if you need something, then you
 can easily extend current set of commands.
